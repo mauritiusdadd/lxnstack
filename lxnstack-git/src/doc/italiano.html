@@ -1,0 +1,416 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="usermanual.css"  media="screen"/>
+ </head>
+
+ <body>
+  <div id="mainframe">
+  <p><h1>Manuale utente</h1></p>
+  <p><h2>Indice:</h2></p>
+  <!-- l'indice principale -->
+  <p class="index">
+   <ul>
+    <li id="section" class="selector">       
+     <a href="#introduzione">Introduzione</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#caricamento">Caricamento dei file</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#acquisizione">Acquisizione da webcam</a>
+    </li>
+    <li id="section" class="selector">
+     <a href="#zoom">Visualizzazione e Zoom</a>
+    </li>
+    <li id="section" class="selector">
+     <a href="#selezione">Scelta delle immagini da utilizzare</a>
+    </li>
+    <li id="section" class="selector">
+     <a href="#autoallineamento">Allineamento automatico</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#allineamento">Allineamento manuale</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#dark_flat">Darkframe e Flatfield </a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#somma">Somma delle immagini</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#preferenze">Preferenze</a>
+    </li>
+    <li id="section" class="selector">       
+     <a href="#note">Note</a>
+    </li>
+   </ul>
+  </p>
+  
+  <!-- la vera documentazione -->
+  <section id="introduzione">
+   <p><h1>Introduzione</h1></p>
+   <p>
+    lxnstack è un programma ideato per allineare e sommare le immagini astronomiche (sia planetarie che
+    del profondo cielo). Questo programma è opensource ed è distribuito secondo la licenza 
+    <a href="gpl-3.0.txt">GNU GPL versione 3</a>.
+   </p>
+   <p>    
+    I requisiti necessari per il corretto funzionamento del programma sono (com già riportato nelle
+    istruzioni di installazione):
+    <ul>
+     <li><a href="">'Python 2.7'</a> (per verificare la sua presenza digitare nel terminale il comando python2 --version)</li>
+     <li>Il pacchetto di python <a href="http://www.numpy.org/">'numpy'</a></li>
+     <li>Il pacchetto di python <a href="http://www.pythonware.com/products/pil/">'PIL'<a/></li>
+     <li>La versione 2 delle librerie <a href="http://opencv.org/">'opencv'</a></li>
+     <li>Le librerie <a href="">Qt4</a></li>
+     <li>Il pacchetto di python <a href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">'PyQt4'</a></li>
+     <li>Il pacchetto v4l-utils</li>
+    </ul>
+   </p>
+  </section>
+  
+  <section id="caricamento">
+   <p><h1>Caricamento dei file</h1></p>
+   <p>
+    Per caricare le immagini da utilizzare basta cliccare il menu 'File'->'Apri file', oppure utilizzare
+    il pulsante '+' nella sezione 'Lista immagini'. Apparirà quindi una finestra di dialogo in cui
+    selezionare i files da utilizzare. Le immagini devono avere tutte la stessa dimensione e lo stesso
+    numero di canali (non è possibile ad esempio sommare un'immagine RGB con una a scala di grigio).
+   </p>
+   <image src="imgs/main_window.png"></image>
+   <p>
+    E' possibile anche caricare un video (ad esempio un filmato acquisito con una webcam).
+    Per fare ciò basta cliccare il menu 'File'->'Apri video'. Se sono già state caricate altre immagini,
+    è necessario che i singoli fotogrammi abbiano le stesse dimensioni e lo stesso numero di canali
+    delle immagini caricate in precedenza. Al momento del caricamento il filmato viene diviso nei
+    fotogrammi che lo compongono che vengono salvati in una cartella temporanea (per impostazioni
+    predefinite è '/tmp/lxnstack'), assicurarsi quindi di avere spazio sufficiente per tale operazione.
+   </p>
+  </section>
+  
+  <section id="acquisizione">
+   <p><h1>Acquisizione</h1></p>
+   <p>
+    lxnstack è in grado di acquisire immagini dai dispositivi compatibili con video4linux.
+    Per attivare la modalità di acquisizione, selezionare la casella 'Cattura' nella sezione lista immagini.
+   </p>
+   <p>
+    <image src="imgs/capture_controls.png"></image>
+   </p>
+   <p>
+    Se non è stato già selezionato un dispositivo di acquisizione ( vedi la sezione <a href="#preferenze">Preferenze</a> )
+    verrà mostrata una finestra di dialogo in cui farlo.
+   </p>
+   <p class="warning">
+      IMPORTANTE: Le librerie opencv non sono in grado di gestire i DISPOSITIVI GIA' IN USO da altri
+      programmi e faranno CRASHARE lxnstack!
+      CHIUDERE QUINDI OGNI ALTRA APPLICAZIONE CHE UTILIZZA I DISPOSITIVI DI ACQUISIZIONE.
+   </p>
+   <p>
+    Se tutto è andato a buon fine, i controlli di acquisizione verranno abilitati e verrà mostrata
+    un'anteprima in tempo reale del dispositivo.
+   </p>
+   <p>
+    <image src="imgs/capture_controls_max.png"></image>
+   </p>
+   <p>
+    Per catturare una sequenza di immagini, premere il pulsante 'Avvia' e per fermare il processo di
+    acquisizione premere il pulsante 'Ferma'
+   </p>
+   <p>
+    Per impostare il numero di immagini da catturare, selezionare la casella 'Max' e digitare
+    nel riquadro a fianco il numero di immagini.
+   </p>
+   <p>
+    Per eseguire uno singolo scatto, premere il pulsante 'Scatto singolo'
+   </p>
+   
+   <p>
+    IMPORTANTE: Una volta catturate le immagini desiderate, ricordarsi di uscire dalla modalità di
+    acquisizione deselezionando la casella 'Cattura'
+   </p>
+  </section>
+  
+  <section id="zoom">
+   <p><h1>Visualizzazione e Zoom</h1></p>
+   <p>
+    Una volta aver caricato o acquisito le immagini, è possibile visualizzarle nell'apposito
+    riquadro selezionandole dalla lista con il tasto sinistro del mouse.
+   </p>
+   <p>
+    <image src="imgs/file_loaded.png"></image>
+   </p>
+   <p>
+    E' possibile modificare l'ingrandimento con il controllo dello zoom.
+   </p>
+   <p>
+    <image src="imgs/zoom_controls.png"></image>
+   </p>
+   <p>
+    Sono disponibili tre tipi di zoom:
+   </p>
+   <p>
+    zoom: no
+   </p>
+   <p>
+    <image src="imgs/zoom_none.png"></image>
+   </p>
+   <p>
+    zoom: adatta
+   </p>
+   <p>
+    <image src="imgs/zoom_fit.png"></image>
+   </p>
+   <p>
+    zoom: si
+   </p>
+   <p>
+    <image src="imgs/zoom_full.png"></image>
+   </p>
+  </section>
+  
+  <section id="selezione">
+   <p><h1>Scelta delle immagini da utilizzare</h1></p>
+   <p>
+    Prima di procedere con l'allineamento e la somma delle immagini, e possibile decidere
+    quali di queste utilizzare. Per selezionare le immagini basta attivare la casella posizionata
+    alla sinistra del nome di ognuna di esse. Se la suddetta casella non è attivata, l'immagine
+    corrispondente non verrà sommata insieme alle altre.
+   </p>
+   <p>
+    <image src="imgs/frames_checked.png"></image>
+   </p>
+   <p>
+    Si possono così escludere dal proceso le immagini che risultano mosse o che per qualsiasi
+    altro motivo non si reputano necessarie.
+   </p>
+  </section>
+
+  <section id="autoallineamento">
+   <p><h1>Allineamento automatico</h1></p>
+   <p>
+    L'allineamento automatico avviene tramite dei "punti di allineamento".
+    Per aggiungere o rimuovere un punto di allineamento, utilizzare rispettivamente i pulsanti
+    '+' e '-' presenti nel riquadro 'punti di allineamento' nella sezione 'Allineamento'.
+   </p>
+   <p>
+    <image src="imgs/alignment.png"></image>
+   </p>
+   <p>
+    Premendo il pulsante 'autorilevamento', dei punti di allineamento verranno aggiunti automaticamente
+    a seconda della loro facilità di riconoscimento ( vedi la sezione <a href="#preferenze">Preferenze</a> ).
+   </p>
+   <p>
+    <image src="imgs/auto_points.png"></image>
+   </p>
+   <p>
+    E' possibile spostare un punto di allineamento selezionandolo dalla lista e cliccando con il
+    tasto destro del mouse sul punto dell'immagine in cui lo si vuole posizionare, oppure utilizzando
+    i riquadri 'X offset' ed 'Y offset'.
+   </p>
+   <p>
+    Per un corretto allineamento tutti i punti devono essere posizionati sulle immagini rimanenti.
+    Per evitare di farlo manualmente, si può utilizzare la funzione di posizionamento automatico,
+    disponibile tramite il pulsante 'Imposta su tutte le immagini'. Questa funzione posizionerà
+    automaticamente su tutte le immagini i punti di allineamento che non sono già stati posizionati
+    in precedenza o che sono stati spostati.
+   </p>
+   <p>
+    <image src="imgs/points_detection.png"></image>
+   </p>
+   <p>
+    IMPORTANTE: evitare di posizionare i punti di allineamento troppo vicino ai bordi dell'immagine!
+   </p>
+  </section>
+   Per effettuare l'allineamento vero e proprio utilizzare il pulsante 'Allinea' nella sezione
+   'Accessori'.
+  <section id="allineamento">
+   <p><h1>Allineamento manuale</h1></p>
+   <p>
+    Nella sezione 'Allineamento manuale', in alternativa all'allineamento automatico, è disponibile
+    anche un allineamento manuale, basato sul rilevamento della differenza tra un'immagine di
+    riferimento e le altre immagini da allineare.
+   </p>
+   <p>
+    <image src="imgs/manual_alignment.png"></image>
+   </p>
+   <p>
+    L'immagine di riferimento viene scelta tramite una casella situata alla sinistra del nome
+    dell'immagine. L'immagine da allineare viene scelta selezionando il suo nome dalla lista 
+    con il tasto sistro del mouse.
+   </p>
+   <p>
+    L'allineamento avviene tramite i riquadri 'X offset' ed 'Y offset'.
+    Minore sarà la differenza tra le immagini, più sarà scura la loro differenza, mostrata nel riquadro
+    a destra.
+   </p>
+  </section>
+  
+  <section id="dark_flat">
+   <p><h1>Darkframe e Flatfield</h1></p>
+   <p>
+    In queste due sezioni è possibile selezionare le immagini di calibrazione di master-dark e 
+    di master-flatfield.
+   </p>
+   <p>
+    Se non si vogliono utilizzare immagini di dark e flatfield, ignorare queste sezioni.
+   </p>
+   <p>
+    NOTA: la cosa migliore da fare è creare innanzitutto il file di master-dark (sempre con lxnstack)
+          come media delle singole immagini di dark (senza effettuare alcun allineamento),
+          poi creare il master-flatfield come media delle singole immagini di flat (senza effettuare
+          alcun allineamento) utilizzando il master-dark appena creato (opportunamente scalato)
+          per la calibrazione. Infine utilizzare entrambi i master-file per la calibrazione
+          durante il processo di somma delle immagini.
+   </p>
+   <p>
+    E' possibile creare le immagine di calibrazione aggiungendo le singole immagini di dark e di flatfield
+    alle rispettive liste. Queste verranno utilizzate per creare le immagini di master-dark e di
+    master-flatfield.
+   </p>
+   <p>
+    <image src="imgs/dark_list.png"></image>
+    <image src="imgs/flat_list.png"></image>
+   </p>
+   <p>
+    NOTA: se nella directory da cui sono state caricate le immagini sono presenti le cartelle 'dark' 
+    e 'flat', le immagini al loro interno saranno automaticamente aggiunte alle rispettive liste
+    (ad esempio se si sono caricate le immagini dalla directory '/home/immagini', le immagini di
+    dark e flatfield verranno cercate automaticamente nelle directory '/home/immagini/dark' e 
+    '/home/immagini/flat').
+   </p>
+   <p>
+    Se invece si dispone già di immagini di maste-dark e di maste-flatfield (le puoi creare con questo
+    programma caricando le immagini di dark/flat e sommandole senza effettuare l'allineamento),
+    è possibile selezionarle attivando le caselle 'Usa master-dark' ed 'Usa master-flatfield' e 
+    sceglierle cliccando sui pulsanti '...', oppure scrivendo il loro percorso completo nell'apposito
+    riquadro.
+   </p>
+   <p>
+    <image src="imgs/dark_master.png"></image>
+    <image src="imgs/flat_master.png"></image>
+   </p>
+   <p>
+    Infine è possibile scegliere per entrambi i master il fattore moltipicativo che verrà
+    usato nel processo di calibrazione delle singole immagini (il valore predefinito è 1).
+   </p>   
+  </section>
+  
+  <section id="somma">
+   <p><h1>Somma</h1></p>
+   <p>
+    Per effettuare la somma delle immagini prima di tutto occorre effettuare l'allineamento
+    (se non lo se è gia fatto) cliccando il pulsante 'Allinea' nella sezione 'Accessori'
+    ed in seguito effettuare la somma cliccando il pulsante 'Somma'.
+   </p>
+   <p>
+    <image src="imgs/tools.png"></image>
+   </p>
+   <p>
+    Una volta che l'operazione sarà conclusa verrà mostrata l'immagine risultante (la media) e 
+    verranno abilitati i controlli dell'esposizione.
+   </p>
+   <p>
+    <image src="imgs/exposure_controls.png"></image>
+   </p>
+   <p>
+    Tramite i pulsanti 'Somma', 'Media' e 'Normalizzato' è possibile selezionare se l'immagine
+    risultante debba essere rispettivamente la media, la somma delle singole immagini oppure
+    la normalizzata, nel senso che il valore di ogni pixel dell'immagine è scalato in modo
+    tale che al valore massimo corrisponda il valore massimo possibile 255 (se il pixel con il
+    valore M più alto è P=[x, M, y] allora ogni pixel p=[R, G, B] verrà motiplicato per 255/M
+    ottenendo così p'=[R*255/M, G*255/M, B*255/M] e P'=[x*255/M, 255p*M/M, y*255/M])    
+   </p>
+   <p>
+    Il fattore di divisione permette un controllo più fine del processo sopra spiegato per cui
+    l'immagine risultante verrà divisa per il valore V selezionato (che nel caso di una somma
+    sempice corrisponde a V=1, mentre per una media V=#immagini_sommate)
+   </p>
+   <p>
+    Di seguito sono riportate una singola immagine (sopra) ed una media corretta con darkframe e
+    flatfield (sotto): la differenza è evidente.
+   </p>
+   <p>
+    <image src="imgs/zoom_none.png"></image>
+    <image src="imgs/averaged.png"></image>
+   </p>
+  </section>
+  
+  <section id= "preferenze">
+   Tramite il menu 'Opzioni'->'Preferenze' si accede alle impostazioni
+   dell'applicazione.
+   
+   Nella scheda 'Impostazioni' è possibili scegliere la lingua in cui visualizzare il programma.
+   <p>
+    <image src="imgs/preferences_settings.png"></image>
+   </p>
+   
+   <p>
+    Nella scheda 'Allineamento' possono essere cambiate le impostazioni dell'allineamento automatico,
+    come le 'dimensioni del rettangolo' che indicano le dimensioni della porzione dell'immagine, centrata
+    sul punto di allineamento ed evidenziata da un rettangolo giallo attorno a quest'ultimo,
+    da confrontare con le altre immagini nel processo di auto rilevamento dei punti di allineamento.
+    ( vedi la sezione <a href="#autoallineamento">Allineamento automatico</a> ).
+    Come impostazione predefinita, tale "rettangolo" viene confrontato in un intorno del punto originale.
+    Se lo spostamento delle immagini è eccessivo il punto potrebbe non essere rilevato correttamente, in
+    tal caso potrebbe essere utile fare un confronto sull'intera immagine: in tal caso basta spuntare
+    la voce 'Utilizza tutta l'immagine per il tracciamento'. Anche utilizzare l'intera immagine però
+    ha i suoi svantaggi: oltre ad essere un processo più lento, è soggetto maggiormente a rilevamento
+    di falsi positivi, vanificando così il processo di allineamento.
+   </p>
+   <p>
+    Nella sezione 'Rilevamento automatico' si possono invece impostare il numero massimo di punti
+    da rilevare e la qualità minima dei punti (per ulteriori informazioni vedi il manuale utente della
+    libreria opencv, in particolare la funzione "goodFeaturesToTrack")
+   </p>
+   <p>
+    <image src="imgs/preferences_alignment.png"></image>
+   </p>
+   
+   <p>
+    Nella sezione 'Dispositivi di acquisizione' si può scegliere il dispositivo da utilizzare
+    e regolare le impostazioni base dello stesso. Per ulteriori impostazioni utilizzare il
+    programma v4l2-ctl.
+   </p>
+   <p class="warning">
+      IMPORTANTE: Le librerie opencv non sono in grado di gestire i DISPOSITIVI GIA' IN USO da altri
+      programmi e faranno CRASHARE lxnstack!
+      CHIUDERE QUINDI OGNI ALTRA APPLICAZIONE CHE UTILIZZA I DISPOSITIVI DI ACQUISIZIONE.
+   </p>
+   <p class="warning">
+      IMPORTANTE: Le librerie opencv non sono in grado di gestire le proprietà come il formato
+      (ad esempio 'YUYV') o fps.
+      Tali proprietà sono mostrate solo per un eventuale loro implementazione!
+   </p>
+   <p>
+    <image src="imgs/preferences_capture_devices.png"></image>
+   </p>   
+  </section>
+  
+  <section id="note">
+   <p><h1>Note</h1></p>
+   <p>
+    Questo programma è fornito così com'è, senza alcuna garanzia.
+   </p>
+   <p>
+    L'Autore non è responsabile per eventuali danni causati dall'utilizzo del software.
+   </p>
+   <p>
+    Per ulteriori informazioni leggi la licenza <a href="gpl-3.0.txt">GNU GPL versione 3</a>.
+    Dovresti averne ricevuto una copia con questo software, se così non fosse puoi visitare
+    il sito <a href="http://www.gnu.org/licenses">http://www.gnu.org/licenses</a>
+   </p>
+  </section>
+  </div>
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

@@ -1,0 +1,73 @@
+##########################################################
+                  INSTALLATION GUIDE
+##########################################################
+
+  [1]  PYTHON2.7
+First of all assure you have python2.7 installed and
+that its executable is present in your PATH and that
+it is named as python2. To verify this, open a terminal
+window type the following command (without quotes)
+and press ENTER:
+
+ "python2 --version"
+ 
+if python is correctly installed an output like this
+will appear:
+ 
+ [username@localhost ~]$ Python 2.7.3
+
+If the program is not foundm then you have to install
+python2.7 (it is present in the official repository of
+almost all the current linux distribution)
+ 
+  [2]  DEPENDENCIES
+In order to execute this program, the following
+libraries and programs must be installed on your pc:
+
+  * Python 2.7 (see above)
+
+  * the python2 package 'numpy'
+    (http://www.numpy.org/)
+
+  * the python2 package 'PIL'
+    (http://www.pythonware.com/products/pil/)
+
+  * the libraries 'opencv' version 2
+    (http://opencv.org/)
+
+  * the package 'v4l-utils'
+  
+  * the libreries 'Qt4'
+    (url)
+    
+  * the python2 pachage 'PyQt4'
+    (http://www.riverbankcomputing.co.uk/software/pyqt/intro)
+    
+The previous packages are present in the repositories
+of almost all linux distributions.
+ 
+  [3]  INSTALLATION
+To install the program, open a terminal window and 
+cd into the directory containing this file, type then
+the following command (without quotes) and press ENTER:
+
+ "python2 ./install.py"
+ 
+If no errors appear then the program is succesfully
+installed: the executable will be installed by default
+to the directory /usr/local/bin, while the program data
+and documentation will be installed by default in /usr/share
+and /usr/share/doc
+
+If you want to install the program in a different directory
+you have to manually edit the file paths.py located in then
+'src' directory.
+
+
+  [4]  EXECUTION
+To run the program open a terminal window, type the
+following command (without quotes) and press ENTER:
+
+ "lxnstack"
+ 
+and then the program main window will appear.
