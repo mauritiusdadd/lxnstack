@@ -1,10 +1,10 @@
 [Desktop Entry]
-Name=lnxstack
+Name=lxnstack
 Comment=A program to align and stack astronomical images
 Comment[it]=Un programma per allineare e sommare le immagini astronomiche
-Exec=lnxstack
-TryExec=lnxstack
-Icon=lnxstack
+Exec=lxnstack
+TryExec=lxnstack
+Icon=lxnstack
 Categories=Education;Graphics;KDE;Qt;
 Terminal=false
 Type=Application

@@ -24,6 +24,7 @@ import webbrowser
 from xml.dom import minidom
 from PyQt4 import uic, Qt, QtCore, QtGui
 
+
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
     #python3 return str...
@@ -40,17 +41,6 @@ except ImportError:
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'numpy\' python module not found!"))
     msgBox.setInformativeText(tr("Please install numpy."))
-    msgBox.setIcon(Qt.QMessageBox.Critical)
-    msgBox.exec_()
-    sys.exit(1)
-
-try:
-    from PIL import Image
-    Image.init()
-except ImportError:
-    msgBox = Qt.QMessageBox()
-    msgBox.setText(tr("\'PIL\' python module not found!"))
-    msgBox.setInformativeText(tr("Please install the python imaging library (PIL)."))
     msgBox.setIcon(Qt.QMessageBox.Critical)
     msgBox.exec_()
     sys.exit(1)
@@ -81,31 +71,16 @@ def dist(x1,y1,x2,y2):
 class theApp(Qt.QObject):
 
     def __init__(self,qapp,lang=''):
-
+        
+        self._old_tab_idx=0
         self.__operating=False
         self._photo_time_clock=0
 
         self.current_match_mode=cv2.TM_SQDIFF
 
         self.qapp=qapp
-
-        self.images_extensions = ' ('
-        for ext in Image.EXTENSION.keys():
-            self.images_extensions+='*'+str(ext)+' '
-        self.images_extensions += ');;'
         
-        ImageTypes={}
-        
-        for ext in Image.EXTENSION.keys():
-            key=str(Image.EXTENSION[ext])
-            if key in ImageTypes:
-                ImageTypes[key]+=' *'+str(ext)
-            else:
-                ImageTypes[key]=' *'+str(ext)
-
-        for ext in ImageTypes:
-            self.images_extensions+=tr('Image')+' '+ext+' : '+ImageTypes[ext]
-            self.images_extensions+='('+ImageTypes[ext]+');;'
+        self._generateOpenStrings()
 
         if not os.path.isdir(paths.TEMP_PATH):
             os.makedirs(paths.TEMP_PATH)
@@ -147,26 +122,27 @@ class theApp(Qt.QObject):
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,'main.ui'))
         self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,'option_dialog.ui'))
         self.about_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'about_dialog.ui'))
+        self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'save_dialog.ui'))
         
         self.currentWidth=0
         self.currentHeight=0
         self.currentDepht=0
         
+        self.use_colormap_jet = True
+
         self.result_w=0
         self.result_h=0
-        self.resut_d=3
+        self.result_d=3
         
         self.current_project_fname=None
         
-        self.average_save_file=os.path.join(paths.TEMP_PATH,'average.tiff')       
-        self.master_dark_save_file=os.path.join(paths.TEMP_PATH,'master-dark.tiff')
-        self.master_flat_save_file=os.path.join(paths.TEMP_PATH,'master-flat.tiff')
-
+        self.average_save_file='average'
+        self.master_dark_save_file='master-dark'
+        self.master_flat_save_file='master-flat'
+        
         self.master_dark_mul_factor=1.0
         self.master_flat_mul_factor=1.0
-        
-        self.elab_prefix = 'elab_'
-        
+                
         self.filelist=[]
         self.offsetlist=[]
         self.darkfilelist=[]
@@ -175,6 +151,11 @@ class theApp(Qt.QObject):
         self.alignpointlist=[]
 
         self.tracking_align_point=False
+        self.checked_seach_dark_flat=0
+        self.checked_autodetect_rectangle_size=2
+        self.checked_autodetect_min_quality=2
+        self.checked_colormap_jet=2
+        self.checked_rgb_fits=0
         
         self.current_cap_device=cv2.VideoCapture(None)
         self.video_writer = cv2.VideoWriter()
@@ -197,7 +178,7 @@ class theApp(Qt.QObject):
         self.brightness=0
         self.saturation=0
         self.hue=0
-        self.max_points=200
+        self.max_points=10
         self.min_quality=0.20
         
         self.statusLabelMousePos = Qt.QLabel()
@@ -208,6 +189,14 @@ class theApp(Qt.QObject):
         self.imageLabel.setAlignment(QtCore.Qt.AlignTop)
         self.wnd.imageViewer.setWidget(self.imageLabel)
         self.wnd.imageViewer.setAlignment(QtCore.Qt.AlignTop)
+        
+        self.wnd.colorBar.current_val=None
+        self.wnd.colorBar.max_val=1
+        self.wnd.colorBar.min_val=0
+        self.wnd.colorBar._is_rgb=False
+        
+        self.bw_colormap=None
+        self.rgb_colormap=None
         
         self.align_methon=True
         
@@ -230,6 +219,10 @@ class theApp(Qt.QObject):
         # paint callback
         self.imageLabel.__paintEvent__= self.imageLabel.paintEvent #base implementation
         self.imageLabel.paintEvent = self.imageLabelPaintEvent #new callback        
+        
+        # paint callback for colorBar
+        self.wnd.colorBar.__paintEvent__= self.wnd.colorBar.paintEvent #base implementation
+        self.wnd.colorBar.paintEvent = self.colorBarPaintEvent #new callback        
 
         # exit callback
         self.wnd.__closeEvent__= self.wnd.closeEvent #base implementation
@@ -237,13 +230,15 @@ class theApp(Qt.QObject):
 
 
         self.wnd.alignGroupBox.setEnabled(False)
-        self.wnd.exposureGroupBox.setEnabled(False)
         self.wnd.manualAlignGroupBox.setEnabled(False)
         self.wnd.masterDarkGroupBox.setEnabled(False)
         self.wnd.masterFlatGroupBox.setEnabled(False)
         self.wnd.masterDarkGroupBox.hide()
         self.wnd.masterFlatGroupBox.hide()
         self.wnd.stopCapturePushButton.hide()
+        self.dlg.jetCheckBox.setCheckState(2)
+        
+        self.save_dlg.radioButtonFits.setEnabled(utils.FITS_SUPPORT)
         
         self.wnd.zoomCheckBox.stateChanged.connect(self.setZoomMode)
         self.wnd.zoomSlider.valueChanged.connect(self.signalSliderZoom)
@@ -273,11 +268,6 @@ class theApp(Qt.QObject):
         self.wnd.removePointPushButton.released.connect(self.removeAlignPoint)
         self.wnd.alignPushButton.released.connect(self.__align__)
         self.wnd.saveResultPushButton.released.connect(self.saveResult)
-        self.wnd.exposureSlider.valueChanged.connect(self.signalSliderExp)
-        self.wnd.exposureDoubleSpinBox.valueChanged.connect(self.signalSpinExp)
-        self.wnd.expAvgPushButton.released.connect(self.setExpAvg)
-        self.wnd.expSumPushButton.released.connect(self.setExpSum)
-        self.wnd.expNrmPushButton.released.connect(self.setExpNrm)
         self.wnd.autoSetPushButton.released.connect(self.autoSetAlignPoint)
         self.wnd.autoDetectPushButton.released.connect(self.autoDetectAlignPoins)
         self.wnd.masterDarkCheckBox.stateChanged.connect(self.useMasterDark)
@@ -304,27 +294,280 @@ class theApp(Qt.QObject):
         self.dlg.saturationSlider.valueChanged.connect(self.deviceSaturationChanged)
         self.dlg.hueSlider.valueChanged.connect(self.deviceHueChanged)
         self.dlg.sharpSlider.valueChanged.connect(self.deviceSharpnessChanged)
-        self.dlg.gammaSlider.valueChanged.connect(self.deviceGammaChanged)
+        self.dlg.gammaSlider.valueChanged.connect(self.deviceGammaChanged)        
+        self.dlg.jetCheckBox.stateChanged.connect(self.setJetmapMode)
+                
+        self.save_dlg.pushButtonDestDir.released.connect(self.getDestDir)
         
-        QtCore.QObject.connect(self.wnd.actionOpen_files, QtCore.SIGNAL("activated()"), self.loadFiles)
-        QtCore.QObject.connect(self.wnd.actionOpen_video, QtCore.SIGNAL("activated()"), self.loadVideo)
-        QtCore.QObject.connect(self.wnd.actionNew_project, QtCore.SIGNAL("activated()"), self.doNewProject)
-        QtCore.QObject.connect(self.wnd.actionSave_project_as, QtCore.SIGNAL("activated()"), self.doSaveProjectAs)
-        QtCore.QObject.connect(self.wnd.actionSave_project, QtCore.SIGNAL("activated()"), self.doSaveProject)
-        QtCore.QObject.connect(self.wnd.actionLoad_project, QtCore.SIGNAL("activated()"), self.doLoadProject)
-        QtCore.QObject.connect(self.wnd.actionPreferences, QtCore.SIGNAL("activated()"), self.doSetPreferences)
-        QtCore.QObject.connect(self.wnd.actionAbout, QtCore.SIGNAL("activated()"), self.about_dlg.exec_)
-        QtCore.QObject.connect(self.wnd.actionUserManual, QtCore.SIGNAL("activated()"), self.showUserMan)
+        self.wnd.actionOpen_files.triggered.connect(self.doLoadFiles)
+        self.wnd.actionOpen_video.triggered.connect(self.doLoadVideo)
+        self.wnd.actionNew_project.triggered.connect(self.doNewProject)
+        self.wnd.actionSave_project_as.triggered.connect(self.doSaveProjectAs)
+        self.wnd.actionSave_project.triggered.connect(self.doSaveProject)
+        self.wnd.actionLoad_project.triggered.connect(self.doLoadProject)
+        self.wnd.actionPreferences.triggered.connect(self.doSetPreferences)
+        self.wnd.actionAbout.triggered.connect(self.doShowAbout)
+        self.wnd.actionUserManual.triggered.connect(self.doShowUserMan)
 
         self.__resetPreferencesDlg()
                     
         if not os.path.isdir(self.save_image_dir):
             os.makedirs(self.save_image_dir)
 
+    def _generateOpenStrings(self):
+        self.supported_formats = utils.getSupportedFormats()
+
+        self.images_extensions = ' ('
+        for ext in self.supported_formats.keys():
+            self.images_extensions+='*'+str(ext)+' '
+        self.images_extensions += ');;'
+        
+        ImageTypes={}
+        
+        for ext in self.supported_formats.keys():
+            key=str(self.supported_formats[ext])
+            
+            if key in ImageTypes:
+                ImageTypes[key]+=' *'+str(ext)
+            else:
+                ImageTypes[key]=' *'+str(ext)
+
+        for ext in ImageTypes:
+            self.images_extensions+=tr('Image')+' '+ext+' : '+ImageTypes[ext]
+            self.images_extensions+='('+ImageTypes[ext]+');;'
+
+    #slots for menu actions
+
+    @QtCore.pyqtSlot(bool)
+    def doLoadFiles(self, is_checked):
+        self.loadFiles()
+    
+    @QtCore.pyqtSlot(bool)
+    def doLoadVideo(self, is_checked):
+        self.loadVideo()
+
+    @QtCore.pyqtSlot(bool)
+    def doNewProject(self, is_checked):
+        self.newProject()
+
+    @QtCore.pyqtSlot(bool)
+    def doSaveProjectAs(self, is_checked):
+        self.saveProjectAs()
+
+    @QtCore.pyqtSlot(bool)
+    def doSaveProject(self, is_checked):
+        self.saveProject()
+
+    @QtCore.pyqtSlot(bool)
+    def doLoadProject(self, is_checked):
+        self.loadProject()
+
+    @QtCore.pyqtSlot(bool)
+    def doSetPreferences(self, is_checked):
+        self.setPreferences()
+
+    @QtCore.pyqtSlot(bool)
+    def doShowAbout(self, is_checked):
+        self.about_dlg.exec_()
+
+    @QtCore.pyqtSlot(bool)
+    def doShowUserMan(self, is_checked):
+        self.showUserMan()
+      
+    def setJetmapMode(self,val):
+        if val==0:
+            self.use_colormap_jet=False
+        else:
+            self.use_colormap_jet=True
+        
+        if self.current_image != None:
+            self.current_image = utils.arrayToQImage(self.current_image._original_data,bw_jet=self.use_colormap_jet)
+            self.generateScaleMaps()
+            self.updateImage()
+        
+    def openImage(self,file_name, page=0, asarray=False, asuint8=False):
+        file_ext = os.path.splitext(file_name)[1].lower()
+        
+        if file_ext in self.supported_formats:
+            file_type = self.supported_formats[file_ext]
+        else:
+            return None
+        
+        #choosing among specific loaders
+        if file_type == 'FITS':
+
+            if not utils.FITS_SUPPORT:
+                #this should never happens
+                return None
+                
+            hdu_table=utils.pyfits.open(file_name)
+
+            RGB_mode = (self.checked_rgb_fits==2)
+
+            #checking for 3 ImageHDU (red, green and blue components)
+            if RGB_mode and (len(hdu_table) >= 3):
+                layers = []
+                for i in hdu_table:
+                    if i.is_image and (len(i.shape)==2):
+                        layers.append(i)
+
+                if len(layers) == 3:
+                    if ((layers[0].shape == layers[1].shape) and
+                        (layers[0].shape == layers[2].shape)):
+                        is_RGB=True
+                else:
+                    #if there are more or less than 3 ImageHDU
+                    #then it is not an RGB fits file
+                    is_RGB=False
+            else:
+                is_RGB=False
+                
+
+            if RGB_mode and is_RGB:
+                if page!=0:
+                    return None
+                else:
+                    imh,imw=layers[0].shape
+                    img = numpy.zeros((imh,imw,len(layers)))
+                
+                    for j in range(len(layers)):
+                        img[...,j]=layers[j].data
+                    
+                    if asarray:
+                        if asuint8:
+                            return utils.normToUint8(img)
+                        else:
+                            return img.astype(numpy.float)
+                    else:
+                        return utils.Image.fromarray(utils.normToUint8(img))
+
+            else:
+                i=0
+                npages=page
+                while(i>=0):
+                    try:
+                        imagehdu = hdu_table[i]
+                    except IndexError:
+                        i=-1
+                        return None
+                    
+                    if not imagehdu.is_image:
+                        i+=1
+                        continue
+                    
+                    try: # retrieves data dimension
+                        naxis=int(imagehdu.header['NAXIS'])
+                    except:
+                        #this should never occur since 'NAXIS' keyword
+                        #should exists in each header
+                        try:
+                            #however if data is not corrupted
+                            #this should work
+                            naxis=len(imagehdu.shape)
+                        except:
+                            print("ERROR: corrupted data")
+                            return None
+                    else:
+                        if naxis <= 1:
+                            #cannot handle 0-D or 1-D image data!
+                            print("WARNING: unsupported data format")
+                        else:
+                            axis=imagehdu.shape[:-2] #number of image layers
+                            imh,imw=imagehdu.shape[-2:] #image size
+                            
+                            #computing number of layers for current ImageHDU
+                            total=1
+                            for x in axis:
+                                total*=x
+
+                            if npages >= total:
+                                #the request layer is not in this ImageHDU
+                                npages-=total
+                                continue
+                            else:
+                                #the request layer is in this ImageHDU
+                                index = []
+                                #computing layer index:
+                                r_axis=list(axis)
+                                r_axis.reverse()
+                                for x in r_axis:
+                                    cidx=npages%x
+                                    index[0:0]=[cidx]
+                                    npages=(npages-cidx)/x
+                                index=tuple(index)
+
+                                #scaled data is automatically rescaled
+                                #and BZERO and BSCALE are removed
+                                data = imagehdu.data[index]
+                                    
+                                if asarray:
+                                    if asuint8:
+                                        return utils.normToUint8(data)
+                                    else:
+                                        return data.astype(numpy.float)
+                                else:
+                                    return utils.Image.fromarray(utils.normToUint8(data))
+                    
+                    finally:
+                        i+=1
+                
+        elif file_type =='???':
+            #New codecs will be added here
+            return False
+        else:   
+        
+            try:
+                cv2img = cv2.imread(file_name,-1)
+            except:
+                cv2img=None
+                
+            if (page==0) and (cv2img!=None):
+                img = numpy.empty_like(cv2img)
+
+                if (len(cv2img.shape) == 3) and (cv2img.shape[2]==3):
+                    img=cv2img[...,(2,1,0)]
+                else:
+                    img=cv2img
+                
+                if asarray:
+                    if asuint8:
+                        return utils.normToUint8(numpy.asarray(img))
+                    else:
+                        return (numpy.asarray(img)).astype(numpy.float)
+                else:
+                    return utils.Image.fromarray(utils.normToUint8(img))
+            else:
+                try:
+                
+                    img = utils.Image.open(file_name)
+                    img.seek(page)
+                    #testing decoder
+                    pix = img.getpixel((0,0))
+                except EOFError:
+                    return None
+                except IOError as err:
+                    if page==0:
+                        msgBox = Qt.QMessageBox(self.wnd)
+                        msgBox.setText(str(err))
+                        msgBox.setIcon(Qt.QMessageBox.Critical)
+                        msgBox.exec_()
+                    return None
+           
+                if asarray:
+                    if asuint8:
+                        return utils.normToUint8(numpy.asarray(img))
+                    else:
+                        return (numpy.asarray(img)).astype(numpy.float)
+                else:
+                    return img
+
+    
+
     def showUserMan(self):
         webbrowser.open(os.path.join(paths.DOCS_PATH,'usermanual.html'))
 
     def lock(self):
+        self.statusLabelMousePos.setText('')
         self.progress.show()
         self.cancelProgress.show()
         self.wnd.toolBox.setEnabled(False)
@@ -348,6 +591,9 @@ class theApp(Qt.QObject):
     def __resetPreferencesDlg(self):
         idx=self.dlg.langComboBox.findData(self.__current_lang)
         self.dlg.langComboBox.setCurrentIndex(idx)
+        
+        self.dlg.jetCheckBox.setCheckState(self.checked_colormap_jet)
+        self.dlg.rgbFitsCheckBox.setCheckState(self.checked_rgb_fits)
 
         self.dlg.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
 
@@ -361,12 +607,16 @@ class theApp(Qt.QObject):
         self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
         
         self.dlg.wholeImageCheckBox.setChecked(self.auto_align_use_whole_image)
-        
+        self.dlg.autoSizeCheckBox.setChecked(self.checked_autodetect_rectangle_size)
+        self.dlg.minQualitycheckBox.setCheckState(self.checked_autodetect_min_quality)
+
+        self.dlg.autoFolderscheckBox.setCheckState(self.checked_seach_dark_flat)
+
     def __set_save_video_dir(self):
         self.save_image_dir = str(Qt.QFileDialog.getExistingDirectory(self.dlg,tr("Choose the detination folder"),self.save_image_dir))
         self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
         
-    def doSetPreferences(self):
+    def setPreferences(self):
 
         qtr = Qt.QTranslator()
         self.dlg.langComboBox.clear()
@@ -405,6 +655,7 @@ class theApp(Qt.QObject):
            pass
             
         if self.dlg.exec_() == 1:
+            #update settings
             r_w=int(self.dlg.rWSpinBox.value())
             r_h=int(self.dlg.rHSpinBox.value())
             self.max_points=int(self.dlg.maxPointsSpinBox.value())
@@ -415,8 +666,14 @@ class theApp(Qt.QObject):
             self.current_cap_combo_idx=int(self.dlg.devComboBox.currentIndex())
             self.current_cap_device_idx=self.devices[self.current_cap_combo_idx]['id']
             self.auto_align_use_whole_image=int(self.dlg.wholeImageCheckBox.checkState())
+            self.checked_autodetect_rectangle_size=int(self.dlg.autoSizeCheckBox.checkState())
+            self.checked_colormap_jet=int(self.dlg.jetCheckBox.checkState())
+            self.checked_rgb_fits=int(self.dlg.rgbFitsCheckBox.checkState())
+            self.checked_autodetect_min_quality=int(self.dlg.minQualitycheckBox.checkState())
+            self.checked_seach_dark_flat=int(self.dlg.autoFolderscheckBox.checkState())
             return True
         else:
+            #discard changes
             self.__resetPreferencesDlg()
             return False
             
@@ -585,7 +842,7 @@ class theApp(Qt.QObject):
                 (self.save_image_dir==None)):
                 current_tab_idx=self.dlg.tabWidget.currentIndex()
                 self.dlg.tabWidget.setCurrentIndex(2)
-                if not self.doSetPreferences():
+                if not self.setPreferences():
                     self.current_cap_device_idx = -1
                     self.wnd.captureGroupBox.setChecked(False)
                     msgBox = Qt.QMessageBox(self.wnd)
@@ -613,15 +870,15 @@ class theApp(Qt.QObject):
                         ftime=time.strftime('%Y%m%d%H%M%S')
                         mstime='{0:05d}'.format(int((time.clock()-self._photo_time_clock)*100))
                         name=os.path.join(self.save_image_dir,ftime+mstime+'.tiff')
-                        self.filelist.append(name)
+                        cv2.imwrite(name,img[1])
+                        self.filelist.append((name,0))
                         self.alignpointlist.append([])
                         self.offsetlist.append([0,0])
-                    
+                        
                         q=Qt.QListWidgetItem(os.path.basename(name),self.wnd.listWidget)
                         q.setCheckState(2)
                         q.setToolTip(name)
                         self.wnd.listWidget.setCurrentItem(q)
-                        cv2.imwrite(name,img[1])
                         self._unlock_cap_ctrls()
 
                 del img
@@ -653,9 +910,9 @@ class theApp(Qt.QObject):
         imw = img.shape[1]
         imh = img.shape[0]
 
-        if len(img[1].shape)==2:
+        if len(img.shape)==2:
             dep='L'
-        elif img[1].shape[-1]==3:
+        elif (len(img.shape)==3) and img.shape[-1]==3:
             dep='RGB'
         else:
             dep='RGBA'  
@@ -688,7 +945,13 @@ class theApp(Qt.QObject):
         self.shooting=True
                         
     def __processCaptured(self, img):
-        self.showImage(utils.arrayToQImage(img,2,1,0))
+        
+        if len(img.shape)==3:
+            self.wnd.colorBar._is_rgb=True
+        else:
+            self.wnd.colorBar._is_rgb=False
+        
+        self.showImage(utils.arrayToQImage(img,2,1,0, bw_jet=self.use_colormap_jet))
         if self.wasStarted:
             self.wnd.stopCapturePushButton.show()
             self.wnd.capturePushButton.hide()
@@ -715,7 +978,7 @@ class theApp(Qt.QObject):
                     
                     name=os.path.join(self.video_url,'#{0:05d}'.format(self.captured_frames)+'.tiff')
                     
-                    self.filelist.append(name)
+                    self.filelist.append((name,0))
                     self.alignpointlist.append([])
                     self.offsetlist.append([0,0])
                     
@@ -748,21 +1011,6 @@ class theApp(Qt.QObject):
                     self.wnd.listWidget.setCurrentRow(0)
                     self._unlock_cap_ctrls()
             
-    def setExpAvg(self):
-        self.setExp(self._avg[1])
-        
-    def setExpSum(self):
-        self.setExp(1)
-        
-    def setExpNrm(self):
-        exp = self._avg[0].max()/self.IMAGE_RANGE
-        self.setExp(exp)
-        
-    def setExp(self,exp):
-        self.exposure=exp
-        self.wnd.exposureDoubleSpinBox.setValue(self.exposure)
-        self.wnd.exposureSlider.setValue(Int(self.exposure*100))
-
     def useMasterDark(self,state):        
         if state == 2:
             self.wnd.masterDarkGroupBox.setEnabled(True)
@@ -785,7 +1033,13 @@ class theApp(Qt.QObject):
                               )
         if os.path.isfile(master_dark_file):
            try:
-               i = Image.open(master_dark_file)
+               i = self.openImage(master_dark_file)
+               if i==None:
+                   msgBox = Qt.QMessageBox(self.wnd)
+                   msgBox.setText(tr("Cannot open image")+" \""+str(master_dark_file)+"\"")
+                   msgBox.setIcon(Qt.QMessageBox.Critical)
+                   msgBox.exec_()
+                   return False
                imw,imh=i.size
                dep = i.mode
                if ((self.currentWidth == imw) and
@@ -835,7 +1089,13 @@ class theApp(Qt.QObject):
                               )
         if os.path.isfile(master_flat_file):
            try:
-               i = Image.open(master_flat_file)
+               i = self.openImage(master_flat_file)
+               if i==None:
+                   msgBox = Qt.QMessageBox(self.wnd)
+                   msgBox.setText(tr("Cannot open image")+" \""+str(master_flat_file)+"\"")
+                   msgBox.setIcon(Qt.QMessageBox.Critical)
+                   msgBox.exec_()
+                   return False
                imw,imh=i.size
                dep = i.mode
                if ((self.currentWidth == imw) and
@@ -895,8 +1155,14 @@ class theApp(Qt.QObject):
         settings.beginGroup("options");
         qpoint=Qt.QPoint(self.autoalign_rectangle[0],self.autoalign_rectangle[1])
         settings.setValue("autoalign_rectangle", qpoint)
-        settings.setValue("max_align_points",self.max_points)
-        settings.setValue("min_point_quality",self.min_quality)
+        settings.setValue("autodetect_rectangle", int(self.dlg.autoSizeCheckBox.checkState()))
+        settings.setValue("autodetect_quality", int(self.dlg.minQualitycheckBox.checkState()))
+        settings.setValue("max_align_points",int(self.max_points))
+        settings.setValue("min_point_quality",float(self.min_quality))
+        settings.setValue("use_whole_image", int(self.dlg.wholeImageCheckBox.checkState()))
+        settings.setValue("use_colormap_jet", int(self.dlg.jetCheckBox.checkState()))
+        settings.setValue("auto_rgb_fits", int(self.dlg.rgbFitsCheckBox.checkState()))
+        settings.setValue("auto_search_dark_flat",int(self.dlg.autoFolderscheckBox.checkState()))
         settings.endGroup()
         
         settings.beginGroup("settings")
@@ -918,18 +1184,31 @@ class theApp(Qt.QObject):
         
 
     def loadSettings(self):
+        
         settings = Qt.QSettings()
-    
         settings.beginGroup("mainwindow");
         val=settings.value("geometry",None,QtCore.QByteArray)
         self.wnd.restoreGeometry(val)
         self.wnd.restoreState(settings.value("window_state",None,QtCore.QByteArray))
         settings.endGroup()
+        
         settings.beginGroup("options");
         point=settings.value("autoalign_rectangle",None,Qt.QPoint)
         self.autoalign_rectangle=(point.x(),point.y())
+        self.checked_autodetect_rectangle_size=settings.value("autodetect_rectangle",None,int)
+        self.dlg.autoSizeCheckBox.setCheckState(self.checked_autodetect_rectangle_size)
+        self.checked_autodetect_min_quality=settings.value("autodetect_quality",None,int)
+        self.dlg.minQualitycheckBox.setCheckState(self.checked_autodetect_min_quality)
+        self.auto_align_use_whole_image=settings.value("use_whole_image",None,int)
+        self.dlg.wholeImageCheckBox.setCheckState(self.auto_align_use_whole_image)
+        self.checked_colormap_jet=settings.value("use_colormap_jet",None,int)
+        self.dlg.jetCheckBox.setCheckState(self.checked_colormap_jet)
+        self.checked_rgb_fits=settings.value("auto_rgb_fits",None,int)
+        self.dlg.rgbFitsCheckBox.setCheckState(self.checked_rgb_fits)
+        self.checked_seach_dark_flat=settings.value("auto_search_dark_flat",None,int)
+        self.dlg.autoFolderscheckBox.setCheckState(self.checked_seach_dark_flat)
         settings.endGroup()
-        
+
         settings.beginGroup("settings");
         self.__current_lang = str(settings.value("language_file",None,str))
         customChkState=int(settings.value("custom_language",None,int))
@@ -943,7 +1222,8 @@ class theApp(Qt.QObject):
     def mainWindowResizeEvent(self, event):
         val = self.wnd.__resizeEvent__(event)# old implementation
         if self.zoom_fit:
-            self.updateImage()            
+            self.updateImage()    
+        self.generateScaleMaps()
         return val
 
     #mouseMoveEvent callback    
@@ -951,7 +1231,16 @@ class theApp(Qt.QObject):
         val = self.imageLabel.__mouseMoveEvent__(event)
         x=Int(event.x()/self.actual_zoom)
         y=Int(event.y()/self.actual_zoom)
-        self.statusLabelMousePos.setText(str(x)+','+str(y))
+
+        if (self.current_image != None) and (not self.manual_align):
+            imshape = self.current_image._original_data.shape
+            if ((y>=0) and (y < imshape[0]) and
+                (x>=0) and (x < imshape[1])):
+                pix_val=self.current_image._original_data[y,x]
+                self.wnd.colorBar.current_val=pix_val
+                self.wnd.colorBar.repaint()
+                self.statusLabelMousePos.setText('position=(x:'+str(x)+',y:'+str(y)+') value='+str(pix_val))
+                
         if (self.tracking_align_point and 
             (self.image_idx>=0) and 
             (self.point_idx>=0)
@@ -986,6 +1275,76 @@ class theApp(Qt.QObject):
                 self.imageLabel.repaint()
         return val
     
+    #paintEvent callback for colorBar
+    def colorBarPaintEvent(self, obj):
+        val=self.wnd.colorBar.__paintEvent__(obj)
+        
+        if self.current_image==None:
+            self.wnd.colorBar.setPixmap(Qt.QPixmap())
+            return val
+        
+        if self.wnd.colorBar.current_val!=None:
+            painter = Qt.QPainter(self.wnd.colorBar)
+            cb = self.wnd.colorBar
+            
+            _gpo=2 #geometric corrections
+            _gno=5 #geometric corrections
+            
+            fnt_size=10
+            painter.setFont(Qt.QFont("Arial", fnt_size))
+            y=(cb.height()+fnt_size/2)/2 + 2
+            max_txt=str(cb.max_val)
+                
+            if cb._is_rgb == True:
+                cb.setPixmap(Qt.QPixmap.fromImage(self.rgb_colormap))
+                
+                xr = int(float(cb.current_val[0]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
+                xg = int(float(cb.current_val[1]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
+                xb = int(float(cb.current_val[2]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
+                
+                painter.setCompositionMode(22)
+                
+                painter.setPen(QtCore.Qt.red)
+                painter.drawLine(xr,4,xr,self.wnd.colorBar.height()-4)
+                
+                painter.setPen(QtCore.Qt.green)
+                painter.drawLine(xg,4,xg,self.wnd.colorBar.height()-4)
+                
+                painter.setPen(QtCore.Qt.blue)
+                painter.drawLine(xb,4,xb,self.wnd.colorBar.height()-4)
+                                
+                painter.setCompositionMode(0)
+                painter.setPen(QtCore.Qt.white)
+                painter.drawText(fnt_size-4,y,str(cb.min_val))
+                painter.setPen(QtCore.Qt.black)
+                painter.drawText(cb.width()-(fnt_size-2)*len(max_txt),y,max_txt)
+                
+            else:
+                painter.setPen(QtCore.Qt.white)
+
+                painter.setCompositionMode(0)
+
+                #painter.drawPixmap(0,0,Qt.QPixmap.fromImage(self.bw_colormap))
+                cb.setPixmap(Qt.QPixmap.fromImage(self.bw_colormap))
+                
+                try:
+                    x = int(float(cb.current_val-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
+                except ValueError:
+                    x = -1
+                
+                painter.setCompositionMode(22)
+                
+                painter.drawLine(x,4,x,self.wnd.colorBar.height()-4)
+
+                painter.drawText(fnt_size-4,y,str(cb.min_val))
+                painter.drawText(cb.width()-(fnt_size-2)*len(max_txt),y,max_txt)
+
+                painter.setCompositionMode(0)
+
+            del painter
+            
+        return val
+    
     #paintEvent callback
     def imageLabelPaintEvent(self, obj):
         val=self.imageLabel.__paintEvent__(obj)
@@ -1002,7 +1361,7 @@ class theApp(Qt.QObject):
     def __draw_align_points__(self, painter):
         if(len(self.alignpointlist)) is 0:
             return False
-        painter.setFont(Qt.QFont("Arial", 8))            
+        painter.setFont(Qt.QFont("Arial", 8))  
         for i in self.alignpointlist[self.image_idx]:
             x=Int((i[0]+0.5)*self.actual_zoom)
             y=Int((i[1]+0.5)*self.actual_zoom)
@@ -1074,21 +1433,11 @@ class theApp(Qt.QObject):
             self.updateImage()
 
     def updateResultImage(self):
-        arr = (self._avg[0]/self.exposure).clip(0,255).astype('uint8')
-        img = utils.arrayToQImage(arr)
-        self.showImage(img)
-
-    def signalSliderExp(self, value, update=False):
-        self.exposure=(value/100.0)
-        self.wnd.exposureDoubleSpinBox.setValue(self.exposure)
-        if update:
-            self.updateResultImage()
-
-    def signalSpinExp(self, value, update=True):
-        self.exposure=value
-        self.wnd.exposureSlider.setValue(Int(self.exposure*100))
-        if update:
-            self.updateResultImage()
+        if self._avg!=None:
+            img = utils.arrayToQImage(self._avg,bw_jet=self.use_colormap_jet)
+            self.showImage(img)
+        else:
+            self.clearImage()
         
     def showImage(self, image):
         self.current_image = image
@@ -1097,6 +1446,26 @@ class theApp(Qt.QObject):
     def clearImage(self):
         self.current_image=None
         self.imageLabel.setPixmap(Qt.QPixmap())
+
+    def generateScaleMaps(self):
+        # bw or jet colormap
+        data1 = numpy.arange(0,self.wnd.colorBar.width()-5)
+        data2 = numpy.array([data1]*(self.wnd.colorBar.height()-8))
+        qimg = utils.arrayToQImage(data2,bw_jet=self.use_colormap_jet)
+        self.bw_colormap = qimg
+
+        #rgb colormap
+        data1 = numpy.arange(0,self.wnd.colorBar.width())*255/self.wnd.colorBar.width()
+        data2 = numpy.array([data1]*int((self.wnd.colorBar.height()-8)/3))
+        hh=len(data2)
+        data3 = numpy.zeros((3*hh,len(data1),3))
+       
+        data3[0:hh,0:,0]=data2
+        data3[hh:2*hh,0:,1]=data2
+        data3[2*hh:3*hh,0:,2]=data2
+        
+        qimg = utils.arrayToQImage(data3,bw_jet=self.use_colormap_jet)
+        self.rgb_colormap = qimg
 
     def updateImage(self, paint=True, overrided_image=None):
         
@@ -1107,7 +1476,8 @@ class theApp(Qt.QObject):
 
         if current_image is None:
             return False
-        elif self.zoom_enabled:
+            
+        if self.zoom_enabled:
             pix = Qt.QPixmap.fromImage(current_image.scaled(
                                         Int(current_image.width()*self.zoom),
                                         Int(current_image.height()*self.zoom),
@@ -1117,6 +1487,7 @@ class theApp(Qt.QObject):
         elif self.zoom_fit:
             imh = current_image.height()
             imw = current_image.width()
+
             pix = Qt.QPixmap.fromImage(current_image.scaled(
                                         self.wnd.imageViewer.width()-10,
                                         self.wnd.imageViewer.height()-10,
@@ -1130,8 +1501,18 @@ class theApp(Qt.QObject):
         else:
             pix = Qt.QPixmap.fromImage(current_image)
             self.actual_zoom=1
+            
         if paint:
-            self.imageLabel.setPixmap(pix)
+            self.imageLabel.setPixmap(pix)           
+            self.wnd.colorBar.max_val=current_image._original_data.max()
+            self.wnd.colorBar.min_val=current_image._original_data.min()
+            
+            #this shuold avoid division by zero
+            if  self.wnd.colorBar.max_val ==  self.wnd.colorBar.min_val:
+                self.wnd.colorBar.max_val=self.wnd.colorBar.max_val+1
+                self.wnd.colorBar.min_val=self.wnd.colorBar.min_val-1
+                
+            #self.generateScaleMaps()
         else:
             return pix
     
@@ -1232,7 +1613,6 @@ class theApp(Qt.QObject):
 
         self.loadFiles(newlist)
         
-        
     def loadFiles(self, newlist=None):
 
         oldlist=self.filelist[:]
@@ -1246,19 +1626,45 @@ class theApp(Qt.QObject):
                                                          self.current_dir,
                                                          open_str)
                         )
-                    
+
+        self.statusBar.showMessage(tr('Loading files, please wait...'))
+
         if len(self.filelist) > 0:
             imw = self.currentWidth
             imh = self.currentHeight
             dep = self.currentDepht[0:3]
         elif len(newlist) > 0:
-            ref = Image.open(str(newlist[0]))
+            ref = self.openImage(str(newlist[0]))
+            if ref==None:
+                msgBox = Qt.QMessageBox(self.wnd)
+                msgBox.setText(tr("Cannot open image")+" \""+str(newlist[0])+"\"")
+                msgBox.setIcon(Qt.QMessageBox.Critical)
+                msgBox.exec_()
+                return False
             imw,imh = ref.size
             dep = ref.mode
             del ref            
             self.currentWidth=imw
             self.currentHeight=imh
             self.currentDepht=dep
+
+            if self.dlg.autoSizeCheckBox.checkState()==2:
+                r_w=int(imw/10)
+                r_h=int(imh/10)
+                r_l=max(r_w,r_h)
+                self.autoalign_rectangle=(r_l,r_l)
+                self.dlg.rWSpinBox.setValue(r_l)
+                self.dlg.rHSpinBox.setValue(r_l)
+            
+            if 'RGB' in dep:
+                self.wnd.colorBar._is_rgb=True
+                self.wnd.colorBar.current_val=(0,0,0)
+            else:
+                self.wnd.colorBar._is_rgb=False
+                self.wnd.colorBar.current_val=0
+                
+            self.wnd.colorBar.max_val=1
+            self.wnd.colorBar.min_val=0
         else:
             return
         
@@ -1275,33 +1681,43 @@ class theApp(Qt.QObject):
         listitemslist=[]
         for i in newlist:
             count+=1
-            if not (i in self.filelist):    
-                img=Image.open(str(i))
-                if (imw,imh)!=img.size:
-                    warnings=True
-                    rejected+=(str(i)+tr(' --> size does not match:')+'\n'+
-                                        tr('current size=')+
-                                        str(self.currentWidth)+'x'+str(self.currentHeight)+
-                                        ' '+tr('image size=')+
-                                        str(img.size[0])+'x'+str(img.size[1])+'\n')
-                elif not(dep in img.mode):
-                    warnings=True
-                    rejected+=(str(i)+tr(' --> number of channels does not match:')+'\n'+
-                                        tr('current channels=')+
-                                        str(self.currentDepht)+
-                                        ' '+tr('image channels=')+
-                                        str(img.mode)+'\n')
-                else:                    
-                    self.filelist.append(str(i))
-                    self.alignpointlist.append([])
-                    self.offsetlist.append([0,0])
-                    q=Qt.QListWidgetItem(os.path.basename(str(i)))
-                    q.setCheckState(2)
-                    q.setToolTip(i)
-                    listitemslist.append(q)
+            if not (i in self.filelist):
+                page = 0
+                img=self.openImage(str(i),page)
+                if img==None:
+                    msgBox = Qt.QMessageBox(self.wnd)
+                    msgBox.setText(tr("Cannot open image")+" \""+str(i)+"\"")
+                    msgBox.setIcon(Qt.QMessageBox.Critical)
+                    msgBox.exec_()
+                    continue
+                while img != None:
+                    if (imw,imh)!=img.size:
+                        warnings=True
+                        rejected+=(str(i)+tr(' --> size does not match:')+'\n'+
+                                            tr('current size=')+
+                                            str(self.currentWidth)+'x'+str(self.currentHeight)+
+                                            ' '+tr('image size=')+
+                                            str(img.size[0])+'x'+str(img.size[1])+'\n')
+                    elif not(dep in img.mode):
+                        warnings=True
+                        rejected+=(str(i)+tr(' --> number of channels does not match:')+'\n'+
+                                            tr('current channels=')+
+                                            str(self.currentDepht)+
+                                            ' '+tr('image channels=')+
+                                            str(img.mode)+'\n')
+                    else:                    
+                        self.filelist.append((str(i),page))
+                        self.alignpointlist.append([])
+                        self.offsetlist.append([0,0])
+                        q=Qt.QListWidgetItem(os.path.basename(str(i))+'-page'+str(page))
+                        q.setCheckState(2)
+                        q.setToolTip(i)
+                        listitemslist.append(q)
+                    page+=1
+                    img=self.openImage(str(i),page)
             self.progress.setValue(count)
             if self.progressWasCanceled():
-                self.filelist=oldlist=self.filelist
+                self.filelist=oldlist
                 self.alignpointlist=oldalignpointlist
                 self.offsetlist=oldoffsetlist
                 return False
@@ -1323,16 +1739,17 @@ class theApp(Qt.QObject):
         self.wnd.manualAlignGroupBox.setEnabled(True)
         
         self.darkfilelist=[]
-        
-        self.dark_dir = os.path.join(self.current_dir,'dark')
-        self.statusBar.showMessage(tr('Searching for dark frames, please wait...'))
-        if not self.doAddDarkFiles(self.dark_dir):
-            pass
 
-        self.flat_dir = os.path.join(self.current_dir,'flat')
-        self.statusBar.showMessage(tr('Searching for flatfiled frames, please wait...'))
-        if not self.doAddFlatFiles(self.flat_dir):
-            pass
+        if self.checked_seach_dark_flat==2:
+            self.dark_dir = os.path.join(self.current_dir,'dark')
+            self.statusBar.showMessage(tr('Searching for dark frames, please wait...'))
+            if not self.doAddDarkFiles(self.dark_dir, ignoreErrors=True):
+                pass
+
+            self.flat_dir = os.path.join(self.current_dir,'flat')
+            self.statusBar.showMessage(tr('Searching for flatfiled frames, please wait...'))
+            if not self.doAddFlatFiles(self.flat_dir, ignoreErrors=True):
+                pass
 
         self.statusBar.showMessage(tr('DONE'))
         
@@ -1341,7 +1758,7 @@ class theApp(Qt.QObject):
 
         self.statusBar.showMessage(tr('Ready'))
 
-    def doAddDarkFiles(self, directory=None):
+    def doAddDarkFiles(self, directory=None, ignoreErrors=False):
         if directory is None:
             open_str=tr("All supported images")+self.images_extensions+";;"+tr("All files *.* (*.*)")
             files = list(Qt.QFileDialog.getOpenFileNames(self.wnd,
@@ -1357,23 +1774,45 @@ class theApp(Qt.QObject):
         else:
             return False
             
+        self.progress.setMaximum(len(files))
+        self.lock()
+        count=0
+
         for fn in files:
-            if (os.path.isfile(fn) and 
-               not (fn in self.darkfilelist)):
-               try:
-                   i = Image.open(fn)
+
+            self.qapp.processEvents()
+            self.progress.setValue(count)
+            
+            if (os.path.isfile(str(fn)) and 
+               not (str(fn) in self.darkfilelist)):
+
+               page=0
+               i=self.openImage(str(fn),page)
+               if i==None:
+                    if not ignoreErrors:
+                        msgBox = Qt.QMessageBox(self.wnd)
+                        msgBox.setText(tr("Cannot open image")+" \""+str(fn)+"\"")
+                        msgBox.setIcon(Qt.QMessageBox.Critical)
+                        msgBox.exec_()
+                    continue
+               while i != None:
                    imw,imh=i.size
                    dep = i.mode
                    if ((self.currentWidth == imw) and
                        (self.currentHeight == imh) and
                        (self.currentDepht == dep)):
-                        self.darkfilelist.append(fn)
-                        q=Qt.QListWidgetItem(str(os.path.basename(fn)),self.wnd.darkListWidget)
-                        q.setToolTip(str(fn))
-                   del i
-               except:
-                   pass
-                
+                       self.darkfilelist.append((str(fn),page))
+                       q=Qt.QListWidgetItem(os.path.basename(str(fn))+"-page"+str(page),self.wnd.darkListWidget)
+                       q.setToolTip(str(fn)+", page "+str(page))
+                   page+=1
+                   i=self.openImage(str(fn),page)
+
+            if self.progressWasCanceled():
+                return False
+            count+=1
+            
+        self.unlock()
+        
         if (len(self.darkfilelist) == 0):
             return False
         else:
@@ -1385,7 +1824,7 @@ class theApp(Qt.QObject):
         self.wnd.darkListWidget.clear()
         self.wnd.darkClearPushButton.setEnabled(False)
         
-    def doAddFlatFiles(self, directory=None):
+    def doAddFlatFiles(self, directory=None, ignoreErrors=False):
         if directory is None:
             open_str=tr("All supported images")+self.images_extensions+";;"+tr("All files *.* (*.*)")
             files = list(Qt.QFileDialog.getOpenFileNames(self.wnd,
@@ -1401,24 +1840,46 @@ class theApp(Qt.QObject):
                 files.append(os.path.join(directory,x))
         else:
             return False
-            
+
+        self.progress.setMaximum(len(files))
+        self.lock()
+        count=0
+        
         for fn in files:
+            
+            self.qapp.processEvents()
+            self.progress.setValue(count)
+            
             if (os.path.isfile(fn) and 
                not (fn in self.darkfilelist)):
-               try:
-                   i = Image.open(fn)
+
+               page=0
+               i=self.openImage(str(fn),page)
+               if i==None:
+                    if not ignoreErrors:
+                        msgBox = Qt.QMessageBox(self.wnd)
+                        msgBox.setText(tr("Cannot open image")+" \""+str(fn)+"\"")
+                        msgBox.setIcon(Qt.QMessageBox.Critical)
+                        msgBox.exec_()
+                    continue
+               while i != None:
                    imw,imh=i.size
                    dep = i.mode
                    if ((self.currentWidth == imw) and
                        (self.currentHeight == imh) and
                        (self.currentDepht == dep)):
-                        self.flatfilelist.append(fn)
-                        q=Qt.QListWidgetItem(str(os.path.basename(fn)),self.wnd.flatListWidget)
-                        q.setToolTip(str(fn))
-                   del i
-               except:
-                   pass
-                
+                       self.flatfilelist.append((str(fn),page))
+                       q=Qt.QListWidgetItem(os.path.basename(str(fn))+"-page"+str(page),self.wnd.flatListWidget)
+                       q.setToolTip(str(fn)+", page "+str(page))
+                   page+=1
+                   i=self.openImage(str(fn),page)
+
+            if self.progressWasCanceled():
+                return False
+            count+=1
+            
+        self.unlock()
+        
         if (len(self.flatfilelist) == 0):
             return False
         else:
@@ -1445,6 +1906,7 @@ class theApp(Qt.QObject):
         self.wnd.alignPushButton.setEnabled(False)
         self.wnd.saveResultPushButton.setEnabled(False)
         self.clearImage()
+        self._avg = None
 
     def removeImage(self):
         q = self.wnd.listWidget.takeItem(self.wnd.listWidget.currentRow())
@@ -1453,13 +1915,20 @@ class theApp(Qt.QObject):
         self.alignpointlist.pop(self.wnd.listWidget.currentRow())
         del q
         
+        self._avg=None
+
         if (len(self.filelist)==0):
             self.wnd.manualAlignGroupBox.setEnabled(False)
             self.wnd.remPushButton.setEnabled(False)
             self.wnd.clrPushButton.setEnabled(False)
             self.wnd.listCheckAllBtn.setEnabled(False)
             self.wnd.listUncheckAllBtn.setEnabled(False)
+            self.statusLabelMousePos.setText('')
+            self.wnd.colorBar.setPixmap(Qt.QPixmap())
             self.clearImage()
+        elif self.image_idx >= len(self.filelist):
+            self.wnd.listWidget.setCurrentRow(len(self.filelist)-1)
+            self.listItemChanged(self.wnd.listWidget.currentRow())
 
     def checkAllListItems(self):
         self.setAllListItemsChechState(2)
@@ -1486,21 +1955,30 @@ class theApp(Qt.QObject):
         if self.wasStarted:
             return
         self.image_idx = self.wnd.listWidget.currentRow()
+        
         if idx >= 0:
-            self.showImage(Qt.QImage(self.filelist[idx]))
+            img = self.openImage(self.filelist[idx][0],self.filelist[idx][1],True)
+            qimg=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+            self.showImage(qimg)
+            
             self.wnd.alignGroupBox.setEnabled(True)
             self.wnd.alignDeleteAllPushButton.setEnabled(True)
             self.updateAlignPointList()
             self.wnd.manualAlignGroupBox.setEnabled(True)
         else:
+            self.showImage(None)
             self.wnd.alignGroupBox.setEnabled(False)
             self.wnd.alignDeleteAllPushButton.setEnabled(False)
             self.wnd.manualAlignGroupBox.setEnabled(False)
             
+        self.wnd.colorBar.repaint()
+            
     def manualAlignListItemChanged(self,idx):
         item = self.wnd.listWidgetManualAlign.item(idx)
         self.dif_image_idx=item.original_id
-        self.current_image=Qt.QImage(self.filelist[item.original_id])
+        #self.current_image=Qt.QImage(self.filelist[item.original_id])
+        img = self.openImage(self.filelist[item.original_id][0],self.filelist[item.original_id][1],True)
+        self.current_image=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
         self.wnd.spinBoxOffsetX.setValue(self.offsetlist[item.original_id][0])
         self.wnd.spinBoxOffsetY.setValue(self.offsetlist[item.original_id][1])
         self.imageLabel.repaint()
@@ -1512,7 +1990,9 @@ class theApp(Qt.QObject):
             if self.__operating!=True:
                 self.__operating=True
                 self.ref_image_idx=cur_item.original_id
-                self.ref_image = Qt.QImage(self.filelist[cur_item.original_id])
+                #self.ref_image = Qt.QImage(self.filelist[cur_item.original_id])
+                img = self.openImage(self.filelist[cur_item.original_id][0],self.filelist[cur_item.original_id][1],True)
+                self.ref_image=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
                 for i in range(self.wnd.listWidgetManualAlign.count()):
                     item = self.wnd.listWidgetManualAlign.item(i)
                     if (item != cur_item) and (item.checkState() == 2):
@@ -1630,26 +2110,32 @@ class theApp(Qt.QObject):
             
     def updateToolBox(self, idx):
         self.ref_image_idx=-1
-    
+
+        if (idx!=5) and (idx!=2) and (self._old_tab_idx==5):
+            img = self.openImage(self.filelist[self.image_idx][0],self.filelist[self.image_idx][1],True)
+            qimg=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+            self.showImage(qimg)
+                
+                
         if idx==2:
             self.manual_align=True
             self.updateAlignList()
             if len(self.filelist)>0:
-                self.ref_image = Qt.QImage(self.filelist[0])
-            self.imageLabel.repaint()
+                img=self.openImage(self.filelist[0][0],self.filelist[0][1],True)
+                self.ref_image = utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+            self.updateImage()
         else:
             self.manual_align=False
             self.imageLabel.repaint()
         
         if (idx==5):
             if (self._avg != None):
-                self.wnd.exposureGroupBox.setEnabled(True)
                 self.updateResultImage()
             if (len(self.filelist)>0):
                 self.wnd.alignPushButton.setEnabled(True)
                 self.wnd.avrPushButton.setEnabled(True)
-
-    def doNewProject(self):
+        self._old_tab_idx=idx
+    def newProject(self):
 
         self.zoom = 1
         self.min_zoom = 0
@@ -1677,7 +2163,7 @@ class theApp(Qt.QObject):
         
         self.result_w=0
         self.result_h=0
-        self.resut_d=3
+        self.result_d=3
         
         self.current_project_fname=None
 
@@ -1694,9 +2180,7 @@ class theApp(Qt.QObject):
         self.wnd.alignPushButton.setEnabled(False)
         self.wnd.avrPushButton.setEnabled(False)
         self.wnd.saveResultPushButton.setEnabled(False)
-        self.wnd.exposureGroupBox.setEnabled(False)
         self.wnd.alignGroupBox.setEnabled(False)
-        self.wnd.exposureGroupBox.setEnabled(False)
         self.wnd.manualAlignGroupBox.setEnabled(False)
         self.wnd.masterDarkGroupBox.setEnabled(False)
         self.wnd.masterFlatGroupBox.setEnabled(False)
@@ -1717,7 +2201,7 @@ class theApp(Qt.QObject):
         self.progress.reset()
         self.clearImage()
         
-    def doSaveProjectAs(self):
+    def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
                                          os.path.join(self.current_dir,'Untitled.prj'),
                                          "Project (*.prj);;All files (*.*)"))
@@ -1726,9 +2210,9 @@ class theApp(Qt.QObject):
             return
         self.__save_project__()
 
-    def doSaveProject(self):
+    def saveProject(self):
         if self.current_project_fname is None:
-            self.doSaveProjectAs()
+            self.saveProjectAs()
         else:
             self.__save_project__()
 
@@ -1806,7 +2290,8 @@ class theApp(Qt.QObject):
         #<dark-frams> section
         for i in range(len(self.darkfilelist)):
             im_dark_name = str(self.wnd.darkListWidget.item(i).text())
-            im_dark_url = self.darkfilelist[i]
+            im_dark_url  = self.darkfilelist[i][0]
+            im_dark_page = self.darkfilelist[i][1]
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_dark_name)
             
@@ -1816,11 +2301,13 @@ class theApp(Qt.QObject):
             image_node.appendChild(url)
             url_txt=doc.createTextNode(im_dark_url)
             url.appendChild(url_txt)
+            url.setAttribute('page',str(im_dark_page))
 
         #<flat-frames> section
         for i in range(len(self.flatfilelist)):
             im_flat_name = str(self.wnd.flatListWidget.item(i).text())
-            im_flat_url = self.flatfilelist[i]
+            im_flat_url  = self.flatfilelist[i][0]
+            im_flat_page = self.flatfilelist[i][1]
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_flat_name)
             
@@ -1830,12 +2317,14 @@ class theApp(Qt.QObject):
             image_node.appendChild(url)
             url_txt=doc.createTextNode(im_flat_url)
             url.appendChild(url_txt)  
+            url.setAttribute('page',str(im_flat_page))
             
         #<frames> section
         for i in range(len(self.filelist)):
             im_used = str(self.wnd.listWidget.item(i).checkState())
             im_name = str(self.wnd.listWidget.item(i).text())
-            im_url = self.filelist[i]
+            im_url  = self.filelist[i][0]
+            im_page = self.filelist[i][1]
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_name)
             image_node.setAttribute('used',im_used)
@@ -1859,6 +2348,7 @@ class theApp(Qt.QObject):
             image_node.appendChild(url)
             url_txt=doc.createTextNode(im_url)
             url.appendChild(url_txt)
+            url.setAttribute('page',str(im_page))
 
         try:
             f = open(self.current_project_fname,'w')
@@ -1873,7 +2363,7 @@ class theApp(Qt.QObject):
             del msgBox
             return
 
-    def doLoadProject(self):
+    def loadProject(self):
         old_fname = self.current_project_fname
         project_fname = str(Qt.QFileDialog.getOpenFileName(self.wnd,
                                                            tr("Open a project"),
@@ -1937,21 +2427,31 @@ class theApp(Qt.QObject):
             darkListWidgetElements = []    
             for node in dark_frames_node.getElementsByTagName('image'):
                 im_dark_name = node.getAttribute('name')
-                im_dark_url = node.getElementsByTagName('url')[0].childNodes[0].data
+                url_dark_node = node.getElementsByTagName('url')[0]
+                im_dark_url = url_dark_node.childNodes[0].data
                 q=Qt.QListWidgetItem(im_dark_name,None)
                 q.setToolTip(im_dark_url)
                 darkListWidgetElements.append(q)
-                darkfilelist.append(im_dark_url)
+                if url_dark_node.attributes.has_key('page'):
+                    im_dark_page = url_dark_node.getAttribute('page')
+                    darkfilelist.append((im_dark_url,int(im_dark_page)))
+                else:
+                    darkfilelist.append((im_dark_url,0))
                 
             flatfilelist=[]
             flatListWidgetElements = []    
             for node in flat_frames_node.getElementsByTagName('image'):
                 im_flat_name = node.getAttribute('name')
-                im_flat_url = node.getElementsByTagName('url')[0].childNodes[0].data
+                url_flat_node = node.getElementsByTagName('url')[0]
+                im_flat_url = url_flat_node.childNodes[0].data
                 q=Qt.QListWidgetItem(im_flat_name,None)
                 q.setToolTip(im_flat_url)
                 flatListWidgetElements.append(q)
-                flatfilelist.append(im_flat_url)
+                if url_flat_node.attributes.has_key('page'):
+                    im_flat_page = url_flat_node.getAttribute('page')
+                    flatfilelist.append((im_flat_url,int(im_flat_page)))
+                else:
+                    flatfilelist.append((im_flat_url,0))
 
                 
             alignpointlist=[]
@@ -1961,7 +2461,8 @@ class theApp(Qt.QObject):
             for node in pict_frames_node.getElementsByTagName('image'):
                 im_name = node.getAttribute('name')
                 im_used = int(node.getAttribute('used'))
-                im_url  = node.getElementsByTagName('url')[0].childNodes[0].data
+                im_url_node  = node.getElementsByTagName('url')[0]
+                im_url  = im_url_node.childNodes[0].data
                 alignpointlist.append([])
                 for point in node.getElementsByTagName('align-point'):
                     point_id = point.getAttribute('id')
@@ -1978,13 +2479,17 @@ class theApp(Qt.QObject):
                 q.setToolTip(im_url)
                 q.setCheckState(im_used)
                 listWidgetElements.append(q)
-                filelist.append(im_url)
+                if im_url_node.attributes.has_key('page'):
+                    im_page=im_url_node.getAttribute('page')
+                    filelist.append((im_url,int(im_page)))
+                else:
+                    filelist.append((im_url,0))
             
         except Exception as exc:
             self.current_project_fname=old_fname
             return self.corruptedMsgBox()
        
-        self.doNewProject()
+        self.newProject()
         
         self.current_project_fname=project_fname
         
@@ -1997,6 +2502,12 @@ class theApp(Qt.QObject):
         for item in listWidgetElements:
             self.wnd.listWidget.addItem(item)
         
+        if 'RGB' in dep:
+            self.wnd.colorBar._is_rgb=True
+            self.wnd.colorBar.current_val=(0,0,0)
+        else:
+            self.wnd.colorBar._is_rgb=False
+            self.wnd.colorBar.current_val=0                
         
         self.currentWidth=imw
         self.currentHeight=imh
@@ -2031,27 +2542,58 @@ class theApp(Qt.QObject):
             self.wnd.flatClearPushButton.setEnabled(True)
 
     def autoDetectAlignPoins(self):
-        i = numpy.array(Image.open(self.filelist[self.image_idx]))
-        g = cv2.cvtColor(i,cv2.cv.CV_BGR2GRAY)
-        imh,imw=g.shape
+        i = self.openImage(self.filelist[self.image_idx][0],self.filelist[self.image_idx][1],True)
+        i = i.astype(numpy.float32)
         
-        del i
+        if 'RGB' in self.currentDepht:
+            i = cv2.cvtColor(i,cv2.cv.CV_BGR2GRAY)
         
         rw=self.autoalign_rectangle[0]
         rh=self.autoalign_rectangle[1]
         
+        hh=2*rh
+        ww=2*rw
+        
+        g=i[hh:-hh,ww:-ww]
+
+        del i
+        
         min_dist = int(math.ceil((rw**2+rh**2)**0.5))
         
-        points = cv2.goodFeaturesToTrack(g,self.max_points,self.min_quality,min_dist)
+        if self.checked_autodetect_min_quality==2:
+            self.min_quality=1
+            points = []
+            max_iteration=25
+            while (len(points) < ((self.max_points/2)+1)) and (max_iteration>0):
+                points = cv2.goodFeaturesToTrack(g,self.max_points,self.min_quality,min_dist)
+                if points==None:
+                    points=[]
+                self.min_quality*=0.75
+                max_iteration-=1
 
-        for p in points:
-            if ((p[0][0]<rw) or (p[0][1]<rh) or
-                ((p[0][0]+rw)>imw) or ((p[0][1]+rh)>imh)):
-                    #point is out of bounds
-                    continue
-            self.point_idx=self.addAlignPoint()
-            self.wnd.spinBoxXAlign.setValue(p[0][0])
-            self.wnd.spinBoxYAlign.setValue(p[0][1])
+        else:
+            points = cv2.goodFeaturesToTrack(g,self.max_points,self.min_quality,min_dist)
+            if points==None:
+                points=[]
+            
+        if len(points) > 0:            
+            for p in points:
+                self.point_idx=self.addAlignPoint()
+                self.wnd.spinBoxXAlign.setValue(p[0][0]+hh)
+                self.wnd.spinBoxYAlign.setValue(p[0][1]+ww)
+                
+        elif self.checked_autodetect_min_quality:
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("No suitable points foud!"))
+            msgBox.setInformativeText(tr("Try to add them manually."))
+            msgBox.setIcon(Qt.QMessageBox.Warning)
+            msgBox.exec_()
+        else:
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("No suitable points foud!"))
+            msgBox.setInformativeText(tr("Try to modify the alignment settings."))
+            msgBox.setIcon(Qt.QMessageBox.Warning)
+            msgBox.exec_()
 
     def autoSetAlignPoint(self):
         image_idx=self.wnd.listWidget.currentRow()
@@ -2085,10 +2627,12 @@ class theApp(Qt.QObject):
         y1=point[1]-r_h
         y2=point[1]+r_h
         
-        rawi = Image.open(self.filelist[image_idx])
-        refi = rawi.crop((x1,y1,x2,y2))
+        rawi = self.openImage(self.filelist[image_idx][0],self.filelist[image_idx][1],True)
+        #refi = rawi.crop((x1,y1,x2,y2))
+        refi = rawi[y1:y2,x1:x2]
         del rawi
-        cv_ref = numpy.array(refi)
+        
+        cv_ref = refi.astype(numpy.float32)
         del refi
         
         self.progress.setMaximum(len(self.filelist)-1)
@@ -2105,11 +2649,14 @@ class theApp(Qt.QObject):
             if i == image_idx:
                 continue
             self.statusBar.showMessage(tr('detecting point ')+str(point_idx+1)+tr(' of ')+str(len(self.alignpointlist[image_idx]))+tr(' on image ')+str(i)+tr(' of ')+str(len(self.filelist)-1))
+            
             if self.auto_align_use_whole_image==2:
-                rawi=Image.open(self.filelist[i])
+                rawi=self.openImage(self.filelist[i][0],self.filelist[i][1],True)
             else:
-                rawi=Image.open(self.filelist[i]).crop((x1-r_w,y1-r_h,x2+r_w,y2+r_h))
-            cv_im=numpy.array(rawi)
+                rawi=self.openImage(self.filelist[i][0],self.filelist[i][1],True)[y1-r_h:y2+r_h,x1-r_w:x2+r_w]
+
+            cv_im=rawi.astype(numpy.float32)
+            
             del rawi
             
             min_dif = None
@@ -2138,7 +2685,7 @@ class theApp(Qt.QObject):
         
         if (self.wnd.masterDarkCheckBox.checkState() == 2):
             if os.path.isfile(self.master_dark_file):
-                drk=numpy.array(Image.open(self.master_dark_file))
+                drk=self.openImage(self.master_dark_file,asarray=True)
                 self._drk=drk
             elif self.master_dark_file.replace(' ','').replace('\t','') == '':
                 pass #ignore
@@ -2158,7 +2705,7 @@ class theApp(Qt.QObject):
                 
         if (self.wnd.masterFlatCheckBox.checkState() == 2):
             if os.path.isfile(self.master_flat_file):
-                flt=numpy.array(Image.open(str(self.master_flat_file)))
+                flt=self.openImage(str(self.master_flat_file),asarray=True)
                 self._flt=flt
             elif self.master_flat_file.replace(' ','').replace('\t','') == '':
                 pass #ignore
@@ -2177,7 +2724,6 @@ class theApp(Qt.QObject):
                 self._flt=_flt
 
         if(self.__average__(self._drk,self._flt)):        
-            self.wnd.exposureGroupBox.setEnabled(True)
             self.wnd.saveResultPushButton.setEnabled(True)
         else:
             return False
@@ -2192,30 +2738,53 @@ class theApp(Qt.QObject):
 
             total_points = len(self.alignpointlist[0])
             self.progress.setMaximum(len(self.alignpointlist)-1)
-            self.lock()       
+            self.lock()
+            
+            mat=((numpy.array(self.alignpointlist)[...,0:2]).astype('float'))
+            
+            x_avg = mat[...,0].mean()
+            y_avg = mat[...,1].mean()
+            
+            mat2 = mat-[x_avg,y_avg]
+            
+            var = numpy.empty((len(mat[0]),2))
+            avg = numpy.empty((len(mat[0]),2))
 
+            for i in range(len(mat[0])):
+                var[i][0]=(mat2[...,i,0].var())
+                var[i][1]=(mat2[...,i,1].var())
+                 
+            del mat2
+
+            w = 1/(var+0.00000001) #Added 0.00000001 to avoid division by zero
+            del var
+            
+            wx=w[...,0].sum()
+            wy=w[...,1].sum()
+            
             for i in range(len(self.alignpointlist)):
                 x=0
                 y=0
-                for p in self.alignpointlist[i]:
-                    x+=p[0]
-                    y+=p[1]
+                for j in range(len(self.alignpointlist[i])):
+                    x+=self.alignpointlist[i][j][0]*w[j,0]
+                    y+=self.alignpointlist[i][j][1]*w[j,1]
                             
-                self.offsetlist[i][0]=(x/total_points)
-                self.offsetlist[i][1]=(y/total_points)
+                self.offsetlist[i][0]=(x/wx)
+                self.offsetlist[i][1]=(y/wy)
 
                 self.progress.setValue(i)
                 if ((i%25)==0) and self.progressWasCanceled():
                     return False
+
             self.unlock()
+            self.statusBar.showMessage(tr('DONE'))
         else:
-            self.statusBar.showMessage(tr('No align points: using manual alignment.'))
+            self.statusBar.showMessage(tr('No align points: using manual alignment, DONE'))
         
         
 
     def __average_dark__(self):
         result=None
-        #total = len(self.aligned_dark)
         total = len(self.darkfilelist)
         self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
         
@@ -2227,18 +2796,11 @@ class theApp(Qt.QObject):
             if self.progressWasCanceled():
                 return None
 
-            rawi=Image.open(self.darkfilelist[i])
-            
-            raw = numpy.array(rawi)
-            del rawi
-            
+            raw=self.openImage(self.darkfilelist[i][0],self.darkfilelist[i][1],True)
+                        
             if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
-                raw.resize((len(raw),len(raw[0]),3),refcheck=False)
-            if 'float' in str(raw.dtype):
-                raw = (raw*self.IMAGE_RANGE).astype('ulonglong')
-            else:
-                raw = raw.astype('ulonglong')
-                
+                raw = raw[...,0:3]
+                            
             if result is None:
                 result = raw
             else:
@@ -2249,19 +2811,18 @@ class theApp(Qt.QObject):
                
         self.statusBar.showMessage(tr('Computing final image...'))
 
-        result2=(result/total).clip(0,self.IMAGE_RANGE).astype(self.IMAGE_ARRAY_TYPE)
-        rawi = Image.fromarray(result2)
-        rawi.save(self.master_dark_save_file)
-
-        del rawi
-        self.statusBar.clearMessage()
-        return result2
+        result=result/total
+        self.statusBar.showMessage(tr('DONE'))
+        
+        return result
     
     def __average_flat__(self,dark_image=None):
         result=None
 
         if (dark_image != None):
             use_dark = True
+        else:
+            use_dark = False
 
         total = len(self.flatfilelist)
         
@@ -2276,17 +2837,10 @@ class theApp(Qt.QObject):
             if self.progressWasCanceled():
                 return None
                 
-            rawi=Image.open(self.flatfilelist[i])
-
-            raw=numpy.array(rawi)
-            del rawi
+            raw=self.openImage(self.flatfilelist[i][0],self.flatfilelist[i][1],True)
                         
             if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
-                raw.resize((len(raw),len(raw[0]),3),refcheck=False)
-            if 'float' in str(raw.dtype):
-                raw = (raw*self.IMAGE_RANGE).astype('ulonglong')
-            else:
-                raw = raw.astype('ulonglong')
+                raw = raw[...,0:3]
                 
             if result is None:
                 if use_dark:
@@ -2304,11 +2858,7 @@ class theApp(Qt.QObject):
                
         self.statusBar.showMessage(tr('Computing final image...'))
 
-        result=(result/total).clip(0,self.IMAGE_RANGE).astype(self.IMAGE_ARRAY_TYPE)        
-        rawi = Image.fromarray(result)
-        rawi.save(self.master_flat_save_file)
-
-        del rawi
+        result=result/total
         
         self.statusBar.showMessage(tr('DONE'))
 
@@ -2385,8 +2935,9 @@ class theApp(Qt.QObject):
 
         if (flat_image != None):
             use_flat = True
-            normalizer = float(flat_image.sum()/flat_image.size)
-            master_flat=(flat_image/normalizer)*self.master_flat_mul_factor
+            normalizer = float(flat_image.sum()/float(flat_image.size))
+            #added 10^-8 to  avoid master_flat[i,j] = 0 for some i,j
+            master_flat=((flat_image/normalizer)*self.master_flat_mul_factor)+0.00000001
         else:
             use_flat = False
             master_flat=None
@@ -2412,15 +2963,10 @@ class theApp(Qt.QObject):
             x_start = self.offsetlist[i][0]
             y_start = self.offsetlist[i][1]
             
-            rawi_unc=Image.open(self.filelist[i])
-            rawi=rawi_unc.crop((x_start,y_start,x_start+self.result_w,y_start+self.result_h))
+            rawi_unc=self.openImage(self.filelist[i][0],self.filelist[i][1],True)
 
-            del rawi_unc
-            
-            raw=numpy.array(rawi)
+            raw=rawi_unc[y_start:y_start+self.result_h,x_start:x_start+self.result_w]
 
-            del rawi
-            
             if use_dark:
                 rad = master_dark[y_start:y_start+self.result_h,x_start:x_start+self.result_w]
                 
@@ -2435,11 +2981,7 @@ class theApp(Qt.QObject):
             self.progress.setValue((4*i)+2)
 
             if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
-                raw.resize((len(raw),len(raw[0]),3),refcheck=False)
-            if 'float' in str(raw.dtype):
-                raw = (raw*self.IMAGE_RANGE).astype('longlong')
-            else:
-                raw = raw.astype('longlong')
+                raw = raw[...,0:3]
                 
             if use_dark:
                 r = (raw - rad)
@@ -2462,30 +3004,13 @@ class theApp(Qt.QObject):
         self.progress.setValue(4*(total-1))   
         self.statusBar.showMessage(tr('Computing final image...'))
 
-        self._avg=(result,count)
-        result=(result/count).clip(0,self.IMAGE_RANGE).astype(self.IMAGE_ARRAY_TYPE)
-        rawi = Image.fromarray(result)
-        rawi.save(self.average_save_file)
+        self._avg=result/count
 
-        exp = self._avg[0].max()/self.IMAGE_RANGE
-
-        if count < exp:
-            self.wnd.exposureDoubleSpinBox.setMaximum(exp)
-            self.wnd.exposureSlider.setMaximum(exp*100)
-        else:
-            self.wnd.exposureDoubleSpinBox.setMaximum(count)
-            self.wnd.exposureSlider.setMaximum(count*100)            
-        self.setExp(count)
-        
-        qimg = Qt.QImage(self.average_save_file)
         self.statusBar.clearMessage()
-        self.showImage(qimg)
+        self.updateResultImage()
         self.unlock()
         self.statusBar.showMessage(tr('DONE'))
-
-        del rawi
-        del result
-
+        
         return True
         
     def progressWasCanceled(self):
@@ -2502,32 +3027,192 @@ class theApp(Qt.QObject):
         else:
             return False
 
+    def getDestDir(self):
+        destdir = str(Qt.QFileDialog.getExistingDirectory(self.wnd,tr("Choose the output folder"),self.current_dir))
+        self.save_dlg.lineEditDestDir.setText(str(destdir))
         
     def saveResult(self):
-        outdir = str(Qt.QFileDialog.getExistingDirectory(self.wnd,tr("Choose the output folder"),self.current_dir))
-
-        avg_name=os.path.basename(self.average_save_file)
-        drk_name=os.path.basename(self.master_dark_save_file)
-        flt_name=os.path.basename(self.master_flat_save_file)
-
-        f = open(self.average_save_file,'rb')
-        data = f.read()
-        f.close()
-        f = open(os.path.join(outdir,avg_name),'wb')
-        f.write(data)
-        f.close()
-
-        rawi=Image.fromarray((self._avg[0]/self.exposure).clip(0,self.IMAGE_RANGE).astype(self.IMAGE_ARRAY_TYPE))
-        rawi.save(os.path.join(outdir,self.elab_prefix+avg_name))
-        del rawi
         
-        if (self._drk!=None):
-            rawi=Image.fromarray(self._drk)
-            rawi.save(os.path.join(outdir,drk_name))
-            del rawi
+        if self.save_dlg.exec_() != 1:
+            return False
+        destdir=str(self.save_dlg.lineEditDestDir.text())
+        
+        while not os.path.isdir(destdir):
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("The selected output folder is not a directory\nor it does not exist!"))
+            msgBox.exec_()
+            if self.save_dlg.exec_() != 1:
+                return False
+            destdir=str(self.save_dlg.lineEditDestDir.text())
+
+        self.lock()
+        self.qapp.processEvents()
+        name=str(self.save_dlg.lineEditFileName.text())
+
+        if self.save_dlg.radioButtonJpeg.isChecked():
+            frmat='jpg'
+        elif self.save_dlg.radioButtonPng.isChecked():
+            frmat='png'
+        elif self.save_dlg.radioButtonTiff.isChecked():
+            frmat='tiff'
+        elif self.save_dlg.radioButtonFits.isChecked():
+            frmat='fits'
+        
+        if self.save_dlg.radioButton8.isChecked():
+            bits=8
+        elif self.save_dlg.radioButton16.isChecked():
+            bits=16
+        elif self.save_dlg.radioButton32.isChecked():
+            bits=32
+        elif self.save_dlg.radioButton64.isChecked():
+            bits=64
+    
+        if frmat=='fits':
+            self._save_fits(destdir,name,bits)
+        else:
+            self._save_cv2(destdir,name,frmat, bits)
+        
+        self.unlock()
+        
+    def _save_fits(self,destdir, name, bits):
+
+        #header = pyfits
+
+        if bits==32:
+            outbits=numpy.float32
+        elif bits==64:
+            outbits=numpy.float64
+
+        rgb_mode = (self.save_dlg.rgbFitsCheckBox.checkState()==2)
+        
+        avg_name=os.path.join(destdir,name)
+        self._imwrite_fit_(avg_name,self._avg.astype(outbits),rgb_mode)
+        
+        if self.save_dlg.saveMastersCheckBox.checkState()==2:
+            if (self._drk!=None):
+                drk_name=os.path.join(destdir,name+"-maste-dark")
+                self._imwrite_fit_(drk_name,self._drk.astype(outbits),rgb_mode)
             
-        if (self._flt!=None):
-            rawi=Image.fromarray(self._flt)
-            rawi.save(os.path.join(outdir,flt_name))
-            del rawi
+            if (self._flt!=None):
+                flt_name=os.path.join(destdir,name+"-maste-flat")
+                self._imwrite_fit_(flt_name,self._flt.astype(outbits),rgb_mode)
+    
+    def _save_cv2(self,destdir, name, frmt, bits):
+               
+        if bits==8:
+            rawavg=utils.normToUint8(self._avg)
+            rawdrk=utils.normToUint8(self._drk)
+            rawflt=utils.normToUint8(self._flt)
+        elif bits==16:
+            rawavg=utils.normToUint16(self._avg)
+            rawdrk=utils.normToUint16(self._drk)
+            rawflt=utils.normToUint16(self._flt)
+        else:
+            #this should neve be executed!
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("Cannot save image:"))
+            msgBox.setInformativeText(tr("Unsupported format ")+str(bits)+"-bit "+tr("for")+" "+str(frmt))
+            msgBox.setIcon(Qt.QMessageBox.Critical)
+            msgBox.exc_()
+            return False
+                
+        avg_name=os.path.join(destdir,name+"."+frmt)
         
+        if frmt=='jpg':
+            flags=(cv2.cv.CV_IMWRITE_JPEG_QUALITY,int(self.save_dlg.spinBoxIQ.value()))
+        elif frmt=='png':
+            flags=(cv2.cv.CV_IMWRITE_PNG_COMPRESSION,int(self.save_dlg.spinBoxIC.value()))
+        else:
+            flags=None
+            
+        if not self._imwrite_cv2_(avg_name,rawavg,flags):
+            return False
+        
+        
+        if self.save_dlg.saveMastersCheckBox.checkState()==2:
+            if (self._drk!=None):
+                drk_name=os.path.join(destdir,name+"-maste-dark."+frmt)
+                self._imwrite_cv2_(drk_name,rawdrk,flags)
+            
+            if (self._flt!=None):
+                flt_name=os.path.join(destdir,name+"-maste-flat."+frmt)
+                self._imwrite_cv2_(flt_name,rawflt,flags)
+        
+    def _imwrite_cv2_(self, name, data, flags):
+        try:
+            if os.path.exists(name):
+                msgBox = Qt.QMessageBox()
+                msgBox.setText(tr("A file named")+" \""+
+                               os.path.basename(name)
+                               +"\" "+tr("already exists."))
+                msgBox.setInformativeText(tr("Do you want to overwite it?"))
+                msgBox.setIcon(Qt.QMessageBox.Question)
+                msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+                if msgBox.exec_() == Qt.QMessageBox.Yes:
+                    os.remove(name)
+                else:
+                    return False
+            if len(data.shape) == 3:
+                return cv2.imwrite(name,data[...,(2,1,0)],flags)
+            elif len(data.shape) == 2:
+                return cv2.imwrite(name,data,flags)
+            else:
+                #this should never happens
+                raise TypeError("Cannot save "+str(len(data.shape))+"-D images")
+        except Exception as exc:
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("Cannot save image due to cv2 exception:"))
+            msgBox.setInformativeText(str(exc))
+            msgBox.setIcon(Qt.QMessageBox.Critical)
+            msgBox.exc_()
+            return False
+            
+    def __fits_secure_imwrite(self, hdulist, url):
+        if os.path.exists(url):
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("A file named")+" \""+
+                           os.path.basename(url)
+                           +"\" "+tr("already exists."))
+            msgBox.setInformativeText(tr("Do you want to overwite it?"))
+            msgBox.setIcon(Qt.QMessageBox.Question)
+            msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+            if msgBox.exec_() == Qt.QMessageBox.Yes:
+                os.remove(url)
+            else:
+                return False
+           
+        hdulist.writeto(url)
+    
+    def _imwrite_fit_(self, name, data, rgb_mode=True):
+
+        if rgb_mode and (len(data.shape) == 3):
+            hdu_r = utils.pyfits.PrimaryHDU(data[...,0])
+            
+            hdu_g = utils.pyfits.ImageHDU(data[...,1])
+            hdu_g.update_ext_name('GREN')
+            
+            hdu_b = utils.pyfits.ImageHDU(data[...,2])
+            hdu_b.update_ext_name('BLUE')
+            
+            hdl = utils.pyfits.HDUList([hdu_r,hdu_g,hdu_b])
+            
+            self.__fits_secure_imwrite(hdl,name+'-RGB.fits')
+            
+        elif (len(data.shape) == 3):
+            hdu_r = utils.pyfits.PrimaryHDU(data[...,0])
+            hdl_r = utils.pyfits.HDUList([hdu_r])
+            self.__fits_secure_imwrite(hdl_r,name+'-R.fits')
+            
+            hdu_g = utils.pyfits.ImageHDU(data[...,1])
+            hdl_g = utils.pyfits.HDUList([hdu_g])
+            self.__fits_secure_imwrite(hdl_g,name+'-G.fits')
+            
+            hdu_b = utils.pyfits.ImageHDU(data[...,2])
+            hdl_b = utils.pyfits.HDUList([hdu_b])
+            self.__fits_secure_imwrite(hdl_b,name+'-B.fits')
+            
+        else:    
+            hdu = utils.pyfits.PrimaryHDU(data)
+            hdl = utils.pyfits.HDUList([hdu])
+            self.__fits_secure_imwrite(hdl,name+'.fits')
+

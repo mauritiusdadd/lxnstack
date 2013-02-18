@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Maurizio D'Addona</author>
  <class>AboutDialog</class>
  <widget class="QDialog" name="AboutDialog">
   <property name="geometry">
@@ -135,8 +136,8 @@ This is free software, and you are welcome to redistribute it under certain cond
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>322</width>
-            <height>138</height>
+            <width>94</width>
+            <height>200</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_6">
@@ -189,8 +190,8 @@ English:
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>307</width>
-            <height>270</height>
+            <width>195</width>
+            <height>396</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">

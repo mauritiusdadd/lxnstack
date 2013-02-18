@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <author>D'Addona Maurizio</author>
+ <author>Maurizio D'Addona</author>
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
@@ -308,8 +308,8 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>183</width>
-         <height>242</height>
+         <width>190</width>
+         <height>267</height>
         </rect>
        </property>
        <attribute name="label">
@@ -541,8 +541,8 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>139</width>
-         <height>176</height>
+         <width>190</width>
+         <height>267</height>
         </rect>
        </property>
        <attribute name="label">
@@ -670,7 +670,7 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>151</width>
+         <width>173</width>
          <height>305</height>
         </rect>
        </property>
@@ -843,7 +843,7 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>154</width>
+         <width>173</width>
          <height>305</height>
         </rect>
        </property>
@@ -983,8 +983,8 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>183</width>
-         <height>216</height>
+         <width>190</width>
+         <height>267</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1017,7 +1017,7 @@ shot</string>
              </size>
             </property>
             <property name="text">
-             <string>Add</string>
+             <string>Stack</string>
             </property>
            </widget>
           </item>
@@ -1081,116 +1081,6 @@ result</string>
          </layout>
         </item>
         <item>
-         <widget class="QGroupBox" name="exposureGroupBox">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="title">
-           <string>Exposure control</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_11">
-           <item>
-            <widget class="QSlider" name="exposureSlider">
-             <property name="minimum">
-              <number>0</number>
-             </property>
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_9">
-             <item>
-              <widget class="QDoubleSpinBox" name="exposureDoubleSpinBox">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-               </property>
-               <property name="minimum">
-                <double>0.000000000000000</double>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="label_5">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>Divisor</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QGridLayout" name="gridLayout_2">
-             <item row="0" column="0">
-              <widget class="QPushButton" name="expAvgPushButton">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="minimumSize">
-                <size>
-                 <width>20</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Average</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QPushButton" name="expSumPushButton">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>Sum</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QPushButton" name="expNrmPushButton">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="minimumSize">
-                <size>
-                 <width>20</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string>Normalize</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
          <spacer name="verticalSpacer">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
@@ -1209,6 +1099,12 @@ result</string>
     </item>
     <item>
      <widget class="QFrame" name="MainFrame">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="frameShape">
        <enum>QFrame::StyledPanel</enum>
       </property>
@@ -1351,6 +1247,9 @@ result</string>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="cursor" stdset="0">
+            <cursorShape>CrossCursor</cursorShape>
+           </property>
            <property name="mouseTracking">
             <bool>true</bool>
            </property>
@@ -1384,7 +1283,7 @@ result</string>
               <x>0</x>
               <y>0</y>
               <width>406</width>
-              <height>382</height>
+              <height>353</height>
              </rect>
             </property>
             <property name="mouseTracking">
@@ -1394,6 +1293,31 @@ result</string>
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="colorBar">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -1537,11 +1461,6 @@ result</string>
   <tabstop>alignPushButton</tabstop>
   <tabstop>avrPushButton</tabstop>
   <tabstop>saveResultPushButton</tabstop>
-  <tabstop>exposureSlider</tabstop>
-  <tabstop>exposureDoubleSpinBox</tabstop>
-  <tabstop>expAvgPushButton</tabstop>
-  <tabstop>expSumPushButton</tabstop>
-  <tabstop>expNrmPushButton</tabstop>
   <tabstop>zoomCheckBox</tabstop>
   <tabstop>zoomSlider</tabstop>
   <tabstop>zoomDoubleSpinBox</tabstop>

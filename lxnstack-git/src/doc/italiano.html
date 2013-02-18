@@ -12,6 +12,10 @@
  <body>
   <div id="mainframe">
   <p><h1>Manuale utente</h1></p>
+  
+  <p>NOTA: il manuale non è ancora completamente aggiornato.</p>
+  <p> La varsione aggiornata uscirà con la prossima versione del programma.</p>
+  
   <p><h2>Indice:</h2></p>
   <!-- l'indice principale -->
   <p class="index">
@@ -279,11 +283,13 @@
     <image src="imgs/flat_list.png"></image>
    </p>
    <p>
-    NOTA: se nella directory da cui sono state caricate le immagini sono presenti le cartelle 'dark' 
-    e 'flat', le immagini al loro interno saranno automaticamente aggiunte alle rispettive liste
-    (ad esempio se si sono caricate le immagini dalla directory '/home/immagini', le immagini di
-    dark e flatfield verranno cercate automaticamente nelle directory '/home/immagini/dark' e 
-    '/home/immagini/flat').
+    NOTA: Se si vuole è possibile cercare automaticamente le immagini di dark e di flatfield
+    abilitando la casella "Cerca automaticamente le immagini di dark e flatfield" nelle impostazioni
+    dell'applicazione. In tal modo, se nella directory da cui sono state caricate le immagini sono
+    presenti le cartelle 'dark' e 'flat', le immagini al loro interno saranno automaticamente aggiunte
+    alle rispettive liste (ad esempio se si sono caricate le immagini dalla directory '/home/immagini',
+    le immagini di dark e flatfield verranno cercate automaticamente nelle directory 
+    '/home/immagini/dark' e '/home/immagini/flat').
    </p>
    <p>
     Se invece si dispone già di immagini di maste-dark e di maste-flatfield (le puoi creare con questo
@@ -313,24 +319,13 @@
     <image src="imgs/tools.png"></image>
    </p>
    <p>
-    Una volta che l'operazione sarà conclusa verrà mostrata l'immagine risultante (la media) e 
-    verranno abilitati i controlli dell'esposizione.
+    Una volta che l'operazione sarà conclusa verrà mostrata l'immagine risultante (la media).
    </p>
    <p>
-    <image src="imgs/exposure_controls.png"></image>
-   </p>
-   <p>
-    Tramite i pulsanti 'Somma', 'Media' e 'Normalizzato' è possibile selezionare se l'immagine
-    risultante debba essere rispettivamente la media, la somma delle singole immagini oppure
-    la normalizzata, nel senso che il valore di ogni pixel dell'immagine è scalato in modo
-    tale che al valore massimo corrisponda il valore massimo possibile 255 (se il pixel con il
-    valore M più alto è P=[x, M, y] allora ogni pixel p=[R, G, B] verrà motiplicato per 255/M
-    ottenendo così p'=[R*255/M, G*255/M, B*255/M] e P'=[x*255/M, 255p*M/M, y*255/M])    
-   </p>
-   <p>
-    Il fattore di divisione permette un controllo più fine del processo sopra spiegato per cui
-    l'immagine risultante verrà divisa per il valore V selezionato (che nel caso di una somma
-    sempice corrisponde a V=1, mentre per una media V=#immagini_sommate)
+    NOTA: Lo strumento "controlli di esposizione" è sato rimosso perche non più funzionante
+    da quando i calcoli sono elaborati utilizzando numeri a virgola mobile invece di interi.
+    Inoltre ci sono molti programmi per la manipolazione delle immagini che fornisocono
+    funzionalità simili.
    </p>
    <p>
     Di seguito sono riportate una singola immagine (sopra) ed una media corretta con darkframe e

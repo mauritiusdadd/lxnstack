@@ -16,9 +16,8 @@ will appear:
  
  [username@localhost ~]$ Python 2.7.3
 
-If the program is not foundm then you have to install
-python2.7 (it is present in the official repository of
-almost all the current linux distribution)
+If the program is not found then you have to install
+python2.7.
  
   [2]  DEPENDENCIES
 In order to execute this program, the following
@@ -26,24 +25,28 @@ libraries and programs must be installed on your pc:
 
   * Python 2.7 (see above)
 
-  * the python2 package 'numpy'
+  * The python2 package 'numpy' version 1.7
     (http://www.numpy.org/)
 
-  * the python2 package 'PIL'
+  * The python2 package 'PIL' version 1.1.7
     (http://www.pythonware.com/products/pil/)
 
-  * the libraries 'opencv' version 2
+  * The libraries 'opencv' version 2
     (http://opencv.org/)
 
-  * the package 'v4l-utils'
+  * The package 'v4l-utils' version 0.9
   
-  * the libreries 'Qt4'
-    (url)
+  * The libreries 'Qt4' version 4.8
+    (http://qt-project.org)
     
-  * the python2 pachage 'PyQt4'
+  * The python2 pachage 'PyQt4' version 4.9
     (http://www.riverbankcomputing.co.uk/software/pyqt/intro)
-    
-The previous packages are present in the repositories
+
+  * [optional] The python2 package 'pyfits' to enable FITS
+    file support.  
+    (http://www.stsci.edu/institute/software_hardware/pyfits)
+
+The above packages are present in the repositories
 of almost all linux distributions.
  
   [3]  INSTALLATION
@@ -61,7 +64,8 @@ and /usr/share/doc
 
 If you want to install the program in a different directory
 you have to manually edit the file paths.py located in then
-'src' directory.
+'src' directory or use the '--prefix="DESTINATION-DIRECTORY"'.
+For more information type "python2 ./install.py --help".
 
 
   [4]  EXECUTION
@@ -70,4 +74,4 @@ following command (without quotes) and press ENTER:
 
  "lxnstack"
  
-and then the program main window will appear.
+and then the program main window will be shown.

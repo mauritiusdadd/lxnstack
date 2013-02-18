@@ -13,6 +13,10 @@
  <body>
   <div id=mainframe>
   <p><h1>User Manual</h1></p>
+  
+  <p>NOTE: This manual is a bit outdated.</p>
+  <p> The updated manual will be released with the next program version.</p>
+  
   <p><h2>Index:</h2></p>
   <!-- main index -->
   <p class="index">
@@ -270,11 +274,12 @@
     <image src="imgs/flat_list.png"></image>
    </p>
    <p>
-    NOTE: when you load some images, the directory in which they are located will be scanned
-    for the presence of the folders 'dark' and 'flat': the images located in these directories
-    will be added to the respective lists (for example if you load some images from the directory
-    '/home/images', the dark and flat images will be automatically searched in the directories
-    '/home/images/dark' and '/home/images/flat').
+    NOTE: If you want, when you load some images the directory in which they are located can be 
+    scanned for the presence of the folders 'dark' and 'flat' by enabling the checkbox "Automatically
+    scan for dark and flat frames" in the application settings.
+    The images located in these directories will be added to the respective lists (for example if 
+    you load some images from the directory '/home/images', the dark and flat images will be 
+    searched in the directories '/home/images/dark' and '/home/images/flat').
    </p>
    <p>
     If you already made the calibration images (you can make them using this program by loading
@@ -303,37 +308,15 @@
     <image src="imgs/tools.png"></image>
    </p>
    <p>
-    When the operation is ended the resulting average image will be shown and the exposure
-    controls will be enabled.
+    When the operation is ended the resulting average image will be shown.
    </p>
    <p>
-    <image src="imgs/exposure_controls.png"></image>
+    NOTE: The "exposure controls" tool has been removed because it does not work anymore
+    since the computation is done using floating point numbers instead of integers.
+    Moreover there are several image manupulation programs that provide similar functionalities.
    </p>
    <p>
-    The image obtained by the addition process will be divided by a normalizing factor V
-    (by default V=number_of_added_images, obtaining the average of the images).
-    It is possible to modify this value by using the buttons 'Average', 'Sum' and 'Normalize'.
-   </p>
-   <p>
-    The 'Average' sets V to its default value: V=number_of_added_images (useful to reduce
-    the background noise).
-   </p>
-   <p>
-    The 'Sum' button sets V to V=1 obtaining the addition of the images
-    (useful to simulate a total exposure of N*exp seconds, where 'N' is the number of images
-    and 'exp' is the exposure time of a single image).
-   </p>
-   <p>
-    The 'Normalize' button sets V to V=M/255 where M is maximum value of the resulting image
-    (for example if the pixel P with the maximum value is P=[R, M, B], each pixel p=[r, g, b]
-    is divided by V=M/255 obtaining p'=[r*255/M, g*255/M, b*255/M] and P'=[R*255/M, 255, G*255/M]
-   </p>
-   <p>
-    It is also possible to set the divisor factor to a specified value (in a limited range)
-    by using the 'Divisor' trackbar and spinbox.
-   </p>
-   <p>
-    There are shown a single image and the average of 33 images calibrated with a master-dark
+    Here are shown a single image and the average of 33 images calibrated with a master-dark
     and a master-flatfield.
    </p>
    <p>

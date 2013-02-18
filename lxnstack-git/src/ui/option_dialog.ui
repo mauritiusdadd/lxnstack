@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
+ <author>Maurizio D'Addona</author>
  <class>Dialog</class>
  <widget class="QDialog" name="Dialog">
   <property name="geometry">
@@ -85,20 +86,56 @@
             </item>
            </layout>
           </item>
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>You need to restart the application to apply the changes in this section.</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
        <item>
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>You need to restart the application to apply the changes in this section.</string>
+        <widget class="QGroupBox" name="groupBox_5">
+         <property name="title">
+          <string>Graphics</string>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_8">
+          <item>
+           <widget class="QCheckBox" name="rgbFitsCheckBox">
+            <property name="text">
+             <string>Automatically detect RBG Fits file</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="jetCheckBox">
+            <property name="text">
+             <string>Use 'jet' colormap for Black&amp;&amp;White image</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="autoFolderscheckBox">
+            <property name="text">
+             <string>Automatically search for dark and flat frames</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
       </layout>
@@ -134,73 +171,115 @@
          <property name="title">
           <string>Auto detection</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_4">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
+         <layout class="QVBoxLayout" name="verticalLayout_10">
+          <item>
+           <widget class="QCheckBox" name="minQualitycheckBox">
             <property name="text">
-             <string>Max points</string>
+             <string>Auto detect bets quality</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_5">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Min quality</string>
-            </property>
-           </widget>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QLabel" name="label_4">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Max points</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="maxPointsSpinBox">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="suffix">
+               <string> points</string>
+              </property>
+              <property name="maximum">
+               <number>99999</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
-          <item row="1" column="1">
-           <widget class="QDoubleSpinBox" name="minQualityDoubleSpinBox">
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="decimals">
-             <number>4</number>
-            </property>
-            <property name="minimum">
-             <double>0.000100000000000</double>
-            </property>
-            <property name="maximum">
-             <double>100.000000000000000</double>
-            </property>
-            <property name="singleStep">
-             <double>0.005000000000000</double>
-            </property>
-            <property name="value">
-             <double>0.250000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="QSpinBox" name="maxPointsSpinBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="suffix">
-             <string> points</string>
-            </property>
-            <property name="maximum">
-             <number>99999</number>
-            </property>
-           </widget>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QLabel" name="label_5">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Min quality</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QDoubleSpinBox" name="minQualityDoubleSpinBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="decimals">
+               <number>4</number>
+              </property>
+              <property name="minimum">
+               <double>0.000100000000000</double>
+              </property>
+              <property name="maximum">
+               <double>100.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.005000000000000</double>
+              </property>
+              <property name="value">
+               <double>0.250000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -228,100 +307,123 @@
          <property name="title">
           <string>Rectangle size</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_3">
-          <item row="0" column="1">
-           <widget class="QSpinBox" name="rWSpinBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+         <layout class="QVBoxLayout" name="verticalLayout_9">
+          <item>
+           <widget class="QCheckBox" name="autoSizeCheckBox">
+            <property name="text">
+             <string>Auto detect best size</string>
             </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="suffix">
-             <string> px</string>
-            </property>
-            <property name="minimum">
-             <number>32</number>
-            </property>
-            <property name="maximum">
-             <number>1024</number>
-            </property>
-            <property name="singleStep">
-             <number>32</number>
+            <property name="checked">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+             <widget class="QLabel" name="label">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Width</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="rWSpinBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="suffix">
+               <string> px</string>
+              </property>
+              <property name="minimum">
+               <number>32</number>
+              </property>
+              <property name="maximum">
+               <number>1024</number>
+              </property>
+              <property name="singleStep">
+               <number>32</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QLabel" name="label_2">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Height</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="rHSpinBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+              <property name="suffix">
+               <string> px</string>
+              </property>
+              <property name="minimum">
+               <number>32</number>
+              </property>
+              <property name="maximum">
+               <number>1024</number>
+              </property>
+              <property name="singleStep">
+               <number>32</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
            <widget class="QCheckBox" name="wholeImageCheckBox">
             <property name="text">
-             <string>Use whole image
-to track points</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="rHSpinBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="suffix">
-             <string> px</string>
-            </property>
-            <property name="minimum">
-             <number>32</number>
-            </property>
-            <property name="maximum">
-             <number>1024</number>
-            </property>
-            <property name="singleStep">
-             <number>32</number>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_2">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>45</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Height</string>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>45</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Width</string>
+             <string>Use whole image to track points</string>
             </property>
            </widget>
           </item>
@@ -437,7 +539,7 @@ to track points</string>
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>397</width>
+               <width>240</width>
                <height>279</height>
               </rect>
              </property>
@@ -676,17 +778,11 @@ type</string>
   </layout>
  </widget>
  <tabstops>
-  <tabstop>tabWidget</tabstop>
   <tabstop>langComboBox</tabstop>
   <tabstop>useCustomLangCheckBox</tabstop>
   <tabstop>langFileLineEdit</tabstop>
   <tabstop>openLangPushButton</tabstop>
   <tabstop>buttonBox</tabstop>
-  <tabstop>rWSpinBox</tabstop>
-  <tabstop>rHSpinBox</tabstop>
-  <tabstop>wholeImageCheckBox</tabstop>
-  <tabstop>maxPointsSpinBox</tabstop>
-  <tabstop>minQualityDoubleSpinBox</tabstop>
   <tabstop>devComboBox</tabstop>
   <tabstop>scrollArea</tabstop>
   <tabstop>resolutionComboBox</tabstop>
@@ -721,8 +817,8 @@ type</string>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>256</x>
-     <y>318</y>
+     <x>260</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -737,8 +833,8 @@ type</string>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>319</x>
-     <y>318</y>
+     <x>323</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -757,8 +853,8 @@ type</string>
      <y>98</y>
     </hint>
     <hint type="destinationlabel">
-     <x>106</x>
-     <y>142</y>
+     <x>122</x>
+     <y>135</y>
     </hint>
    </hints>
   </connection>
@@ -773,8 +869,8 @@ type</string>
      <y>100</y>
     </hint>
     <hint type="destinationlabel">
-     <x>375</x>
-     <y>143</y>
+     <x>429</x>
+     <y>136</y>
     </hint>
    </hints>
   </connection>
@@ -785,12 +881,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>275</x>
-     <y>123</y>
+     <x>287</x>
+     <y>151</y>
     </hint>
     <hint type="destinationlabel">
-     <x>297</x>
-     <y>115</y>
+     <x>411</x>
+     <y>150</y>
     </hint>
    </hints>
   </connection>
@@ -801,12 +897,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>270</x>
-     <y>144</y>
+     <x>282</x>
+     <y>178</y>
     </hint>
     <hint type="destinationlabel">
-     <x>296</x>
-     <y>144</y>
+     <x>411</x>
+     <y>177</y>
     </hint>
    </hints>
   </connection>
@@ -817,12 +913,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>244</x>
-     <y>197</y>
+     <x>256</x>
+     <y>232</y>
     </hint>
     <hint type="destinationlabel">
-     <x>289</x>
-     <y>197</y>
+     <x>411</x>
+     <y>231</y>
     </hint>
    </hints>
   </connection>
@@ -833,12 +929,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>275</x>
-     <y>227</y>
+     <x>287</x>
+     <y>259</y>
     </hint>
     <hint type="destinationlabel">
-     <x>292</x>
-     <y>225</y>
+     <x>411</x>
+     <y>258</y>
     </hint>
    </hints>
   </connection>
@@ -849,12 +945,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>269</x>
-     <y>257</y>
+     <x>281</x>
+     <y>286</y>
     </hint>
     <hint type="destinationlabel">
-     <x>290</x>
-     <y>258</y>
+     <x>411</x>
+     <y>285</y>
     </hint>
    </hints>
   </connection>
@@ -865,12 +961,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>268</x>
-     <y>284</y>
+     <x>280</x>
+     <y>313</y>
     </hint>
     <hint type="destinationlabel">
-     <x>295</x>
-     <y>285</y>
+     <x>411</x>
+     <y>312</y>
     </hint>
    </hints>
   </connection>
@@ -881,12 +977,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>313</x>
-     <y>119</y>
+     <x>411</x>
+     <y>150</y>
     </hint>
     <hint type="destinationlabel">
-     <x>275</x>
-     <y>126</y>
+     <x>287</x>
+     <y>151</y>
     </hint>
    </hints>
   </connection>
@@ -897,12 +993,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>289</x>
-     <y>148</y>
+     <x>411</x>
+     <y>177</y>
     </hint>
     <hint type="destinationlabel">
-     <x>273</x>
-     <y>153</y>
+     <x>285</x>
+     <y>178</y>
     </hint>
    </hints>
   </connection>
@@ -913,12 +1009,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>317</x>
-     <y>205</y>
+     <x>411</x>
+     <y>231</y>
     </hint>
     <hint type="destinationlabel">
-     <x>262</x>
-     <y>205</y>
+     <x>274</x>
+     <y>232</y>
     </hint>
    </hints>
   </connection>
@@ -929,12 +1025,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>305</x>
-     <y>233</y>
+     <x>411</x>
+     <y>258</y>
     </hint>
     <hint type="destinationlabel">
-     <x>271</x>
-     <y>231</y>
+     <x>283</x>
+     <y>259</y>
     </hint>
    </hints>
   </connection>
@@ -945,12 +1041,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>322</x>
-     <y>254</y>
+     <x>411</x>
+     <y>285</y>
     </hint>
     <hint type="destinationlabel">
-     <x>275</x>
-     <y>257</y>
+     <x>287</x>
+     <y>286</y>
     </hint>
    </hints>
   </connection>
@@ -961,12 +1057,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>306</x>
-     <y>285</y>
+     <x>411</x>
+     <y>312</y>
     </hint>
     <hint type="destinationlabel">
-     <x>272</x>
-     <y>282</y>
+     <x>284</x>
+     <y>313</y>
     </hint>
    </hints>
   </connection>
@@ -977,12 +1073,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>246</x>
-     <y>306</y>
+     <x>258</x>
+     <y>340</y>
     </hint>
     <hint type="destinationlabel">
-     <x>287</x>
-     <y>306</y>
+     <x>411</x>
+     <y>339</y>
     </hint>
    </hints>
   </connection>
@@ -993,12 +1089,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>297</x>
-     <y>318</y>
+     <x>411</x>
+     <y>339</y>
     </hint>
     <hint type="destinationlabel">
-     <x>266</x>
-     <y>315</y>
+     <x>278</x>
+     <y>340</y>
     </hint>
    </hints>
   </connection>
@@ -1009,12 +1105,12 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>270</x>
-     <y>169</y>
+     <x>282</x>
+     <y>205</y>
     </hint>
     <hint type="destinationlabel">
-     <x>291</x>
-     <y>173</y>
+     <x>411</x>
+     <y>204</y>
     </hint>
    </hints>
   </connection>
@@ -1025,12 +1121,60 @@ type</string>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>292</x>
-     <y>183</y>
+     <x>411</x>
+     <y>204</y>
     </hint>
     <hint type="destinationlabel">
-     <x>261</x>
-     <y>182</y>
+     <x>273</x>
+     <y>205</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>autoSizeCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>rWSpinBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>55</x>
+     <y>71</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>190</x>
+     <y>108</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>autoSizeCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>rHSpinBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>36</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>190</x>
+     <y>136</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>minQualitycheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>minQualityDoubleSpinBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>126</x>
+     <y>219</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>213</x>
+     <y>284</y>
     </hint>
    </hints>
   </connection>

@@ -20,19 +20,129 @@ import os
 import subprocess
 import numpy
 import paths
+import time
+
+FORMAT_BLACKLIST = ['BUFR', 'EPS', 'GRIB',
+                       'HDF5', 'MPEG','WMF' ]
+
+try:
+    from PIL import Image
+    Image.init()
+except ImportError:
+    msgBox = Qt.QMessageBox()
+    msgBox.setText(tr("\'PIL\' python module not found!"))
+    msgBox.setInformativeText(tr("Please install the python imaging library (PIL)."))
+    msgBox.setIcon(Qt.QMessageBox.Critical)
+    msgBox.exec_()
+    sys.exit(1)
+
+try:
+    import pyfits
+    FITS_SUPPORT=True
+    print("FITS support enabled")
+except ImportError:
+
+    print("FITS support not enabled:")
+    print("to enable FITS support please install the \'pyfits\' python package!")
+
+    FITS_SUPPORT=False
+    FORMAT_BLACKLIST.append('FITS')   
 
 PROGRAM = paths.PROGRAM_NAME
 PROGRAM_NAME = paths.PROGRAM_NAME
 
+def tr(s):
+    news=QtCore.QCoreApplication.translate('@default',s)
+    #python3 return str...
+    if type(news) == str:
+        return news
+    else:
+        #... while python2 return QString 
+        # that must be converted to str
+        return str(news.toAscii())
 
+def getSupportedFormats():
+    formats={}
+        
+    for ext in Image.EXTENSION.keys():
+        key=str(Image.EXTENSION[ext])
+ 
+        if not (key in FORMAT_BLACKLIST):
+            formats[ext]=key
+    return formats
 
-GRAY_COLORTABLE = [~((i + (i<<8) + (i<<16))) for i in range(255,-1,-1)]
-
-def arrayToQImage(img,R=0,G=1,B=2,A=3):
-    if type(img) != numpy.ndarray:
-        raise TypeError('ndarray expected, '+str(type(img))+' given instead')
+def normToUint8 (data):
     
-    h, w, channels = img.shape
+    if data==None:
+        return None
+    elif data.dtype == numpy.uint8:
+        return data
+    else:
+        norm = data.max()-data.min()
+        if norm > 0:
+            spec=(data-data.min())*255.0/norm
+        elif norm==0:
+            spec=data
+        else:
+            #shold never happens
+            spec=-(data-data.min())*255.0/norm
+            
+        return spec.astype(numpy.uint8)
+    
+def normToUint16 (data):
+    if data==None:
+        return None
+    elif data.dtype == numpy.uint16:
+        return data
+    else:
+        norm = data.max()-data.min()
+        if norm > 0:
+            spec=(data-data.min())*65536.0/norm
+        elif norm==0:
+            spec=data
+        else:
+            #shold never happens
+            spec=-(data-data.min())*65536.0/norm
+            
+        return spec.astype(numpy.uint16)
+
+def _min(n1, n2):
+    return ((n1>=n2)*n2 + (n1<n2)*n1)
+
+def getJetColor(data):
+
+     value = data.astype(numpy.float)
+
+     x = (value - value.min())/float(value.max() - value.min())
+
+     t = time.clock()
+     
+     r = (4*x - 1.5).clip(0.0,1.0) - (4*x - 3.5).clip(0.0,1.0)
+     g = (4*x - 0.5).clip(0.0,1.0) - (4*x - 2.5).clip(0.0,1.0)
+     b = (4*x + 0.5).clip(0.0,1.0) - (4*x - 1.5).clip(0.0,1.0)
+
+     arr=[255*r, 255*g, 255*b]
+     
+     return arr
+
+
+def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True):
+    
+    if type(img) != numpy.ndarray:
+        raise TypeError('In module utils, in function arrayToQImage, ndarray expected as first argumrnt but '+str(type(img))+' given instead')
+    
+    #searching for NaN values
+    if img.dtype==numpy.float:
+        tb=(img!=img).nonzero()
+        img[tb]=numpy.Inf
+        tb=(img==numpy.Inf).nonzero()
+        img[tb]=img.min()
+    
+    if img.ndim ==2:
+        h,w = img.shape[0:2]
+        channels = 1
+    else:
+        h,w,channels = img.shape[0:3]
     
     #data must be 32bit aligned
     if (w%4) != 0:
@@ -44,34 +154,45 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3):
         optimal_h = h + 4 - h%4
     else:
         optimal_h = h
-        
+    
         
     if img.ndim==2:
-        fmt = Qt.QImage.Format_Indexed8
-        arr = numpy.zeros((optimal_h, optimal_w), numpy.uint8, 'C')
-        arr[h:w]=img
-    elif (img.ndim==3) and (channels == 3):
-        fmt = Qt.QImage.Format_RGB888
-        arr = numpy.zeros((optimal_h, optimal_w, 3), numpy.uint8, 'C')
-        arr[0:h,0:w,0] = img[...,R]
-        arr[0:h,0:w,1] = img[...,G]
-        arr[0:h,0:w,2] = img[...,B]    
-    elif (img.ndim==3) and (channels == 4):
-        fmt = Qt.QImage.Format_ARGB32
         arr = numpy.zeros((optimal_h, optimal_w, 4), numpy.uint8, 'C')
-        arr[0:h,0:w,0] = img[...,R]
-        arr[0:h,0:w,1] = img[...,G]
-        arr[0:h,0:w,2] = img[...,B]
-        arr[0:h,0:w,3] = img[...,A]
+        
+        if bw_jet:
+            jet=getJetColor(img)
+            arr[0:h,0:w,2] = jet[0]
+            arr[0:h,0:w,1] = jet[1]
+            arr[0:h,0:w,0] = jet[2]
+        else:
+            img2 = normToUint8(img)
+            arr[0:h,0:w,2] = img2
+            arr[0:h,0:w,1] = img2
+            arr[0:h,0:w,0] = img2
+            
+        arr[0:h,0:w,3] = 255
+        arr[h:,0:,3] = 0
+        arr[0:,w:,3] = 0
+        
+    elif (img.ndim==3) and (channels == 3):
+        img2 = normToUint8(img)
+        arr = numpy.zeros((optimal_h, optimal_w, 4), numpy.uint8, 'C')
+        arr[0:h,0:w,0:3]=img2[...,(B,G,R)]
+        arr[0:h,0:w,3] = 255
+        arr[h:,0:,3] = 0
+        arr[0:,w:,3] = 0
+        
+    elif (img.ndim==3) and (channels == 4):
+        img2 = normToUint8(img)
+        arr = numpy.zeros((optimal_h, optimal_w, 4), numpy.uint8, 'C')
+        arr[0:h,0:w]=img2[...,(B,G,R,A)]
     else:
         return None
 
     arr=arr.astype('uint8')
-    result = Qt.QImage(arr.data,optimal_w,optimal_h,fmt)
+    result = Qt.QImage(arr.data,optimal_w,optimal_h,Qt.QImage.Format_ARGB32_Premultiplied)
     result._raw_data=arr
-
-    if channels == 1:
-        image.setColorTable(COLORTABLE)
+    result._original_data=img
 
     return result
 
