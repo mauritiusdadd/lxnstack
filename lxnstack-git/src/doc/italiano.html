@@ -13,8 +13,7 @@
   <div id="mainframe">
   <p><h1>Manuale utente</h1></p>
   
-  <p>NOTA: il manuale non è ancora completamente aggiornato.</p>
-  <p> La varsione aggiornata uscirà con la prossima versione del programma.</p>
+  <p>NOTA: il manuale non è ancora completamente aggiornato. La versione aggiornata uscirà con la prossima versione del programma.</p>
   
   <p><h2>Indice:</h2></p>
   <!-- l'indice principale -->
@@ -69,12 +68,15 @@
     istruzioni di installazione):
     <ul>
      <li><a href="">'Python 2.7'</a> (per verificare la sua presenza digitare nel terminale il comando python2 --version)</li>
-     <li>Il pacchetto di python <a href="http://www.numpy.org/">'numpy'</a></li>
-     <li>Il pacchetto di python <a href="http://www.pythonware.com/products/pil/">'PIL'<a/></li>
+     <li>Il pacchetto di python2 <a href="http://www.numpy.org/">'numpy'</a></li>
+     <li>Il pacchetto di python2 <a href="http://www.scipy.org/">'scipy'</a></li>
+     <li>Il pacchetto di python2 <a href="http://www.pythonware.com/products/pil/">'PIL'<a/></li>
      <li>La versione 2 delle librerie <a href="http://opencv.org/">'opencv'</a></li>
-     <li>Le librerie <a href="">Qt4</a></li>
-     <li>Il pacchetto di python <a href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">'PyQt4'</a></li>
-     <li>Il pacchetto v4l-utils</li>
+     <li>Le librerie <a href="http://qt-project.org">Qt4</a></li>
+     <li>Il pacchetto di python2 <a href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">'PyQt4'</a></li>
+     <li>Il pacchetto v4l-utils (è richiesto solo il programma v4l2-ctl)</li>
+     <li>Il pacchetto di python2 <a href="http://www.stsci.edu/institute/software_hardware/pyfits">'PyFits'</a> 
+         [OPZIONALE: richiesto solo per leggere/scrivere i file in formato FITS]</li>
     </ul>
    </p>
   </section>
@@ -198,13 +200,34 @@
 
   <section id="autoallineamento">
    <p><h1>Allineamento automatico</h1></p>
+   
    <p>
-    L'allineamento automatico avviene tramite dei "punti di allineamento".
+   Sono disponibili due tipi di allineamento: per scegliere quale utilizzare basta selezionare
+   metodo desiderato dal menù a tendina.
+   </p>
+   <p>
+   Per effettuare l'allineamento vero e proprio utilizzare il pulsante 'Allinea' nella sezione
+   'Accessori'.
+   </p>
+   
+   
+   <p><h2>Allineamento tramite correlazione di fase</h2></p>
+   <p>
+    <image src="imgs/alignment_phase.png"></image>
+   </p>
+   <p>
+   Questo tipo di allineamento è completamente automatico e non necessita interventi da parte
+   dell'utente. Se l'allineamento devesse risultare errato, provare a modificare i valori di
+   sharpening.
+   </p>
+   
+   <p><h2>Allineamento tramite punti di riferimento</h2></p>
+   <p>
     Per aggiungere o rimuovere un punto di allineamento, utilizzare rispettivamente i pulsanti
     '+' e '-' presenti nel riquadro 'punti di allineamento' nella sezione 'Allineamento'.
    </p>
    <p>
-    <image src="imgs/alignment.png"></image>
+    <image src="imgs/alignment_points.png"></image>
    </p>
    <p>
     Premendo il pulsante 'autorilevamento', dei punti di allineamento verranno aggiunti automaticamente
@@ -232,8 +255,7 @@
     IMPORTANTE: evitare di posizionare i punti di allineamento troppo vicino ai bordi dell'immagine!
    </p>
   </section>
-   Per effettuare l'allineamento vero e proprio utilizzare il pulsante 'Allinea' nella sezione
-   'Accessori'.
+
   <section id="allineamento">
    <p><h1>Allineamento manuale</h1></p>
    <p>

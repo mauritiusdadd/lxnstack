@@ -14,9 +14,8 @@
   <div id=mainframe>
   <p><h1>User Manual</h1></p>
   
-  <p>NOTE: This manual is a bit outdated.</p>
-  <p> The updated manual will be released with the next program version.</p>
-  
+  <p>NOTE: This manual is a bit outdated. The updated manual will be released with the next program version.</p>
+    
   <p><h2>Index:</h2></p>
   <!-- main index -->
   <p class="index">
@@ -71,12 +70,15 @@
     <ul>
      <li><a href="">'Python 2.7'</a> (in a terminal type "python2 --version" without quotes to verify
      the correct installation of python)</li>
-     <li>The python package <a href="http://www.numpy.org/">'numpy'</a></li>
-     <li>The python package <a href="http://www.pythonware.com/products/pil/">'PIL'<a/></li>
+     <li>The python2 package <a href="http://www.numpy.org/">'numpy'</a></li>
+     <li>The python2 package <a href="http://www.scipy.org/">'scipy'</a></li>
+     <li>The python2 package <a href="http://www.pythonware.com/products/pil/">'PIL'<a/></li>
      <li>The libraries <a href="http://opencv.org/">'opencv'</a> version 2</li>
-     <li>The libraries <a href="">Qt4</a></li>
-     <li>The python package <a href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">'PyQt4'</a></li>
-     <li>The package v4l-utils</li>
+     <li>The libraries <a href="http://qt-project.org">Qt4</a></li>
+     <li>The python2 package <a href="http://www.riverbankcomputing.co.uk/software/pyqt/intro">'PyQt4'</a></li>
+     <li>The package v4l-utils (actually, only the program v4l2-ctl is needed)</li>
+     <li>The python2 package <a href="http://www.stsci.edu/institute/software_hardware/pyfits">'PyFits'</a> 
+         [OPTIONAL: needed only to read/write FITS file]</li>
     </ul>
    </p>
   </section>
@@ -193,9 +195,28 @@
   </section>
 
   <section id="autoalignment">
-   <p><h1>Automatic alignment</h1></p>
+   <p><h1>Automatic alignment</h1></p>   
    <p>
-    The automatic alignment make use of the so called "alignment point".
+   Two types of alignment are available: the alignment method can be choosen by selecting it
+   in the combobox.
+   </p>
+      
+   <p>
+   The actual alignment is performed by pushing the 'Align' button in the 'Tools' section.
+  </p>
+   
+   <p><h2>Alignment by phase correlation</h2></p>
+   <p>
+    <image src="imgs/alignment_phase.png"></image>
+   </p>
+   <p>
+   This method does not require any user action, just press the 'Align' button in the 'Tools'
+   section to start the alignment process.
+   If the images are misaligned, try to change the sharpness value.
+   </p>
+   
+   <p><h2>Alignment by points</h2></p>
+   <p>
     Push the '+' button to add an alignment point and the '-' button to remove the currently
     selected alignment point.
    </p>
@@ -224,12 +245,8 @@
     <image src="imgs/points_detection.png"></image>
    </p>
    <p>
-    ATTENTION: avoid to position the alignment points near image borders!
+    ATTENTION: avoid to place the alignment points near the image borders!
    </p>
-  </section>
-   Now you can push the 'Align' button in the 'Tools' section to start the true alignment
-   process.
-  <section id="alignment">
    <p><h1>Manual alignment</h1></p>
    <p>
     An alternative manual alignment is available in the 'Manual alignment'.

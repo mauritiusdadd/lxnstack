@@ -8,19 +8,19 @@
     <x>0</x>
     <y>0</y>
     <width>450</width>
-    <height>350</height>
+    <height>400</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>450</width>
-    <height>350</height>
+    <height>400</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>450</width>
-    <height>350</height>
+    <height>400</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -108,6 +108,46 @@
           <string>Graphics</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_8">
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_8">
+            <item>
+             <widget class="QLabel" name="label_18">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Floating point precision</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="fTypeComboBox">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="currentIndex">
+               <number>0</number>
+              </property>
+              <item>
+               <property name="text">
+                <string>32 bits (normal memory usage)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>64 bits (high memory usage)</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
           <item>
            <widget class="QCheckBox" name="rgbFitsCheckBox">
             <property name="text">
@@ -539,7 +579,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>240</width>
+               <width>397</width>
                <height>279</height>
               </rect>
              </property>

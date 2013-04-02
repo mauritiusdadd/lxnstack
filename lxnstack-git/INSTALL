@@ -27,6 +27,9 @@ libraries and programs must be installed on your pc:
 
   * The python2 package 'numpy' version 1.7
     (http://www.numpy.org/)
+  
+  * The python2 package 'scipy' version 1.7
+    (http://www.scipy.org/)
 
   * The python2 package 'PIL' version 1.1.7
     (http://www.pythonware.com/products/pil/)
@@ -35,15 +38,16 @@ libraries and programs must be installed on your pc:
     (http://opencv.org/)
 
   * The package 'v4l-utils' version 0.9
+    (in particular the program v4l2-ctl is needed)
   
   * The libreries 'Qt4' version 4.8
     (http://qt-project.org)
     
-  * The python2 pachage 'PyQt4' version 4.9
+  * The python2 package 'PyQt4' version 4.9
     (http://www.riverbankcomputing.co.uk/software/pyqt/intro)
 
-  * [optional] The python2 package 'pyfits' to enable FITS
-    file support.  
+  * [optional] The python2 package 'pyfits' (to enable FITS
+    files support).
     (http://www.stsci.edu/institute/software_hardware/pyfits)
 
 The above packages are present in the repositories

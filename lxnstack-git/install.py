@@ -122,7 +122,8 @@ def doInstallation():
         ln_bin_src=os.path.join(getPath(paths.RESOURCES_PATH),'lxnstack.py')
         ln_bin_dst=os.path.join(getPath(paths.BIN_PATH),'lxnstack')
         
-        os.system('ln -f '+ln_bin_src+' '+ln_bin_dst)
+        #TODO:make relative symbolic link instead of hard link
+        os.system('ln -f -s -r -T '+ln_bin_src+' '+ln_bin_dst)
         os.system('chmod +x '+ln_bin_dst)
                 
     except Exception as exc:

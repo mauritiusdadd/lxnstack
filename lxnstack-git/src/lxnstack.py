@@ -20,31 +20,67 @@
 from PyQt4 import Qt, QtCore
 import sys
 sys.path.append("@RESOURCES_PATH")
-import paths
-import utils
+
+if ('--help' in sys.argv) or ('-h' in sys.argv):
+    show_help = True
+    print("Loading user manual...")
+else:
+    show_help = False
+        
+if ('--version' in sys.argv) or ('-v' in sys.argv):
+    print("version: 1.2.0")
+
 #create main QApplication
 app = Qt.QApplication(sys.argv)
-
-#set some informations
-app.setOrganizationName(utils.PROGRAM)
-app.setApplicationName(utils.PROGRAM_NAME)
-
-#loading translations
-qtr = Qt.QTranslator()
-lang=utils.getLocale()
-qtr.load(lang)
-app.installTranslator(qtr)
 
 #import the main application
 import main_app
 
+import paths
+main_app.loading.setValue(90)
+import utils
+main_app.loading.setValue(91)
+
+
+if ('--verbose' in sys.argv) or ('-d' in sys.argv):
+    utils._VERBOSE=True
+else:
+    utils._VERBOSE=False
+
+#set some informations
+app.setOrganizationName(utils.PROGRAM)
+app.setApplicationName(utils.PROGRAM_NAME)
+main_app.loading.setValue(92)
+
+#loading translations
+qtr = Qt.QTranslator()
+main_app.loading.setValue(93)
+lang=utils.getLocale()
+main_app.loading.setValue(94)
+qtr.load(lang)
+main_app.loading.setValue(95)
+app.installTranslator(qtr)
+main_app.loading.setValue(96)
+
 #create the main application
 mainApp = main_app.theApp(app,lang)
+main_app.loading.setValue(98)
+
+if show_help:
+    mainApp.showUserMan()
+    sys.exit(0)
+    
 mainApp.wnd.show()
+main_app.loading.setValue(99)
+
 try:
     mainApp.loadSettings()
 except:
     #probably the first execution
     pass
+
+main_app.loading.setValue(100)
+del main_app.loading
+
 #executes
 sys.exit(app.exec_())

@@ -24,6 +24,11 @@ import webbrowser
 from xml.dom import minidom
 from PyQt4 import uic, Qt, QtCore, QtGui
 
+loading = Qt.QProgressDialog()
+loading.setWindowTitle("starting lxnstaxk")
+loading.setLabelText("starting  lxnstaxk, please wait...")
+loading.setMaximum(100)
+loading.setValue(1)
 
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
@@ -35,6 +40,8 @@ def tr(s):
         # that must be converted to str
         return str(news.toAscii())
 
+loading.setValue(10)
+
 try:
     import numpy
 except ImportError:
@@ -44,6 +51,20 @@ except ImportError:
     msgBox.setIcon(Qt.QMessageBox.Critical)
     msgBox.exec_()
     sys.exit(1)
+
+loading.setValue(20)
+    
+try:
+    import scipy
+except ImportError:
+    msgBox = Qt.QMessageBox()
+    msgBox.setText(tr("\'scipy\' python module not found!"))
+    msgBox.setInformativeText(tr("Please install scipy."))
+    msgBox.setIcon(Qt.QMessageBox.Critical)
+    msgBox.exec_()
+    sys.exit(1)
+
+loading.setValue(30)
 
 try:
     import cv2
@@ -55,8 +76,16 @@ except ImportError:
     msgBox.exec_()
     sys.exit(1)
 
+loading.setValue(40)
+
 import utils
+if not utils.FITS_SUPPORT:
+    loading.setLabelText("starting  lxnstaxk, please wait...\n"+
+                         "NOTE: FITS support not enabled.\n"+
+                         "In order to enable it, you must install PYFITS.")
+loading.setValue(50)
 import paths
+loading.setValue(60)
 
 def Int(val):
     i = math.floor(val)
@@ -102,6 +131,11 @@ class theApp(Qt.QObject):
         self.isPreviewing=False
         self.shooting=False
         
+        self.current_align_method=0
+        self.is_aligning=False
+        
+        self.showAlignPoints = True
+        
         self.image_idx=-1
         self.ref_image_idx=-1
         self.dif_image_idx=-1
@@ -116,8 +150,7 @@ class theApp(Qt.QObject):
         
         self.manual_align=False
 
-        self.IMAGE_RANGE=255
-        self.IMAGE_ARRAY_TYPE='uint8'
+        self.ftype=numpy.float32
 
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,'main.ui'))
         self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,'option_dialog.ui'))
@@ -143,19 +176,18 @@ class theApp(Qt.QObject):
         self.master_dark_mul_factor=1.0
         self.master_flat_mul_factor=1.0
                 
-        self.filelist=[]
-        self.offsetlist=[]
-        self.darkfilelist=[]
-        self.flatfilelist=[]
+        self.framelist=[]
+        self.darkframelist=[]
+        self.flatframelist=[]
         
-        self.alignpointlist=[]
-
         self.tracking_align_point=False
         self.checked_seach_dark_flat=0
         self.checked_autodetect_rectangle_size=2
         self.checked_autodetect_min_quality=2
         self.checked_colormap_jet=2
         self.checked_rgb_fits=0
+        
+        self.rgb_fits_mode=2 #TODO: link to a signal
         
         self.current_cap_device=cv2.VideoCapture(None)
         self.video_writer = cv2.VideoWriter()
@@ -191,15 +223,13 @@ class theApp(Qt.QObject):
         self.wnd.imageViewer.setAlignment(QtCore.Qt.AlignTop)
         
         self.wnd.colorBar.current_val=None
-        self.wnd.colorBar.max_val=1
-        self.wnd.colorBar.min_val=0
+        self.wnd.colorBar.max_val=1.0
+        self.wnd.colorBar.min_val=0.0
         self.wnd.colorBar._is_rgb=False
         
         self.bw_colormap=None
         self.rgb_colormap=None
-        
-        self.align_methon=True
-        
+                
         self.wnd.manualAlignGroupBox.setEnabled(False)
         
         # resize callback
@@ -236,7 +266,7 @@ class theApp(Qt.QObject):
         self.wnd.masterDarkGroupBox.hide()
         self.wnd.masterFlatGroupBox.hide()
         self.wnd.stopCapturePushButton.hide()
-        self.dlg.jetCheckBox.setCheckState(2)
+        self.changeAlignMethod(self.current_align_method)
         
         self.save_dlg.radioButtonFits.setEnabled(utils.FITS_SUPPORT)
         
@@ -262,14 +292,15 @@ class theApp(Qt.QObject):
         self.wnd.toolBox.currentChanged.connect(self.updateToolBox)
         self.wnd.spinBoxXAlign.valueChanged.connect(self.shiftX)
         self.wnd.spinBoxYAlign.valueChanged.connect(self.shiftY)
-        self.wnd.spinBoxOffsetX.valueChanged.connect(self.shiftOffsetX)
-        self.wnd.spinBoxOffsetY.valueChanged.connect(self.shiftOffsetY)
+        self.wnd.doubleSpinBoxOffsetX.valueChanged.connect(self.shiftOffsetX)
+        self.wnd.doubleSpinBoxOffsetY.valueChanged.connect(self.shiftOffsetY)
+        self.wnd.spinBoxOffsetT.valueChanged.connect(self.rotateOffsetT)
         self.wnd.addPointPushButton.released.connect(self.addAlignPoint)
         self.wnd.removePointPushButton.released.connect(self.removeAlignPoint)
-        self.wnd.alignPushButton.released.connect(self.__align__)
+        self.wnd.alignPushButton.released.connect(self.align)
         self.wnd.saveResultPushButton.released.connect(self.saveResult)
         self.wnd.autoSetPushButton.released.connect(self.autoSetAlignPoint)
-        self.wnd.autoDetectPushButton.released.connect(self.autoDetectAlignPoins)
+        self.wnd.autoDetectPushButton.released.connect(self.autoDetectAlignPoints)
         self.wnd.masterDarkCheckBox.stateChanged.connect(self.useMasterDark)
         self.wnd.masterFlatCheckBox.stateChanged.connect(self.useMasterFlat)
         self.wnd.masterDarkPushButton.released.connect(self.loadMasterDark)
@@ -280,6 +311,8 @@ class theApp(Qt.QObject):
         self.wnd.captureGroupBox.toggled.connect(self.capture)
         self.wnd.darkMulDoubleSpinBox.valueChanged.connect(self.setDarkMul)
         self.wnd.flatMulDoubleSpinBox.valueChanged.connect(self.setFlatMul)
+        self.wnd.alignMethodComboBox.currentIndexChanged.connect(self.changeAlignMethod)
+        
         
         self.dlg.devComboBox.currentIndexChanged.connect(self.getDeviceInfo)
         self.dlg.videoSaveDirPushButton.released.connect(self.__set_save_video_dir)
@@ -296,7 +329,9 @@ class theApp(Qt.QObject):
         self.dlg.sharpSlider.valueChanged.connect(self.deviceSharpnessChanged)
         self.dlg.gammaSlider.valueChanged.connect(self.deviceGammaChanged)        
         self.dlg.jetCheckBox.stateChanged.connect(self.setJetmapMode)
-                
+        self.dlg.jetCheckBox.setCheckState(2)
+        self.dlg.fTypeComboBox.currentIndexChanged.connect(self.setFloatPrecision)
+
         self.save_dlg.pushButtonDestDir.released.connect(self.getDestDir)
         
         self.wnd.actionOpen_files.triggered.connect(self.doLoadFiles)
@@ -373,7 +408,30 @@ class theApp(Qt.QObject):
     @QtCore.pyqtSlot(bool)
     def doShowUserMan(self, is_checked):
         self.showUserMan()
-      
+    
+    def changeAlignMethod(self, idx):
+        self.current_align_method=idx
+        self.imageLabel.repaint()
+        if idx == 0:
+            self.wnd.phaseGroupBox.show()
+            self.wnd.alignGroupBox.hide()
+        elif idx ==1:
+            self.wnd.phaseGroupBox.hide()
+            self.wnd.alignGroupBox.show()
+        else:
+            self.wnd.phaseGroupBox.hide()
+            self.wnd.alignGroupBox.hide()
+            #for other possible impementations
+            pass
+        
+    def setFloatPrecision(self, idx):
+        if idx==0:
+            self.ftype=numpy.float32
+        elif idx==1:
+            self.ftype=numpy.float64
+        
+        utils.trace("setting float precision to " + str(self.ftype))
+        
     def setJetmapMode(self,val):
         if val==0:
             self.use_colormap_jet=False
@@ -383,198 +441,26 @@ class theApp(Qt.QObject):
         if self.current_image != None:
             self.current_image = utils.arrayToQImage(self.current_image._original_data,bw_jet=self.use_colormap_jet)
             self.generateScaleMaps()
-            self.updateImage()
-        
-    def openImage(self,file_name, page=0, asarray=False, asuint8=False):
-        file_ext = os.path.splitext(file_name)[1].lower()
-        
-        if file_ext in self.supported_formats:
-            file_type = self.supported_formats[file_ext]
-        else:
-            return None
-        
-        #choosing among specific loaders
-        if file_type == 'FITS':
-
-            if not utils.FITS_SUPPORT:
-                #this should never happens
-                return None
-                
-            hdu_table=utils.pyfits.open(file_name)
-
-            RGB_mode = (self.checked_rgb_fits==2)
-
-            #checking for 3 ImageHDU (red, green and blue components)
-            if RGB_mode and (len(hdu_table) >= 3):
-                layers = []
-                for i in hdu_table:
-                    if i.is_image and (len(i.shape)==2):
-                        layers.append(i)
-
-                if len(layers) == 3:
-                    if ((layers[0].shape == layers[1].shape) and
-                        (layers[0].shape == layers[2].shape)):
-                        is_RGB=True
-                else:
-                    #if there are more or less than 3 ImageHDU
-                    #then it is not an RGB fits file
-                    is_RGB=False
-            else:
-                is_RGB=False
-                
-
-            if RGB_mode and is_RGB:
-                if page!=0:
-                    return None
-                else:
-                    imh,imw=layers[0].shape
-                    img = numpy.zeros((imh,imw,len(layers)))
-                
-                    for j in range(len(layers)):
-                        img[...,j]=layers[j].data
-                    
-                    if asarray:
-                        if asuint8:
-                            return utils.normToUint8(img)
-                        else:
-                            return img.astype(numpy.float)
-                    else:
-                        return utils.Image.fromarray(utils.normToUint8(img))
-
-            else:
-                i=0
-                npages=page
-                while(i>=0):
-                    try:
-                        imagehdu = hdu_table[i]
-                    except IndexError:
-                        i=-1
-                        return None
-                    
-                    if not imagehdu.is_image:
-                        i+=1
-                        continue
-                    
-                    try: # retrieves data dimension
-                        naxis=int(imagehdu.header['NAXIS'])
-                    except:
-                        #this should never occur since 'NAXIS' keyword
-                        #should exists in each header
-                        try:
-                            #however if data is not corrupted
-                            #this should work
-                            naxis=len(imagehdu.shape)
-                        except:
-                            print("ERROR: corrupted data")
-                            return None
-                    else:
-                        if naxis <= 1:
-                            #cannot handle 0-D or 1-D image data!
-                            print("WARNING: unsupported data format")
-                        else:
-                            axis=imagehdu.shape[:-2] #number of image layers
-                            imh,imw=imagehdu.shape[-2:] #image size
-                            
-                            #computing number of layers for current ImageHDU
-                            total=1
-                            for x in axis:
-                                total*=x
-
-                            if npages >= total:
-                                #the request layer is not in this ImageHDU
-                                npages-=total
-                                continue
-                            else:
-                                #the request layer is in this ImageHDU
-                                index = []
-                                #computing layer index:
-                                r_axis=list(axis)
-                                r_axis.reverse()
-                                for x in r_axis:
-                                    cidx=npages%x
-                                    index[0:0]=[cidx]
-                                    npages=(npages-cidx)/x
-                                index=tuple(index)
-
-                                #scaled data is automatically rescaled
-                                #and BZERO and BSCALE are removed
-                                data = imagehdu.data[index]
-                                    
-                                if asarray:
-                                    if asuint8:
-                                        return utils.normToUint8(data)
-                                    else:
-                                        return data.astype(numpy.float)
-                                else:
-                                    return utils.Image.fromarray(utils.normToUint8(data))
-                    
-                    finally:
-                        i+=1
-                
-        elif file_type =='???':
-            #New codecs will be added here
-            return False
-        else:   
-        
-            try:
-                cv2img = cv2.imread(file_name,-1)
-            except:
-                cv2img=None
-                
-            if (page==0) and (cv2img!=None):
-                img = numpy.empty_like(cv2img)
-
-                if (len(cv2img.shape) == 3) and (cv2img.shape[2]==3):
-                    img=cv2img[...,(2,1,0)]
-                else:
-                    img=cv2img
-                
-                if asarray:
-                    if asuint8:
-                        return utils.normToUint8(numpy.asarray(img))
-                    else:
-                        return (numpy.asarray(img)).astype(numpy.float)
-                else:
-                    return utils.Image.fromarray(utils.normToUint8(img))
-            else:
-                try:
-                
-                    img = utils.Image.open(file_name)
-                    img.seek(page)
-                    #testing decoder
-                    pix = img.getpixel((0,0))
-                except EOFError:
-                    return None
-                except IOError as err:
-                    if page==0:
-                        msgBox = Qt.QMessageBox(self.wnd)
-                        msgBox.setText(str(err))
-                        msgBox.setIcon(Qt.QMessageBox.Critical)
-                        msgBox.exec_()
-                    return None
-           
-                if asarray:
-                    if asuint8:
-                        return utils.normToUint8(numpy.asarray(img))
-                    else:
-                        return (numpy.asarray(img)).astype(numpy.float)
-                else:
-                    return img
-
-    
+            self.updateImage()  
 
     def showUserMan(self):
         webbrowser.open(os.path.join(paths.DOCS_PATH,'usermanual.html'))
 
-    def lock(self):
+    def lock(self, show_cnacel = True):
         self.statusLabelMousePos.setText('')
         self.progress.show()
-        self.cancelProgress.show()
+        
+        if show_cnacel:
+            self.cancelProgress.show()
+        else:
+            self.cancelProgress.hide()
+            
         self.wnd.toolBox.setEnabled(False)
         self.wnd.MainFrame.setEnabled(False)
         self.wnd.menubar.setEnabled(False)
         
     def unlock(self):
+        self.statusBar.clearMessage()
         self.progress.hide()
         self.cancelProgress.hide()
         self.progress.reset()
@@ -684,8 +570,7 @@ class theApp(Qt.QObject):
                 i=self.devices[self.current_cap_combo_idx]['id']
                 self.current_cap_device.open(i)
                 self.current_cap_device_idx=i
-            else:
-                pass
+            
                        
             if self.current_cap_device.isOpened():
                 self.device_propetyes=utils.getV4LDeviceProperties(self.devices[idx]['dev'])
@@ -788,6 +673,14 @@ class theApp(Qt.QObject):
             device=self.devices[self.current_cap_combo_idx]['dev']
             fps = float(self.fps.split(' ')[0])
             self.current_cap_device.set(cv2.cv.CV_CAP_PROP_FPS,fps)
+            
+            actual_fps = utils.getV4LFps(device)
+
+            if actual_fps != fps:
+                #the fps is not set correclty
+                self.statusBar.showMessage(tr("Sorry, but Fps cannot be changed on this device"))
+                new_idx=self.dlg.fpsComboBox.findText(str(actual_fps)+" fps")
+                self.dlg.fpsComboBox.setCurrentIndex(new_idx)
                 
     def deviceExposureTypeChanged(self, idx):
         if idx>=0:
@@ -855,8 +748,9 @@ class theApp(Qt.QObject):
         else:
             pass
 
-        if self.current_cap_device.isOpened():
+        if self.current_cap_device.isOpened():           
             self.isPreviewing = True
+            self.wnd.framesGroupBox.setEnabled(False)
             self._photo_time_clock=time.clock()
             while(not(self.wasCanceled)):
                 self.qapp.processEvents()
@@ -871,21 +765,29 @@ class theApp(Qt.QObject):
                         mstime='{0:05d}'.format(int((time.clock()-self._photo_time_clock)*100))
                         name=os.path.join(self.save_image_dir,ftime+mstime+'.tiff')
                         cv2.imwrite(name,img[1])
-                        self.filelist.append((name,0))
-                        self.alignpointlist.append([])
-                        self.offsetlist.append([0,0])
+                        frm=utils.frame(name, data=img[1])
+                        
+                        self.framelist.append(frm)
                         
                         q=Qt.QListWidgetItem(os.path.basename(name),self.wnd.listWidget)
                         q.setCheckState(2)
                         q.setToolTip(name)
+                        frm.addProperty("listItem",q)
                         self.wnd.listWidget.setCurrentItem(q)
                         self._unlock_cap_ctrls()
 
                 del img
-            self.updateImage()
+
             self.isPreviewing = False
             self.wasCanceled=False
             self.current_cap_device.release()
+            self.wnd.framesGroupBox.setEnabled(True)
+            self.clearImage()
+            
+            if len(self.framelist)>0:
+                self.wnd.listWidget.setCurrentRow(0)
+                self.listItemChanged(0)
+
         else:
             msgBox = Qt.QMessageBox(self.wnd)
             if origin == None:
@@ -916,7 +818,7 @@ class theApp(Qt.QObject):
             dep='RGB'
         else:
             dep='RGBA'  
-        if len(self.filelist)>0:
+        if len(self.framelist)>0:
             if((imw != self.currentWidth) or
                (imh != self.currentHeight) or
                (dep != self.currentDepht[0:3])):
@@ -955,7 +857,6 @@ class theApp(Qt.QObject):
         if self.wasStarted:
             self.wnd.stopCapturePushButton.show()
             self.wnd.capturePushButton.hide()
-            self.wnd.listWidget.setEnabled(False)
             if not self.wasStopped:
                 if not self.writing:
                     self.video_url = os.path.join(self.save_image_dir,time.strftime('%Y-%m-%d@%H:%M:%S'))
@@ -978,9 +879,7 @@ class theApp(Qt.QObject):
                     
                     name=os.path.join(self.video_url,'#{0:05d}'.format(self.captured_frames)+'.tiff')
                     
-                    self.filelist.append((name,0))
-                    self.alignpointlist.append([])
-                    self.offsetlist.append([0,0])
+                    self.framelist.append(utils.frame(name,0,rgb_fits=self.rgb_fits_mode,skip_loading=True))
                     
                     q=Qt.QListWidgetItem(os.path.basename(name),self.wnd.listWidget)
                     q.setCheckState(2)
@@ -1004,9 +903,8 @@ class theApp(Qt.QObject):
                 self.wnd.singleShotPushButton.setEnabled(True)
                 self.wnd.stopCapturePushButton.hide()
                 self.wnd.capturePushButton.show()
-                self.wnd.listWidget.setEnabled(True)
                 self.wasStarted=False
-                if (len(self.filelist)>0):
+                if (len(self.framelist)>0):
                     self.wnd.frameCountSpinBox.setValue(self.captured_frames)
                     self.wnd.listWidget.setCurrentRow(0)
                     self._unlock_cap_ctrls()
@@ -1033,29 +931,30 @@ class theApp(Qt.QObject):
                               )
         if os.path.isfile(master_dark_file):
            try:
-               i = self.openImage(master_dark_file)
-               if i==None:
+               i = utils.frame(master_dark_file)
+               if not i.is_good:
                    msgBox = Qt.QMessageBox(self.wnd)
-                   msgBox.setText(tr("Cannot open image")+" \""+str(master_dark_file)+"\"")
+                   msgBox.setText(tr("Cannot open image")+" \""+str(i.url)+"\"")
                    msgBox.setIcon(Qt.QMessageBox.Critical)
                    msgBox.exec_()
                    return False
-               imw,imh=i.size
+               imw = i.width
+               imh = i.height
                dep = i.mode
                if ((self.currentWidth == imw) and
                    (self.currentHeight == imh) and
                    (self.currentDepht == dep)):
-                   self.master_dark_file=master_dark_file
-                   self.wnd.masterDarkLineEdit.setText(self.master_dark_file)
+                   self.master_dark_file=i.url
+                   self.wnd.masterDarkLineEdit.setText(i.url)
                else:
                    msgBox = Qt.QMessageBox(self.wnd)
                    msgBox.setText(tr("Cannot use this file:")+tr(" size or number of channels does not match!"))
                    msgBox.setInformativeText(tr('current size=')+
-                                        str(self.currentWidth)+'x'+str(self.currentHeight)+
-                                        tr(' image size=')+
+                                        str(self.currentWidth)+'x'+str(self.currentHeight)+'\n'+
+                                        tr('image size=')+
                                         str(imw)+'x'+str(imh)+'\n'+
-                                        tr('current channels=')+str(self.currentDepht)+
-                                        tr(' image channels=')+str(dep)
+                                        tr('current channels=')+str(self.currentDepht)+'\n'+
+                                        tr('image channels=')+str(dep)
                                                      )
                    msgBox.setIcon(Qt.QMessageBox.Critical)
                    msgBox.exec_()
@@ -1089,29 +988,30 @@ class theApp(Qt.QObject):
                               )
         if os.path.isfile(master_flat_file):
            try:
-               i = self.openImage(master_flat_file)
-               if i==None:
+               i = utils.frame(master_flat_file)
+               if not i.is_good:
                    msgBox = Qt.QMessageBox(self.wnd)
-                   msgBox.setText(tr("Cannot open image")+" \""+str(master_flat_file)+"\"")
+                   msgBox.setText(tr("Cannot open image")+" \""+str(i.url)+"\"")
                    msgBox.setIcon(Qt.QMessageBox.Critical)
                    msgBox.exec_()
                    return False
-               imw,imh=i.size
+               imw = i.width
+               imh = i.height
                dep = i.mode
                if ((self.currentWidth == imw) and
                    (self.currentHeight == imh) and
                    (self.currentDepht == dep)):
-                   self.master_flat_file=master_flat_file
-                   self.wnd.masterFlatLineEdit.setText(self.master_flat_file)
+                   self.master_flat_file=i.url
+                   self.wnd.masterFlatLineEdit.setText(i.url)
                else:
                    msgBox = Qt.QMessageBox(self.wnd)
                    msgBox.setText(tr("Cannot use this file:"))
                    msgBox.setInformativeText(tr("Size or number of channels does not match!"))
                    msgBox.setInformativeText(tr('current size=')+
-                                        str(self.currentWidth)+'x'+str(self.currentHeight)+
+                                        str(self.currentWidth)+'x'+str(self.currentHeight)+'\n'+
                                         tr(' image size=')+
                                         str(imw)+'x'+str(imh)+'\n'+
-                                        tr('current channels=')+str(self.currentDepht)+
+                                        tr('current channels=')+str(self.currentDepht)+'\n'+
                                         tr(' image channels=')+str(dep)
                                                      )
                    msgBox.setIcon(Qt.QMessageBox.Critical)
@@ -1163,6 +1063,8 @@ class theApp(Qt.QObject):
         settings.setValue("use_colormap_jet", int(self.dlg.jetCheckBox.checkState()))
         settings.setValue("auto_rgb_fits", int(self.dlg.rgbFitsCheckBox.checkState()))
         settings.setValue("auto_search_dark_flat",int(self.dlg.autoFolderscheckBox.checkState()))
+        settings.setValue("sharp1",float(self.wnd.sharp1DoubleSpinBox.value()))
+        settings.setValue("sharp2",float(self.wnd.sharp2DoubleSpinBox.value()))
         settings.endGroup()
         
         settings.beginGroup("settings")
@@ -1180,6 +1082,8 @@ class theApp(Qt.QObject):
                     self.__current_lang = str(lang)
         settings.setValue("language_file",self.__current_lang)
         settings.setValue("images_save_dir",self.save_image_dir)
+        settings.setValue("current_align_method",int(self.current_align_method))
+        settings.setValue("float_precision",int(self.dlg.fTypeComboBox.currentIndex()))
         settings.endGroup()
         
 
@@ -1191,7 +1095,7 @@ class theApp(Qt.QObject):
         self.wnd.restoreGeometry(val)
         self.wnd.restoreState(settings.value("window_state",None,QtCore.QByteArray))
         settings.endGroup()
-        
+
         settings.beginGroup("options");
         point=settings.value("autoalign_rectangle",None,Qt.QPoint)
         self.autoalign_rectangle=(point.x(),point.y())
@@ -1207,6 +1111,12 @@ class theApp(Qt.QObject):
         self.dlg.rgbFitsCheckBox.setCheckState(self.checked_rgb_fits)
         self.checked_seach_dark_flat=settings.value("auto_search_dark_flat",None,int)
         self.dlg.autoFolderscheckBox.setCheckState(self.checked_seach_dark_flat)
+        self.max_points=int(settings.value("max_align_points",None,int))
+        self.min_quality=float(settings.value("min_point_quality",None,float))
+        sharp1=float(settings.value("sharp1",None,float))
+        self.wnd.sharp1DoubleSpinBox.setValue(sharp1)
+        sharp2=float(settings.value("sharp1",None,float))
+        self.wnd.sharp2DoubleSpinBox.setValue(sharp2)
         settings.endGroup()
 
         settings.beginGroup("settings");
@@ -1214,9 +1124,13 @@ class theApp(Qt.QObject):
         customChkState=int(settings.value("custom_language",None,int))
         self.dlg.useCustomLangCheckBox.setCheckState(customChkState)
         self.save_image_dir = str(settings.value("images_save_dir",None,str))
-        self.max_points=int(settings.value("max_align_points",None,int))
-        self.min_quality=float(settings.value("min_point_quality",None,float))
+        self.current_align_method=int(settings.value("current_align_method",None,int))
+        fprec=int(settings.value("float_precision",None,int))
+        self.dlg.fTypeComboBox.setCurrentIndex(fprec)
         settings.endGroup()
+
+        self.wnd.alignMethodComboBox.setCurrentIndex(self.current_align_method)
+        self.changeAlignMethod(self.current_align_method)
 
     ##resizeEvent callback
     def mainWindowResizeEvent(self, event):
@@ -1233,20 +1147,24 @@ class theApp(Qt.QObject):
         y=Int(event.y()/self.actual_zoom)
 
         if (self.current_image != None) and (not self.manual_align):
-            imshape = self.current_image._original_data.shape
-            if ((y>=0) and (y < imshape[0]) and
-                (x>=0) and (x < imshape[1])):
-                pix_val=self.current_image._original_data[y,x]
-                self.wnd.colorBar.current_val=pix_val
-                self.wnd.colorBar.repaint()
-                self.statusLabelMousePos.setText('position=(x:'+str(x)+',y:'+str(y)+') value='+str(pix_val))
+            if self.current_image._original_data != None:
+                imshape = self.current_image._original_data.shape
+                if ((y>=0) and (y < imshape[0]) and
+                    (x>=0) and (x < imshape[1])):
+                        pix_val=self.current_image._original_data[y,x]
+                        self.wnd.colorBar.current_val=pix_val
+                        self.wnd.colorBar.repaint()
+                        self.statusLabelMousePos.setText('position=(x:'+str(x)+',y:'+str(y)+') value='+str(pix_val))
+            else:
+                pix_val=None
                 
         if (self.tracking_align_point and 
             (self.image_idx>=0) and 
             (self.point_idx>=0)
            ):
-            self.alignpointlist[self.image_idx][self.point_idx][0]=x
-            self.alignpointlist[self.image_idx][self.point_idx][1]=y
+            pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
+            pnt[0]=x
+            pnt[1]=y
             self.wnd.spinBoxXAlign.setValue(x)
             self.wnd.spinBoxYAlign.setValue(y)
             self.imageLabel.repaint()
@@ -1267,9 +1185,10 @@ class theApp(Qt.QObject):
         if btn==2:
             if self.point_idx >= 0:
                 self.tracking_align_point=False
-                self.alignpointlist[self.image_idx][self.point_idx][0]=x
-                self.alignpointlist[self.image_idx][self.point_idx][1]=y
-                self.alignpointlist[self.image_idx][self.point_idx][3]=False
+                pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
+                pnt[0]=x
+                pnt[1]=y
+                pnt[3]=False
                 self.wnd.spinBoxXAlign.setValue(x)
                 self.wnd.spinBoxYAlign.setValue(y)
                 self.imageLabel.repaint()
@@ -1298,10 +1217,20 @@ class theApp(Qt.QObject):
             if cb._is_rgb == True:
                 cb.setPixmap(Qt.QPixmap.fromImage(self.rgb_colormap))
                 
-                xr = int(float(cb.current_val[0]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
-                xg = int(float(cb.current_val[1]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
-                xb = int(float(cb.current_val[2]-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
+                try:
+                    xr = int((float(cb.current_val[0]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
+                except Exception:
+                    xr = -1
+                    
+                try:
+                    xg = int((float(cb.current_val[1]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
+                except Exception:
+                    xg = -1
                 
+                try:
+                    xb = int((float(cb.current_val[2]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
+                except Exception:
+                    xb = -1
                 painter.setCompositionMode(22)
                 
                 painter.setPen(QtCore.Qt.red)
@@ -1328,8 +1257,8 @@ class theApp(Qt.QObject):
                 cb.setPixmap(Qt.QPixmap.fromImage(self.bw_colormap))
                 
                 try:
-                    x = int(float(cb.current_val-cb.min_val)/float(cb.max_val-cb.min_val)*(cb.width()-_gno))+_gpo
-                except ValueError:
+                    x = int((float(cb.current_val-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
+                except Exception:
                     x = -1
                 
                 painter.setCompositionMode(22)
@@ -1352,17 +1281,21 @@ class theApp(Qt.QObject):
             return val
         painter = Qt.QPainter(self.imageLabel)
         if (not self.manual_align):
-            self.__draw_align_points__(painter)
+            if (self.current_align_method==0) and (self.is_aligning):
+                pass #TODO: draw the phase correlation images
+            elif self.current_align_method==1:
+                self.__draw_align_points__(painter)
         else:
             self.__draw_difference__(painter)
         del painter
         return val
 
     def __draw_align_points__(self, painter):
-        if(len(self.alignpointlist)) is 0:
+        if(len(self.framelist) == 0) or (not self.showAlignPoints):
             return False
         painter.setFont(Qt.QFont("Arial", 8))  
-        for i in self.alignpointlist[self.image_idx]:
+        for i in self.framelist[self.image_idx].alignpoints:
+                      
             x=Int((i[0]+0.5)*self.actual_zoom)
             y=Int((i[1]+0.5)*self.actual_zoom)
             painter.setCompositionMode(28)
@@ -1389,11 +1322,35 @@ class theApp(Qt.QObject):
             
     def __draw_difference__(self,painter):
         if (self.ref_image != None) and (self.current_image != None):
+            
+            ref = self.framelist[self.ref_image_idx]
+            img = self.framelist[self.dif_image_idx] 
+            
+            rot_center=(img.width*self.actual_zoom/2.0,img.height*self.actual_zoom/2.0)
+           
             painter.drawPixmap(0,0,self.updateImage(False,self.ref_image))
             painter.setCompositionMode(22)
-            x = (self.offsetlist[self.dif_image_idx][0]-self.offsetlist[self.ref_image_idx][0])*self.actual_zoom
-            y = (self.offsetlist[self.dif_image_idx][1]-self.offsetlist[self.ref_image_idx][1])*self.actual_zoom
-            painter.drawPixmap(-x,-y,self.updateImage(False))
+                        
+            x = (img.offset[0]-ref.offset[0])*self.actual_zoom
+            y = (img.offset[1]-ref.offset[1])*self.actual_zoom
+            
+            #this is needed because the automatic aignment takes the first image available as
+            #reference to calculate derotation
+            alpha = self.framelist[self.wnd.listWidgetManualAlign.item(0).original_id].angle            
+            
+            cosa = math.cos(numpy.deg2rad(-alpha))
+            sina = math.sin(numpy.deg2rad(-alpha))
+            
+            xi = x*cosa + y*sina
+            yi = y*cosa - x*sina
+            
+            #TODO:fix reference!
+            
+            painter.translate(rot_center[0]-xi,rot_center[1]-yi)
+            
+            painter.rotate(-img.angle+ref.angle)
+
+            painter.drawPixmap(-int(rot_center[0]),-int(rot_center[1]),self.updateImage(False))
             painter.setCompositionMode(0)
     
     def setZoomMode(self, val):
@@ -1503,10 +1460,19 @@ class theApp(Qt.QObject):
             self.actual_zoom=1
             
         if paint:
-            self.imageLabel.setPixmap(pix)           
-            self.wnd.colorBar.max_val=current_image._original_data.max()
-            self.wnd.colorBar.min_val=current_image._original_data.min()
+            self.imageLabel.setPixmap(pix)    
             
+            if current_image._original_data != None:
+                self.wnd.colorBar.max_val=current_image._original_data.max()
+                self.wnd.colorBar.min_val=current_image._original_data.min()
+                if not self.wnd.colorBar.isVisible():
+                    self.wnd.colorBar.show()
+            else:
+                self.wnd.colorBar.max_val=1
+                self.wnd.colorBar.max_val=0
+                if self.wnd.colorBar.isVisible():
+                    self.wnd.colorBar.hide()
+                
             #this shuold avoid division by zero
             if  self.wnd.colorBar.max_val ==  self.wnd.colorBar.min_val:
                 self.wnd.colorBar.max_val=self.wnd.colorBar.max_val+1
@@ -1541,9 +1507,7 @@ class theApp(Qt.QObject):
 
     def loadVideo(self):
 
-        oldlist=self.filelist[:]
-        oldalignpointlist=self.alignpointlist[:]
-        oldoffsetlist=self.offsetlist[:]
+        oldlist=self.framelist[:]
 
         open_str=tr("All files *.* (*.*)")
         vidname=str(Qt.QFileDialog.getOpenFileName(self.wnd,
@@ -1567,7 +1531,7 @@ class theApp(Qt.QObject):
                     dep = 'RGBA'
                 else:
                     return False
-            if len(self.filelist) > 0:
+            if len(self.framelist) > 0:
                 if((imw != self.currentWidth) or
                    (imh != self.currentHeight) or
                    (dep != self.currentDepht[0:3])):
@@ -1615,9 +1579,9 @@ class theApp(Qt.QObject):
         
     def loadFiles(self, newlist=None):
 
-        oldlist=self.filelist[:]
-        oldalignpointlist=self.alignpointlist[:]
-        oldoffsetlist=self.offsetlist[:]
+        oldlist=self.framelist[:]
+
+        #self.rgb_fits_mode = (self.checked_rgb_fits==2)
 
         if newlist==None:
             open_str=tr("All supported images")+self.images_extensions+";;"+tr("All files *.* (*.*)")
@@ -1629,48 +1593,50 @@ class theApp(Qt.QObject):
 
         self.statusBar.showMessage(tr('Loading files, please wait...'))
 
-        if len(self.filelist) > 0:
+        if len(self.framelist) > 0:
             imw = self.currentWidth
             imh = self.currentHeight
             dep = self.currentDepht[0:3]
         elif len(newlist) > 0:
-            ref = self.openImage(str(newlist[0]))
-            if ref==None:
+            ref = utils.frame(str(newlist[0]),rgb_fits=self.rgb_fits_mode)
+            if not ref.is_good:
                 msgBox = Qt.QMessageBox(self.wnd)
-                msgBox.setText(tr("Cannot open image")+" \""+str(newlist[0])+"\"")
+                msgBox.setText(tr("Cannot open image")+" \""+str(ref.url)+"\"")
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
-            imw,imh = ref.size
+            imw = ref.width
+            imh = ref.height
             dep = ref.mode
-            del ref            
+            
+            del ref     
+            
             self.currentWidth=imw
             self.currentHeight=imh
             self.currentDepht=dep
 
             if self.dlg.autoSizeCheckBox.checkState()==2:
-                r_w=int(imw/10)
-                r_h=int(imh/10)
+                r_w=int(self.currentWidth/10)
+                r_h=int(self.currentHeight/10)
                 r_l=max(r_w,r_h)
-                self.autoalign_rectangle=(r_l,r_l)
+                self.autoalign_rectangle=(r_l,r_h)
                 self.dlg.rWSpinBox.setValue(r_l)
                 self.dlg.rHSpinBox.setValue(r_l)
             
             if 'RGB' in dep:
                 self.wnd.colorBar._is_rgb=True
-                self.wnd.colorBar.current_val=(0,0,0)
+                self.wnd.colorBar.current_val=(0.0,0.0,0.0)
             else:
                 self.wnd.colorBar._is_rgb=False
-                self.wnd.colorBar.current_val=0
+                self.wnd.colorBar.current_val=0.0
                 
-            self.wnd.colorBar.max_val=1
-            self.wnd.colorBar.min_val=0
+            self.wnd.colorBar.max_val=1.0
+            self.wnd.colorBar.min_val=0.0
         else:
             return
         
         
         self.current_dir=os.path.dirname(str(newlist[0]))
-        
         rejected=''
         
         self.progress.setMaximum(len(newlist))
@@ -1681,49 +1647,50 @@ class theApp(Qt.QObject):
         listitemslist=[]
         for i in newlist:
             count+=1
-            if not (i in self.filelist):
+            if not (i in self.framelist): #TODO:fix here: string must be compared to string
                 page = 0
-                img=self.openImage(str(i),page)
-                if img==None:
+                img=utils.frame(str(i),page, rgb_fits=self.rgb_fits_mode)
+                if not img.is_good:
                     msgBox = Qt.QMessageBox(self.wnd)
                     msgBox.setText(tr("Cannot open image")+" \""+str(i)+"\"")
                     msgBox.setIcon(Qt.QMessageBox.Critical)
                     msgBox.exec_()
                     continue
-                while img != None:
-                    if (imw,imh)!=img.size:
+                
+                while img.is_good:
+                    if (imw,imh)!=(img.width,img.height):
                         warnings=True
-                        rejected+=(str(i)+tr(' --> size does not match:')+'\n'+
+                        rejected+=(img.url+tr(' --> size does not match:')+'\n'+
                                             tr('current size=')+
                                             str(self.currentWidth)+'x'+str(self.currentHeight)+
                                             ' '+tr('image size=')+
-                                            str(img.size[0])+'x'+str(img.size[1])+'\n')
+                                            str(img.width)+'x'+str(img.height)+'\n')
                     elif not(dep in img.mode):
                         warnings=True
-                        rejected+=(str(i)+tr(' --> number of channels does not match:')+'\n'+
+                        rejected+=(img.url+tr(' --> number of channels does not match:')+'\n'+
                                             tr('current channels=')+
                                             str(self.currentDepht)+
                                             ' '+tr('image channels=')+
                                             str(img.mode)+'\n')
                     else:                    
-                        self.filelist.append((str(i),page))
-                        self.alignpointlist.append([])
-                        self.offsetlist.append([0,0])
-                        q=Qt.QListWidgetItem(os.path.basename(str(i))+'-page'+str(page))
+                        self.framelist.append(img)
+                        q=Qt.QListWidgetItem(img.tool_name)
                         q.setCheckState(2)
-                        q.setToolTip(i)
+                        q.setToolTip(img.long_tool_name)
                         listitemslist.append(q)
+                        img.addProperty("listItem",q)
                     page+=1
-                    img=self.openImage(str(i),page)
+                    img=utils.frame(str(i),page, rgb_fits=self.rgb_fits_mode)
+                    
             self.progress.setValue(count)
             if self.progressWasCanceled():
-                self.filelist=oldlist
-                self.alignpointlist=oldalignpointlist
-                self.offsetlist=oldoffsetlist
+                self.framelist=oldlist
                 return False
         self.unlock()
+        
         for item in listitemslist:
             self.wnd.listWidget.addItem(item)
+            
         newlist=[]
 
         if warnings:
@@ -1738,7 +1705,7 @@ class theApp(Qt.QObject):
 
         self.wnd.manualAlignGroupBox.setEnabled(True)
         
-        self.darkfilelist=[]
+        self.darkframelist=[]
 
         if self.checked_seach_dark_flat==2:
             self.dark_dir = os.path.join(self.current_dir,'dark')
@@ -1753,7 +1720,7 @@ class theApp(Qt.QObject):
 
         self.statusBar.showMessage(tr('DONE'))
         
-        if (len(self.filelist)>0):
+        if (len(self.framelist)>0):
             self._unlock_cap_ctrls()
 
         self.statusBar.showMessage(tr('Ready'))
@@ -1777,35 +1744,39 @@ class theApp(Qt.QObject):
         self.progress.setMaximum(len(files))
         self.lock()
         count=0
-
+        warnings = False
+        rejected = ""
+        
         for fn in files:
 
             self.qapp.processEvents()
             self.progress.setValue(count)
             
-            if (os.path.isfile(str(fn)) and 
-               not (str(fn) in self.darkfilelist)):
+            
+            if (os.path.isfile(str(fn))): #TODO: check for duplicates
 
                page=0
-               i=self.openImage(str(fn),page)
-               if i==None:
+               i=utils.frame(str(fn),page,rgb_fits=self.rgb_fits_mode)
+               if not i.is_good:
                     if not ignoreErrors:
                         msgBox = Qt.QMessageBox(self.wnd)
                         msgBox.setText(tr("Cannot open image")+" \""+str(fn)+"\"")
                         msgBox.setIcon(Qt.QMessageBox.Critical)
                         msgBox.exec_()
                     continue
-               while i != None:
-                   imw,imh=i.size
-                   dep = i.mode
-                   if ((self.currentWidth == imw) and
-                       (self.currentHeight == imh) and
-                       (self.currentDepht == dep)):
-                       self.darkfilelist.append((str(fn),page))
-                       q=Qt.QListWidgetItem(os.path.basename(str(fn))+"-page"+str(page),self.wnd.darkListWidget)
-                       q.setToolTip(str(fn)+", page "+str(page))
+               while i.is_good:
+                   if ((self.currentWidth == i.width) and
+                       (self.currentHeight == i.height) and
+                       (self.currentDepht == i.mode)):
+                       self.darkframelist.append(i)
+                       q=Qt.QListWidgetItem(i.tool_name,self.wnd.darkListWidget)
+                       q.setToolTip(i.long_tool_name)
+                   else:
+                        warnings=True
+                        rejected+=(i.url+"\n")
+                        break
                    page+=1
-                   i=self.openImage(str(fn),page)
+                   i=utils.frame(str(fn),page,rgb_fits=self.rgb_fits_mode)
 
             if self.progressWasCanceled():
                 return False
@@ -1813,14 +1784,24 @@ class theApp(Qt.QObject):
             
         self.unlock()
         
-        if (len(self.darkfilelist) == 0):
+        if warnings:
+            msgBox = Qt.QMessageBox(self.wnd)
+            msgBox.setText(tr("Some imagese have different sizes or number of channels and will been ignored.\n"))
+            msgBox.setInformativeText(tr("All images must have the same size and number of channels.\n\n")+
+                                      tr("Click the \'Show Details' button for more information.\n"))
+            msgBox.setDetailedText (rejected)
+            msgBox.setIcon(Qt.QMessageBox.Warning)
+            msgBox.exec_()
+            del msgBox
+        
+        if (len(self.darkframelist) == 0):
             return False
         else:
             self.wnd.darkClearPushButton.setEnabled(True)
         return True
         
     def doClearDarkList(self):
-        self.darkfilelist=[]
+        self.darkframelist=[]
         self.wnd.darkListWidget.clear()
         self.wnd.darkClearPushButton.setEnabled(False)
         
@@ -1844,35 +1825,38 @@ class theApp(Qt.QObject):
         self.progress.setMaximum(len(files))
         self.lock()
         count=0
+        warnings = False
+        rejected = ""
         
         for fn in files:
             
             self.qapp.processEvents()
             self.progress.setValue(count)
             
-            if (os.path.isfile(fn) and 
-               not (fn in self.darkfilelist)):
+            if (os.path.isfile(fn)): # check for duplicates
 
                page=0
-               i=self.openImage(str(fn),page)
-               if i==None:
+               i=utils.frame(str(fn),page,rgb_fits=self.rgb_fits_mode)
+               if not i.is_good:
                     if not ignoreErrors:
                         msgBox = Qt.QMessageBox(self.wnd)
-                        msgBox.setText(tr("Cannot open image")+" \""+str(fn)+"\"")
+                        msgBox.setText(tr("Cannot open image")+" \""+i.url+"\"")
                         msgBox.setIcon(Qt.QMessageBox.Critical)
                         msgBox.exec_()
                     continue
-               while i != None:
-                   imw,imh=i.size
-                   dep = i.mode
-                   if ((self.currentWidth == imw) and
-                       (self.currentHeight == imh) and
-                       (self.currentDepht == dep)):
-                       self.flatfilelist.append((str(fn),page))
-                       q=Qt.QListWidgetItem(os.path.basename(str(fn))+"-page"+str(page),self.wnd.flatListWidget)
-                       q.setToolTip(str(fn)+", page "+str(page))
+               while i.is_good:
+                   if ((self.currentWidth == i.width) and
+                       (self.currentHeight == i.height) and
+                       (self.currentDepht == i.mode)):
+                       self.flatframelist.append(i)
+                       q=Qt.QListWidgetItem(i.tool_name,self.wnd.flatListWidget)
+                       q.setToolTip(i.long_tool_name)
+                   else:
+                        warnings=True
+                        rejected+=(i.url+"\n")
+                        break
                    page+=1
-                   i=self.openImage(str(fn),page)
+                   i=utils.frame(str(fn),page,rgb_fits=self.rgb_fits_mode)
 
             if self.progressWasCanceled():
                 return False
@@ -1880,21 +1864,31 @@ class theApp(Qt.QObject):
             
         self.unlock()
         
-        if (len(self.flatfilelist) == 0):
+        if warnings:
+            msgBox = Qt.QMessageBox(self.wnd)
+            msgBox.setText(tr("Some imagese have different sizes or number of channels and will been ignored.\n"))
+            msgBox.setInformativeText(tr("All images must have the same size and number of channels.\n\n")+
+                                      tr("Click the \'Show Details' button for more information.\n"))
+            msgBox.setDetailedText (rejected)
+            msgBox.setIcon(Qt.QMessageBox.Warning)
+            msgBox.exec_()
+            del msgBox
+
+        
+        if (len(self.flatframelist) == 0):
             return False
         else:
             self.wnd.flatClearPushButton.setEnabled(True)
         return True
 
     def doClearFlatList(self):
-        self.flatfilelist=[]
+        #TODO: make sure memory is released
+        self.flatframelist=[]
         self.wnd.flatListWidget.clear()
         self.wnd.flatClearPushButton.setEnabled(False)
 
     def clearList(self):
-        self.filelist=[]
-        self.offsetlist=[]
-        self.alignpointlist=[]
+        self.framelist=[]
             
         self.wnd.listWidget.clear()
         self.wnd.alignPointsListWidget.clear()
@@ -1910,14 +1904,12 @@ class theApp(Qt.QObject):
 
     def removeImage(self):
         q = self.wnd.listWidget.takeItem(self.wnd.listWidget.currentRow())
-        self.filelist.pop(self.wnd.listWidget.currentRow())
-        self.offsetlist.pop(self.wnd.listWidget.currentRow())
-        self.alignpointlist.pop(self.wnd.listWidget.currentRow())
+        self.framelist.pop(self.wnd.listWidget.currentRow())
         del q
         
         self._avg=None
 
-        if (len(self.filelist)==0):
+        if (len(self.framelist)==0):
             self.wnd.manualAlignGroupBox.setEnabled(False)
             self.wnd.remPushButton.setEnabled(False)
             self.wnd.clrPushButton.setEnabled(False)
@@ -1926,28 +1918,28 @@ class theApp(Qt.QObject):
             self.statusLabelMousePos.setText('')
             self.wnd.colorBar.setPixmap(Qt.QPixmap())
             self.clearImage()
-        elif self.image_idx >= len(self.filelist):
-            self.wnd.listWidget.setCurrentRow(len(self.filelist)-1)
+        elif self.image_idx >= len(self.framelist):
+            self.wnd.listWidget.setCurrentRow(len(self.framelist)-1)
             self.listItemChanged(self.wnd.listWidget.currentRow())
 
     def checkAllListItems(self):
-        self.setAllListItemsChechState(2)
+        self.setAllListItemsCheckState(2)
 
     def uncheckAllListItems(self):
-        self.setAllListItemsChechState(0)
+        self.setAllListItemsCheckState(0)
         
     def clearDarkList(self):
-        self.darkfilelist = []
+        self.darkframelist = []
         self.aligned_dark=[]
         
     def clearAlignPoinList(self):
-        for i in range(len(self.alignpointlist)):
-           self.alignpointlist[i]=[]
+        for frm in self.framelist:
+           frm.alignpoints=[]
         self.wnd.alignPointsListWidget.clear()
         self.wnd.removePointPushButton.setEnabled(False)
         self.updateImage()
 
-    def setAllListItemsChechState(self, state):
+    def setAllListItemsCheckState(self, state):
         for i in range(self.wnd.listWidget.count()):
             self.wnd.listWidget.item(i).setCheckState(state)
 
@@ -1957,8 +1949,8 @@ class theApp(Qt.QObject):
         self.image_idx = self.wnd.listWidget.currentRow()
         
         if idx >= 0:
-            img = self.openImage(self.filelist[idx][0],self.filelist[idx][1],True)
-            qimg=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+            img = self.framelist[idx]
+            qimg=utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet)
             self.showImage(qimg)
             
             self.wnd.alignGroupBox.setEnabled(True)
@@ -1966,7 +1958,7 @@ class theApp(Qt.QObject):
             self.updateAlignPointList()
             self.wnd.manualAlignGroupBox.setEnabled(True)
         else:
-            self.showImage(None)
+            self.clearImage()
             self.wnd.alignGroupBox.setEnabled(False)
             self.wnd.alignDeleteAllPushButton.setEnabled(False)
             self.wnd.manualAlignGroupBox.setEnabled(False)
@@ -1975,14 +1967,15 @@ class theApp(Qt.QObject):
             
     def manualAlignListItemChanged(self,idx):
         item = self.wnd.listWidgetManualAlign.item(idx)
+        if item is None:
+            return        
         self.dif_image_idx=item.original_id
-        #self.current_image=Qt.QImage(self.filelist[item.original_id])
-        img = self.openImage(self.filelist[item.original_id][0],self.filelist[item.original_id][1],True)
-        self.current_image=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
-        self.wnd.spinBoxOffsetX.setValue(self.offsetlist[item.original_id][0])
-        self.wnd.spinBoxOffsetY.setValue(self.offsetlist[item.original_id][1])
-        self.imageLabel.repaint()
-                
+        img = self.framelist[item.original_id]
+        self.current_image=utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet)
+        self.wnd.doubleSpinBoxOffsetX.setValue(img.offset[0])
+        self.wnd.doubleSpinBoxOffsetY.setValue(img.offset[1])
+        self.wnd.spinBoxOffsetT.setValue(img.angle)
+
     def currentManualAlignListItemChanged(self, cur_item):
         if cur_item == None:
             return False
@@ -1990,9 +1983,9 @@ class theApp(Qt.QObject):
             if self.__operating!=True:
                 self.__operating=True
                 self.ref_image_idx=cur_item.original_id
-                #self.ref_image = Qt.QImage(self.filelist[cur_item.original_id])
-                img = self.openImage(self.filelist[cur_item.original_id][0],self.filelist[cur_item.original_id][1],True)
-                self.ref_image=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+                #self.ref_image = Qt.QImage(self.framelist[cur_item.original_id])
+                img = self.framelist[cur_item.original_id]
+                self.ref_image=utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet)
                 for i in range(self.wnd.listWidgetManualAlign.count()):
                     item = self.wnd.listWidgetManualAlign.item(i)
                     if (item != cur_item) and (item.checkState() == 2):
@@ -2030,8 +2023,9 @@ class theApp(Qt.QObject):
             self.wnd.spinBoxXAlign.setEnabled(True)
             self.wnd.spinBoxYAlign.setEnabled(True)
             self.wnd.removePointPushButton.setEnabled(True)
-            self.wnd.spinBoxXAlign.setValue(self.alignpointlist[self.image_idx][idx][0])
-            self.wnd.spinBoxYAlign.setValue(self.alignpointlist[self.image_idx][idx][1])
+            pnt=self.framelist[self.image_idx].alignpoints[idx]
+            self.wnd.spinBoxXAlign.setValue(pnt[0])
+            self.wnd.spinBoxYAlign.setValue(pnt[1])
         else:
             self.wnd.spinBoxXAlign.setEnabled(False)
             self.wnd.spinBoxYAlign.setEnabled(False)
@@ -2040,11 +2034,20 @@ class theApp(Qt.QObject):
             self.wnd.spinBoxYAlign.setValue(0)
             
     def addAlignPoint(self):
+        
+        if self.dlg.autoSizeCheckBox.checkState()==2:
+            r_w=int(self.currentWidth/10)
+            r_h=int(self.currentHeight/10)
+            r_l=max(r_w,r_h)
+            self.autoalign_rectangle=(r_l,r_h)
+            self.dlg.rWSpinBox.setValue(r_l)
+            self.dlg.rHSpinBox.setValue(r_l)
+        
         imagename=self.wnd.listWidget.item(self.image_idx).text()
         idx=1
         for i in range(self.wnd.alignPointsListWidget.count()):
             pname='#{0:05d}'.format(i+1)
-            if self.alignpointlist[0][i][2] != pname:
+            if self.framelist[0].alignpoints[i][2] != pname:
                 idx=i+1
                 break
             else:
@@ -2055,87 +2058,110 @@ class theApp(Qt.QObject):
         q.setToolTip(tr('image') +imagename+tr('\nalign point ')+pname)
         self.wnd.alignPointsListWidget.insertItem(idx-1,q)
         
-        if(len(self.alignpointlist[self.image_idx])==0):
-            self.wnd.removePointPushButton.setEnabled(True)
+        if(len(self.framelist[self.image_idx].alignpoints)==0):
+            self.wnd.removePointPushButton.setEnabled(False)
             
-        for i in range(len(self.alignpointlist)):
-           self.alignpointlist[i].insert(idx-1,[0,0,pname,False])
+        for frm in self.framelist:
+           frm.alignpoints.insert(idx-1,[0,0,pname,False])
 
         self.imageLabel.repaint()
         self.wnd.alignPointsListWidget.setCurrentRow(idx-1)
         return (idx-1)
     
     def removeAlignPoint(self):
+        
         point_idx=self.wnd.alignPointsListWidget.currentRow()
-        for i in range(len(self.alignpointlist)):
-            self.alignpointlist[i].pop(point_idx)
+        
+        for frm in self.framelist:
+            frm.alignpoints.pop(point_idx)
+            
         self.wnd.alignPointsListWidget.setCurrentRow(-1) #needed to avid bugs
         item = self.wnd.alignPointsListWidget.takeItem(point_idx)
-        if(len(self.alignpointlist[self.image_idx])==0):
+        
+        if(len(self.framelist[self.image_idx].alignpoints)==0):
             self.wnd.removePointPushButton.setEnabled(False)
+            
         del item
+        
         self.updateImage()
         
     def updateAlignPointList(self):
         self.wnd.alignPointsListWidget.clear()
         imagename=self.wnd.listWidget.item(self.wnd.listWidget.currentRow()).text()
-        for idx in range(len(self.alignpointlist[self.image_idx])):
-            pname=self.alignpointlist[self.image_idx][idx][2]
+        for pnt in self.framelist[self.image_idx].alignpoints:
+            pname=pnt[2]
             q=Qt.QListWidgetItem(pname,self.wnd.alignPointsListWidget)
             q.setToolTip(tr('image') +imagename+tr('\nalign point ')+pname)
 
     def shiftX(self,val):
         if (self.point_idx >= 0):
-            self.alignpointlist[self.image_idx][self.point_idx][0]=val
-            if self.alignpointlist[self.image_idx][self.point_idx][3]==True:
-                self.alignpointlist[self.image_idx][self.point_idx][3]=False
+            pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
+            pnt[0]=val
+            if pnt[3]==True:
+                pnt[3]=False
             self.imageLabel.repaint()
 
     def shiftY(self,val):
         if (self.point_idx >= 0):
-            self.alignpointlist[self.image_idx][self.point_idx][1]=val
-            if self.alignpointlist[self.image_idx][self.point_idx][3]==True:
-                self.alignpointlist[self.image_idx][self.point_idx][3]=False
+            pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
+            pnt[1]=val
+            if pnt[3]==True:
+                pnt[3]=False
             self.imageLabel.repaint()
-
+    
     def shiftOffsetX(self,val):
         if (self.dif_image_idx >= 0):
-            self.offsetlist[self.dif_image_idx][0]=val
+            self.framelist[self.dif_image_idx].offset[0]=val
             self.imageLabel.repaint()
-        
+    
     def shiftOffsetY(self,val):
         if (self.dif_image_idx >= 0):
-            self.offsetlist[self.dif_image_idx][1]=val
+            self.framelist[self.dif_image_idx].offset[1]=val
             self.imageLabel.repaint()
-            
+    
+    def rotateOffsetT(self, val):
+        if (self.dif_image_idx >= 0):
+            self.framelist[self.dif_image_idx].angle=val
+            self.imageLabel.repaint()
+    
     def updateToolBox(self, idx):
         self.ref_image_idx=-1
 
         if (idx!=5) and (idx!=2) and (self._old_tab_idx==5):
-            img = self.openImage(self.filelist[self.image_idx][0],self.filelist[self.image_idx][1],True)
-            qimg=utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
+            img = self.framelist[self.image_idx]
+            qimg=utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet)
             self.showImage(qimg)
                 
                 
         if idx==2:
+            utils.trace("Setting up manual alignment controls")
             self.manual_align=True
+            utils.trace("Updating list of available images")
             self.updateAlignList()
-            if len(self.filelist)>0:
-                img=self.openImage(self.filelist[0][0],self.filelist[0][1],True)
-                self.ref_image = utils.arrayToQImage(img,bw_jet=self.use_colormap_jet)
-            self.updateImage()
+            if self.wnd.listWidgetManualAlign.count()>0:
+                img=self.framelist[self.wnd.listWidgetManualAlign.item(0).original_id]
+                utils.trace("Loading reference image")
+                self.ref_image = utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet)
+                utils.trace("Selecting reference image")
+                self.wnd.listWidgetManualAlign.setCurrentRow(0)
+                self.updateImage()
         else:
             self.manual_align=False
-            self.imageLabel.repaint()
         
         if (idx==5):
+            self.showAlignPoints=False
             if (self._avg != None):
                 self.updateResultImage()
-            if (len(self.filelist)>0):
+            if (len(self.framelist)>0):
                 self.wnd.alignPushButton.setEnabled(True)
                 self.wnd.avrPushButton.setEnabled(True)
+        else:
+            self.showAlignPoints=True
+        self.imageLabel.repaint()
         self._old_tab_idx=idx
     def newProject(self):
+
+        self.wnd.toolBox.setCurrentIndex(0)
 
         self.zoom = 1
         self.min_zoom = 0
@@ -2167,12 +2193,9 @@ class theApp(Qt.QObject):
         
         self.current_project_fname=None
 
-        self.filelist=[]
-        self.offsetlist=[]
-        self.darkfilelist=[]
-        self.flatfilelist=[]
-        self.alignpointlist=[]
-
+        self.framelist=[]
+        self.darkframelist=[]
+        self.flatframelist=[]
 
         self.setZoom(1)
         self.setZoomMode(0)
@@ -2218,14 +2241,18 @@ class theApp(Qt.QObject):
 
     def corruptedMsgBox(self,info=None):
             msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("Project invalid or corrupted!"))
+            msgBox.setText(tr("The project is invalid or corrupted!"))
             if info!=None:
-                msgBox.setInformativeText(info)
+                msgBox.setInformativeText(str(info))
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
             return False
 
     def __save_project__(self):
+        
+        self.lock(False)
+        self.progress.reset()
+        self.statusBar.showMessage(tr('saveing project, please wait...'))
         
         doc = minidom.Document()
         
@@ -2264,7 +2291,6 @@ class theApp(Qt.QObject):
         information_node.appendChild(max_points_node)
         information_node.appendChild(min_quality_node)
         
-
         current_dir_node.setAttribute('url',str(self.current_dir))
         current_row_node.setAttribute('index',str(self.image_idx))
         master_dark_node.setAttribute('checked',str(self.wnd.masterDarkCheckBox.checkState()))
@@ -2286,12 +2312,24 @@ class theApp(Qt.QObject):
         master_flat_node.appendChild(url)
         url_txt=doc.createTextNode(str(self.wnd.masterFlatLineEdit.text()))
         url.appendChild(url_txt)
-
+        
+        total_dark = len(self.darkframelist)
+        total_flat = len(self.flatframelist)
+        total_imgs = len(self.framelist)
+        
+        self.progress.setMaximum(total_dark+total_flat+total_imgs-1)
+        
+        count=0
+        
         #<dark-frams> section
-        for i in range(len(self.darkfilelist)):
-            im_dark_name = str(self.wnd.darkListWidget.item(i).text())
-            im_dark_url  = self.darkfilelist[i][0]
-            im_dark_page = self.darkfilelist[i][1]
+        for i in self.darkframelist:
+
+            self.progress.setValue(count)
+            count+=1
+            
+            im_dark_name = i.tool_name
+            im_dark_url  = i.url
+            im_dark_page = i.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_dark_name)
             
@@ -2304,10 +2342,14 @@ class theApp(Qt.QObject):
             url.setAttribute('page',str(im_dark_page))
 
         #<flat-frames> section
-        for i in range(len(self.flatfilelist)):
-            im_flat_name = str(self.wnd.flatListWidget.item(i).text())
-            im_flat_url  = self.flatfilelist[i][0]
-            im_flat_page = self.flatfilelist[i][1]
+        for i in self.flatframelist:
+            
+            self.progress.setValue(count)
+            count+=1
+
+            im_flat_name = i.tool_name
+            im_flat_url  = i.url
+            im_flat_page = i.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_flat_name)
             
@@ -2320,18 +2362,22 @@ class theApp(Qt.QObject):
             url.setAttribute('page',str(im_flat_page))
             
         #<frames> section
-        for i in range(len(self.filelist)):
-            im_used = str(self.wnd.listWidget.item(i).checkState())
-            im_name = str(self.wnd.listWidget.item(i).text())
-            im_url  = self.filelist[i][0]
-            im_page = self.filelist[i][1]
+        for img in self.framelist:
+            
+            self.progress.setValue(count)
+            count+=1
+            
+            im_used = str(img.getProperty('listItem').checkState())
+            im_name = str(img.tool_name)
+            im_url  = img.url
+            im_page = img.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_name)
             image_node.setAttribute('used',im_used)
             
             pict_frames_node.appendChild(image_node)
 
-            for point in self.alignpointlist[i]:
+            for point in img.alignpoints:
                 point_node=doc.createElement('align-point')
                 point_node.setAttribute('x',str(int(point[0])))
                 point_node.setAttribute('y',str(int(point[1])))
@@ -2340,8 +2386,9 @@ class theApp(Qt.QObject):
                 image_node.appendChild(point_node)
             
             offset_node=doc.createElement('offset')
-            offset_node.setAttribute('x',str(int(self.offsetlist[i][0])))
-            offset_node.setAttribute('y',str(int(self.offsetlist[i][1])))
+            offset_node.setAttribute('x',str(float(img.offset[0])))
+            offset_node.setAttribute('y',str(float(img.offset[1])))
+            offset_node.setAttribute('theta',str(float(img.angle)))
             image_node.appendChild(offset_node)
 
             url=doc.createElement('url')
@@ -2361,7 +2408,10 @@ class theApp(Qt.QObject):
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
             del msgBox
+            self.unlock()
             return
+        
+        self.unlock()
 
     def loadProject(self):
         old_fname = self.current_project_fname
@@ -2377,8 +2427,10 @@ class theApp(Qt.QObject):
         try:
             dom = minidom.parse(project_fname)
         except Exception as err:
-            return self.corruptedMsgBox(err)
-        
+            return self.corruptedMsgBox(err)       
+
+        self.statusBar.showMessage(tr('loading project, please wait...'))
+        self.lock(False)
 
         try:
             root = dom.getElementsByTagName('project')[0]
@@ -2388,6 +2440,14 @@ class theApp(Qt.QObject):
             flat_frames_node = root.getElementsByTagName('flat-frames')[0]
             pict_frames_node = root.getElementsByTagName('frames')[0]
             
+            total_dark = len(dark_frames_node.getElementsByTagName('image'))
+            total_flat = len(flat_frames_node.getElementsByTagName('image'))
+            total_imgs =len(pict_frames_node.getElementsByTagName('image'))
+            
+            self.progress.reset()
+            self.progress.setMaximum(total_dark+total_flat+total_imgs-1)
+            count=0
+                
             current_dir_node = information_node.getElementsByTagName('current-dir')[0]
             current_row_node = information_node.getElementsByTagName('current-row')[0]
             master_dark_node = information_node.getElementsByTagName('master-dark')[0]
@@ -2423,70 +2483,102 @@ class theApp(Qt.QObject):
             except:
                 master_flat_url = ''
                         
-            darkfilelist=[]
+            darkframelist=[]
             darkListWidgetElements = []    
             for node in dark_frames_node.getElementsByTagName('image'):
+                self.progress.setValue(count)
+                count+=1
                 im_dark_name = node.getAttribute('name')
                 url_dark_node = node.getElementsByTagName('url')[0]
                 im_dark_url = url_dark_node.childNodes[0].data
-                q=Qt.QListWidgetItem(im_dark_name,None)
-                q.setToolTip(im_dark_url)
-                darkListWidgetElements.append(q)
                 if url_dark_node.attributes.has_key('page'):
                     im_dark_page = url_dark_node.getAttribute('page')
-                    darkfilelist.append((im_dark_url,int(im_dark_page)))
+                    darkfrm=utils.frame(im_dark_url,int(im_dark_page),skip_loading=True)
                 else:
-                    darkfilelist.append((im_dark_url,0))
+                    darkfrm=utils.frame(im_dark_url,0,skip_loading=True)
+                darkfrm.tool_name=im_dark_name
+                darkfrm.width=imw
+                darkfrm.height=imh
+                darkfrm.mode=dep
+                darkframelist.append(darkfrm)
+                q=Qt.QListWidgetItem(darkfrm.tool_name,None)
+                q.setToolTip(darkfrm.long_tool_name)
+                darkListWidgetElements.append(q)
+                darkfrm.addProperty("listItem",q)
                 
-            flatfilelist=[]
+            flatframelist=[]
             flatListWidgetElements = []    
             for node in flat_frames_node.getElementsByTagName('image'):
+                self.progress.setValue(count)
+                count+=1
                 im_flat_name = node.getAttribute('name')
                 url_flat_node = node.getElementsByTagName('url')[0]
                 im_flat_url = url_flat_node.childNodes[0].data
-                q=Qt.QListWidgetItem(im_flat_name,None)
-                q.setToolTip(im_flat_url)
-                flatListWidgetElements.append(q)
                 if url_flat_node.attributes.has_key('page'):
                     im_flat_page = url_flat_node.getAttribute('page')
-                    flatfilelist.append((im_flat_url,int(im_flat_page)))
+                    flatfrm=utils.frame(im_flat_url,int(im_flat_page),skip_loading=True)
                 else:
-                    flatfilelist.append((im_flat_url,0))
-
+                    flatfrm=utils.frame(im_flat_url,0,skip_loading=True)
+                flatfrm.tool_name=im_flat_name
+                flatfrm.width=imw
+                flatfrm.height=imh
+                flatfrm.mode=dep
+                flatframelist.append(flatfrm)
+                q=Qt.QListWidgetItem(flatfrm.tool_name,None)
+                q.setToolTip(flatfrm.long_tool_name)
+                flatListWidgetElements.append(q)
+                flatfrm.addProperty("listItem",q)
                 
-            alignpointlist=[]
-            offsetlist=[]
-            filelist=[]  
+            framelist=[]  
             listWidgetElements=[]
             for node in pict_frames_node.getElementsByTagName('image'):
+                self.progress.setValue(count)
+                count+=1
                 im_name = node.getAttribute('name')
                 im_used = int(node.getAttribute('used'))
                 im_url_node  = node.getElementsByTagName('url')[0]
                 im_url  = im_url_node.childNodes[0].data
-                alignpointlist.append([])
+
+                if im_url_node.attributes.has_key('page'):
+                    im_page=im_url_node.getAttribute('page')
+                    frm = utils.frame(im_url,int(im_page),skip_loading=True)
+                else:
+                    frm = utils.frame(im_url,0,skip_loading=True)
+
+
                 for point in node.getElementsByTagName('align-point'):
                     point_id = point.getAttribute('id')
                     point_x  = int(point.getAttribute('x'))
                     point_y  = int(point.getAttribute('y'))
                     point_al = bool(point.getAttribute('aligned')=='True')
-                    alignpointlist[-1].append([point_x, point_y, point_id, point_al])
+                    frm.alignpoints.append([point_x, point_y, point_id, point_al])
                 
                 offset_node=node.getElementsByTagName('offset')[0]
                 offset_x=float(offset_node.getAttribute('x'))
                 offset_y=float(offset_node.getAttribute('y'))
-                offsetlist.append([offset_x,offset_y])
-                q=Qt.QListWidgetItem(im_name,None)
-                q.setToolTip(im_url)
+
+                if offset_node.attributes.has_key('theta'):
+                    offset_t=float(offset_node.getAttribute('theta'))
+                else:
+                    offset_t=0
+                
+                frm.tool_name=im_name
+                frm.width=imw
+                frm.height=imh
+                frm.mode=dep
+                frm.setOffset([offset_x,offset_y])
+                frm.setAngle(offset_t)
+                q=Qt.QListWidgetItem(frm.tool_name,None)
+                q.setToolTip(frm.long_tool_name)
                 q.setCheckState(im_used)
                 listWidgetElements.append(q)
-                if im_url_node.attributes.has_key('page'):
-                    im_page=im_url_node.getAttribute('page')
-                    filelist.append((im_url,int(im_page)))
-                else:
-                    filelist.append((im_url,0))
+                frm.addProperty("listItem",q)
+                framelist.append(frm)
+                
             
         except Exception as exc:
             self.current_project_fname=old_fname
+            self.unlock()
             return self.corruptedMsgBox()
        
         self.newProject()
@@ -2504,19 +2596,17 @@ class theApp(Qt.QObject):
         
         if 'RGB' in dep:
             self.wnd.colorBar._is_rgb=True
-            self.wnd.colorBar.current_val=(0,0,0)
+            self.wnd.colorBar.current_val=(0.0,0.0,0.0)
         else:
             self.wnd.colorBar._is_rgb=False
-            self.wnd.colorBar.current_val=0                
+            self.wnd.colorBar.current_val=0.0     
         
         self.currentWidth=imw
         self.currentHeight=imh
         self.currentDepht=dep
-        self.filelist=filelist
-        self.darkfilelist=darkfilelist
-        self.flatfilelist=flatfilelist
-        self.offsetlist=offsetlist
-        self.alignpointlist=alignpointlist
+        self.framelist=framelist
+        self.darkframelist=darkframelist
+        self.flatframelist=flatframelist
         self.image_idx=current_row
         self.master_dark_file=master_dark_url
         self.master_flat_file=master_flat_url
@@ -2525,28 +2615,32 @@ class theApp(Qt.QObject):
         self.max_points=max_points
         self.min_quality=min_quality
         self.auto_align_use_whole_image=use_whole_image
-                
-        if (len(self.filelist)>0):
+        
+        self.current_dir=current_dir
+        
+        self.unlock()
+        
+        if (len(self.framelist)>0):
             self._unlock_cap_ctrls()
 
         self.wnd.masterDarkCheckBox.setCheckState(master_dark_checked)
         self.wnd.masterDarkLineEdit.setText(master_dark_url)
         self.wnd.darkMulDoubleSpinBox.setValue(master_dark_mul_factor)
-        if (len(self.darkfilelist)>0):
+        if (len(self.darkframelist)>0):
             self.wnd.darkClearPushButton.setEnabled(True)
 
         self.wnd.masterFlatCheckBox.setCheckState(master_flat_checked)
         self.wnd.masterFlatLineEdit.setText(master_flat_url)
         self.wnd.flatMulDoubleSpinBox.setValue(master_flat_mul_factor)
-        if (len(self.flatfilelist)>0):
+        if (len(self.flatframelist)>0):
             self.wnd.flatClearPushButton.setEnabled(True)
 
-    def autoDetectAlignPoins(self):
-        i = self.openImage(self.filelist[self.image_idx][0],self.filelist[self.image_idx][1],True)
+    def autoDetectAlignPoints(self):
+        i = self.framelist[self.image_idx].getData(asarray=True)
         i = i.astype(numpy.float32)
         
         if 'RGB' in self.currentDepht:
-            i = cv2.cvtColor(i,cv2.cv.CV_BGR2GRAY)
+            i=i.sum(2)/3.0
         
         rw=self.autoalign_rectangle[0]
         rh=self.autoalign_rectangle[1]
@@ -2559,7 +2653,7 @@ class theApp(Qt.QObject):
         del i
         
         min_dist = int(math.ceil((rw**2+rh**2)**0.5))
-        
+
         if self.checked_autodetect_min_quality==2:
             self.min_quality=1
             points = []
@@ -2579,8 +2673,8 @@ class theApp(Qt.QObject):
         if len(points) > 0:            
             for p in points:
                 self.point_idx=self.addAlignPoint()
-                self.wnd.spinBoxXAlign.setValue(p[0][0]+hh)
-                self.wnd.spinBoxYAlign.setValue(p[0][1]+ww)
+                self.wnd.spinBoxXAlign.setValue(p[0][0]+ww)
+                self.wnd.spinBoxYAlign.setValue(p[0][1]+hh)
                 
         elif self.checked_autodetect_min_quality:
             msgBox = Qt.QMessageBox()
@@ -2599,7 +2693,10 @@ class theApp(Qt.QObject):
         image_idx=self.wnd.listWidget.currentRow()
         current_point=self.wnd.alignPointsListWidget.currentRow()
         self.statusBar.showMessage(tr('detecting points, please wait...'))
-        for point_idx in range(len(self.alignpointlist[image_idx])):
+        
+        current_frame = self.framelist[image_idx]
+        
+        for point_idx in range(len(current_frame.alignpoints)):
             self.point_idx=point_idx
             if not self.__auto_point_cv__(point_idx, image_idx):
                 self.wnd.alignPointsListWidget.setCurrentRow(current_point)
@@ -2608,13 +2705,13 @@ class theApp(Qt.QObject):
         self.point_idx=current_point
 
     def __auto_point_cv__(self, point_idx, image_idx=0):
-        point = self.alignpointlist[image_idx][point_idx]
+        point = self.framelist[image_idx].alignpoints[point_idx]
 
 
         #if already detected and not moved
         skip=True   
-        for i in range(len(self.alignpointlist)):
-            skip &= self.alignpointlist[i][point_idx][3]
+        for i in range(len(self.framelist)):
+            skip &= self.framelist[i].alignpoints[point_idx][3]
 
         #then skip            
         if skip:
@@ -2627,33 +2724,34 @@ class theApp(Qt.QObject):
         y1=point[1]-r_h
         y2=point[1]+r_h
         
-        rawi = self.openImage(self.filelist[image_idx][0],self.filelist[image_idx][1],True)
-        #refi = rawi.crop((x1,y1,x2,y2))
+        rawi = self.framelist[image_idx].getData(asarray=True)
         refi = rawi[y1:y2,x1:x2]
         del rawi
         
         cv_ref = refi.astype(numpy.float32)
         del refi
         
-        self.progress.setMaximum(len(self.filelist)-1)
+        self.progress.setMaximum(len(self.framelist)-1)
         self.lock()
         
-        for i in range(len(self.filelist)):
+        for i in range(len(self.framelist)):
             self.progress.setValue(i)
+
+            frm = self.framelist[i]
 
             if self.progressWasCanceled():
                 return False
 
-            self.alignpointlist[i][point_idx][3]=True                
+            frm.alignpoints[point_idx][3]=True                
 
             if i == image_idx:
                 continue
-            self.statusBar.showMessage(tr('detecting point ')+str(point_idx+1)+tr(' of ')+str(len(self.alignpointlist[image_idx]))+tr(' on image ')+str(i)+tr(' of ')+str(len(self.filelist)-1))
+            self.statusBar.showMessage(tr('detecting point ')+str(point_idx+1)+tr(' of ')+str(len(self.framelist[image_idx].alignpoints))+tr(' on image ')+str(i)+tr(' of ')+str(len(self.framelist)-1))
             
             if self.auto_align_use_whole_image==2:
-                rawi=self.openImage(self.filelist[i][0],self.filelist[i][1],True)
+                rawi=frm.getData(asarray=True)
             else:
-                rawi=self.openImage(self.filelist[i][0],self.filelist[i][1],True)[y1-r_h:y2+r_h,x1-r_w:x2+r_w]
+                rawi=frm.getData(asarray=True)[y1-r_h:y2+r_h,x1-r_w:x2+r_w]
 
             cv_im=rawi.astype(numpy.float32)
             
@@ -2666,11 +2764,11 @@ class theApp(Qt.QObject):
             minmax = cv2.minMaxLoc(res)
             del res            
             if self.auto_align_use_whole_image==2:
-                self.alignpointlist[i][point_idx][0]=minmax[2][0]+r_w
-                self.alignpointlist[i][point_idx][1]=minmax[2][1]+r_h
+                frm.alignpoints[point_idx][0]=minmax[2][0]+r_w
+                frm.alignpoints[point_idx][1]=minmax[2][1]+r_h
             else:
-                self.alignpointlist[i][point_idx][0]=minmax[2][0]+x1
-                self.alignpointlist[i][point_idx][1]=minmax[2][1]+y1
+                frm.alignpoints[point_idx][0]=minmax[2][0]+x1
+                frm.alignpoints[point_idx][1]=minmax[2][1]+y1
             
         self.unlock()
         
@@ -2680,13 +2778,15 @@ class theApp(Qt.QObject):
         dark_image=None
         dark_stdev=None
         
+        self.lock(False)
+        
         self.master_dark_file = str(self.wnd.masterDarkLineEdit.text())
         self.master_flat_file = str(self.wnd.masterFlatLineEdit.text())
         
         if (self.wnd.masterDarkCheckBox.checkState() == 2):
             if os.path.isfile(self.master_dark_file):
-                drk=self.openImage(self.master_dark_file,asarray=True)
-                self._drk=drk
+                drk=utils.frame(self.master_dark_file)
+                self._drk=drk.getData(asarray=True, ftype=self.ftype)
             elif self.master_dark_file.replace(' ','').replace('\t','') == '':
                 pass #ignore
             else:
@@ -2696,7 +2796,7 @@ class theApp(Qt.QObject):
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
-        elif (len(self.darkfilelist)>0):
+        elif (len(self.darkframelist)>0):
             _drk=self.__average_dark__()
             if _drk==None:
                 return False
@@ -2705,8 +2805,8 @@ class theApp(Qt.QObject):
                 
         if (self.wnd.masterFlatCheckBox.checkState() == 2):
             if os.path.isfile(self.master_flat_file):
-                flt=self.openImage(str(self.master_flat_file),asarray=True)
-                self._flt=flt
+                flt=utils.frame(self.master_flat_file)
+                self._flt=flt.getData(asarray=True, ftype=self.ftype)
             elif self.master_flat_file.replace(' ','').replace('\t','') == '':
                 pass #ignore
             else:
@@ -2716,61 +2816,130 @@ class theApp(Qt.QObject):
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
-        elif (len(self.flatfilelist)>0):
+        elif (len(self.flatframelist)>0):
             _flt=self.__average_flat__(self._drk)
             if _flt==None:
                 return False
             else:
                 self._flt=_flt
-
+                
+        self.unlock()
+        
         if(self.__average__(self._drk,self._flt)):        
             self.wnd.saveResultPushButton.setEnabled(True)
         else:
             return False
 
-    def __align__(self):
+    def align(self):
         
-        if len(self.filelist) == 0:
+        if self.current_align_method == 0:
+            return self.__align_phase_correlation__()
+        elif self.current_align_method == 1:
+            return self.__align_align_points__()
+        
+    def __derotate__(self, var_matrix):
+        
+        vecslist=[]   
+        
+        for i in self.framelist:
+            _tmp = []
+            
+            for p in i.alignpoints:                
+                _tmp.append(numpy.array(p[0:2])-i.offset[0:2])
+                
+            vecslist.append(_tmp)
+            
+        del _tmp
+                    
+        refs=vecslist[0]
+                       
+        nvecs = len(vecslist[0])
+        
+        angles=[0]
+
+        for vecs in vecslist[1:]: 
+            angle=0
+            for i in range(nvecs):                
+
+                x1=refs[i][0]
+                y1=refs[i][1]
+                x2=vecs[i][0]
+                y2=vecs[i][1]
+                
+                vmod = (vecs[i][0]**2 + vecs[i][1]**2)**0.5
+                rmod = (refs[i][0]**2 + refs[i][1]**2)**0.5
+                
+                if (vmod==0) or (rmod==0):
+                    w[i]=0
+                
+                cosa=((x1*x2+y1*y2)/(vmod*rmod))
+                sina=((x2*y1-x1*y2)/(vmod*rmod))
+                
+                if cosa>1:
+                    #this should never never never occurs
+                    cosa=1.0
+                    
+                if sina>1:
+                    #this should never never never occurs
+                    sina=1.0
+                    
+                angle+=(math.atan2(sina,cosa)*180.0/math.pi)*var_matrix[i]
+        
+            angle/=var_matrix.sum()
+
+            angles.append(angle)
+
+        for i in range(len(self.framelist)):
+            self.framelist[i].angle=-angles[i]
+        
+    def __align_align_points__(self):
+        
+        if len(self.framelist) == 0:
             return False
 
-        if (len(self.alignpointlist) > 0) and (len(self.alignpointlist[0])>0):
+        total_points = len(self.framelist[0].alignpoints)
+        total_images = len(self.framelist)
+        
+        if (len(self.framelist) > 0) and (total_points>0):
             self.statusBar.showMessage(tr('Calculating image shift, please wait...'))
 
-            total_points = len(self.alignpointlist[0])
-            self.progress.setMaximum(len(self.alignpointlist)-1)
+            self.progress.setMaximum(total_images-1)
             self.lock()
             
-            mat=((numpy.array(self.alignpointlist)[...,0:2]).astype('float'))
+            mat = numpy.zeros((total_images,total_points,2))
+            
+            for i in range(total_images):
+                for j in range(total_points):
+                    p = self.framelist[i].alignpoints[j]
+                    mat[i,j,0]=p[0]
+                    mat[i,j,1]=p[1]
             
             x_avg = mat[...,0].mean()
             y_avg = mat[...,1].mean()
             
             mat2 = mat-[x_avg,y_avg]
             
-            var = numpy.empty((len(mat[0]),2))
+            var = numpy.empty((len(mat[0])))
             avg = numpy.empty((len(mat[0]),2))
 
             for i in range(len(mat[0])):
-                var[i][0]=(mat2[...,i,0].var())
-                var[i][1]=(mat2[...,i,1].var())
+                dist=(mat2[...,i,0]**2+mat2[...,i,1]**2)
+                var[i]=dist.var()
                  
             del mat2
 
             w = 1/(var+0.00000001) #Added 0.00000001 to avoid division by zero
             del var
             
-            wx=w[...,0].sum()
-            wy=w[...,1].sum()
-            
-            for i in range(len(self.alignpointlist)):
+            for img in self.framelist:
                 x=0
                 y=0
-                for j in range(len(self.alignpointlist[i])):
-                    x+=self.alignpointlist[i][j][0]*w[j,0]
-                    y+=self.alignpointlist[i][j][1]*w[j,1]
+                for j in range(len(img.alignpoints)):
+                    x+=img.alignpoints[j][0]*w[j]
+                    y+=img.alignpoints[j][1]*w[j]
                             
-                self.offsetlist[i][0]=(x/wx)
-                self.offsetlist[i][1]=(y/wy)
+                img.offset[0]=(x/w.sum())
+                img.offset[1]=(y/w.sum())
 
                 self.progress.setValue(i)
                 if ((i%25)==0) and self.progressWasCanceled():
@@ -2778,27 +2947,174 @@ class theApp(Qt.QObject):
 
             self.unlock()
             self.statusBar.showMessage(tr('DONE'))
-        else:
-            self.statusBar.showMessage(tr('No align points: using manual alignment, DONE'))
-        
-        
+            
+            if total_points > 1:
+                self.__derotate__(w)
+            
+                rotation_center = (self.currentWidth/2,self.currentHeight/2)
+            
+                #compesate shift for rotation
+                for img in self.framelist:
+                    x=img.offset[0]-rotation_center[0]
+                    y=img.offset[1]-rotation_center[1]
+                    alpha = math.pi*img.angle/180.0
 
+                    cosa  = math.cos(alpha)
+                    sina  = math.sin(alpha)
+
+                    #new shift
+                    img.offset[0]=self.currentWidth/2+(x*cosa+y*sina)
+                    img.offset[1]=self.currentWidth/2+(y*cosa-x*sina)
+                
+            self.progress.setMaximum(3*len(self.framelist))
+            
+            self.lock()
+            self.statusBar.showMessage(tr('Calculating references, please wait...'))
+            
+            count=0
+        
+            ref_set=False
+        
+            for img in self.framelist:
+                self.progress.setValue(count)
+                count+=1
+                if self.progressWasCanceled():
+                    return False
+
+                if img.isUsed():
+                
+                    if not ref_set:
+                        ref_x=img.offset[0]
+                        ref_y=img.offset[1]
+                        ref_set=True
+                    else:
+                        ref_x = min(ref_x,img.offset[0])
+                        ref_y = min(ref_y,img.offset[1])
+
+
+            for img in self.framelist:
+                self.progress.setValue(count)
+                count+=1
+
+                if self.progressWasCanceled():
+                    return False
+                    
+                if img.isUsed():
+                    img.offset[0]=float(img.offset[0]-ref_x)
+                    img.offset[1]=float(img.offset[1]-ref_y)
+
+            self.progress.reset()
+        
+            self.max_x_offset = 0
+            self.max_y_offset = 0
+
+            self.statusBar.showMessage(tr('Setting bound limits, please wait...'))
+
+            for img in self.framelist:
+                
+                if img.isUsed():
+                    self.max_x_offset=max(img.offset[0],self.max_x_offset)
+                    self.max_y_offset=max(img.offset[1],self.max_y_offset)
+                    
+                self.progress.setValue(count)
+                count+=1
+
+                if self.progressWasCanceled():
+                    return False
+
+        
+            self.result_w  = Int(self.currentWidth - abs(self.max_x_offset))
+            self.result_h = Int(self.currentHeight - abs(self.max_y_offset))
+            self.unlock()
+
+            
+    def __align_phase_correlation__(self):
+        
+        
+        old_state = self.wnd.zoomCheckBox.checkState()
+        self.wnd.zoomCheckBox.setCheckState(1)
+        self.wnd.zoomCheckBox.setEnabled(False)
+        
+        self.statusBar.showMessage(tr('Computing phase correlation, please wait...'))
+        self.clearImage()
+        ref_set=False
+        self.lock()
+        self.progress.setMaximum(len(self.framelist))
+        self.wnd.MainFrame.setEnabled(True)
+        ref = None
+            
+        mask = utils.generateCosBell(self.currentWidth,self.currentHeight)
+        old_rgb_mode = self.wnd.colorBar._is_rgb
+        self.wnd.colorBar._is_rgb=False
+        
+        count=0
+        
+        sharp1=self.wnd.sharp1DoubleSpinBox.value()
+        sharp2=self.wnd.sharp2DoubleSpinBox.value()
+        
+        for img in self.framelist:
+            
+            self.progress.setValue(count)
+            count+=1
+
+            if self.progressWasCanceled():
+                self.wnd.colorBar._is_rgb=old_rgb_mode
+                self.clearImage()
+                self.unlock()
+                self.wnd.zoomCheckBox.setEnabled(True)
+                self.wnd.zoomCheckBox.setCheckState(old_state)
+                self.statusBar.showMessage(tr('Cancelled by the user'))
+                return False
+            
+            if img.isUsed():
+                self.qapp.processEvents()
+                if ref == None:
+                    ref = img
+                    ref_data = ref.getData(asarray=True)
+                    if len(ref_data.shape)==3:
+                        ref_data=ref_data.sum(2)
+                    ref_data*=mask
+                    ref.setOffset([0,0])
+                else:
+                    img_data=img.getData(asarray=True)
+                    if len(img_data.shape)==3:
+                        img_data=img_data.sum(2)
+                    img_data*=mask
+                    data=utils.register_image(ref_data,img_data,sharp1,sharp2)
+                    self.statusBar.showMessage(tr('shift: ')+str(data[1])+', '+
+                                               tr('rotation: ')+str(data[2]))
+                    del img_data
+                    self.showImage(utils.arrayToQImage(data[0]))
+                    img.setOffset(data[1])
+                    img.setAngle(data[2])
+        del mask
+        self.wnd.colorBar._is_rgb=old_rgb_mode
+        self.clearImage()
+        self.wnd.zoomCheckBox.setEnabled(True)
+        self.wnd.zoomCheckBox.setCheckState(old_state)
+        self.unlock()
+        self.statusBar.showMessage(tr('DONE'))       
+       
     def __average_dark__(self):
         result=None
-        total = len(self.darkfilelist)
+        total = len(self.darkframelist)
         self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
         
         self.progress.setMaximum(total-1)
         self.lock()
-        for i in range(total):
-            self.progress.setValue(i)
-
+        
+        count=0
+        
+        for img in self.darkframelist:
+            self.progress.setValue(count)
+            count+=1
+            
             if self.progressWasCanceled():
                 return None
 
-            raw=self.openImage(self.darkfilelist[i][0],self.darkfilelist[i][1],True)
+            raw=img.getData(asarray=True, ftype=self.ftype)
                         
-            if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
+            if img.isRGB() and (raw.shape[2] > 3):
                 raw = raw[...,0:3]
                             
             if result is None:
@@ -2824,22 +3140,25 @@ class theApp(Qt.QObject):
         else:
             use_dark = False
 
-        total = len(self.flatfilelist)
+        total = len(self.flatframelist)
         
         self.statusBar.showMessage(tr('Creating master-flatfield, please wait...'))
         
         self.progress.setMaximum(total-1)
         self.lock()
 
-        for i in range(total):
-            self.progress.setValue(i)
+        count=0
 
+        for img in self.flatframelist:
+            self.progress.setValue(count)
+            count+=1
+            
             if self.progressWasCanceled():
                 return None
                 
-            raw=self.openImage(self.flatfilelist[i][0],self.flatfilelist[i][1],True)
-                        
-            if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
+            raw=img.getData(asarray=True, ftype=self.ftype)
+            
+            if img.isRGB() and (raw.shape[2] > 3):
                 raw = raw[...,0:3]
                 
             if result is None:
@@ -2864,67 +3183,11 @@ class theApp(Qt.QObject):
 
         return result
     
-    def __average__(self,dark_image=None, flat_image=None): 
-    
-        ref_set=False
-        self.progress.setMaximum(len(self.offsetlist)-1)
-        self.lock()
-        self.statusBar.showMessage(tr('Calculating refernces, please wait...'))
-        
-        for i in range(len(self.offsetlist)):
-            self.progress.setValue(i)
-
-            if ((i%25)==0) and self.progressWasCanceled():
-                return False
-
-            if self.wnd.listWidget.item(i).checkState()==2:
-                if not ref_set:
-                    ref_x=self.offsetlist[i][0]
-                    ref_y=self.offsetlist[i][1]
-                    ref_set=True
-                else:
-                    ref_x = min(ref_x,self.offsetlist[i][0])
-                    ref_y = min(ref_y,self.offsetlist[i][1])
-                    
-        self.progress.reset()
-
-        self.progress.setMaximum(len(self.offsetlist)-1)
-   
-        self.statusBar.showMessage(tr('Calculating refernces, please wait...'))
-        
-        for i in range(len(self.offsetlist)):
-            self.progress.setValue(i)
-
-            if ((i%25)==0) and self.progressWasCanceled():
-                return False
-
-            self.offsetlist[i][0]=Int(self.offsetlist[i][0]-ref_x)
-            self.offsetlist[i][1]=Int(self.offsetlist[i][1]-ref_y)
-            
-        self.progress.reset()
-                
-        self.max_x_offset = 0
-        self.max_y_offset = 0
-
-        self.statusBar.showMessage(tr('Setting bound limits, please wait...'))
-
-        total=len(self.filelist)
-        self.progress.setMaximum(total-1)
-
-        for i in range(total):
-            if self.wnd.listWidget.item(i).checkState()==2:
-                total+=1
-                self.max_x_offset=max(self.offsetlist[i][0],self.max_x_offset)
-                self.max_y_offset=max(self.offsetlist[i][1],self.max_y_offset)
-            self.progress.setValue(i)
-
-            if ((i%25)==0) and self.progressWasCanceled():
-                return False
-
-        self.result_w  = Int(self.currentWidth - abs(self.max_x_offset))
-        self.result_h = Int(self.currentHeight - abs(self.max_y_offset))
+    def __average__(self,dark_image=None, flat_image=None):
 
         result=None
+        
+        self.lock()
         
         if (dark_image != None):
             use_dark = True
@@ -2935,73 +3198,93 @@ class theApp(Qt.QObject):
 
         if (flat_image != None):
             use_flat = True
-            normalizer = float(flat_image.sum()/float(flat_image.size))
-            #added 10^-8 to  avoid master_flat[i,j] = 0 for some i,j
-            master_flat=((flat_image/normalizer)*self.master_flat_mul_factor)+0.00000001
+            normalizer = flat_image.max()
+            # this should avoid division by zero
+            zero_mask = ((flat_image == 0).astype(numpy.float))             
+            master_flat=((flat_image/normalizer)*self.master_flat_mul_factor) + zero_mask
+            del zero_mask
         else:
             use_flat = False
             master_flat=None
 
             
-        total = len(self.filelist)
+        total = len(self.framelist)
         
         self.statusBar.showMessage(tr('Adding images, please wait...'))
         
         self.progress.reset()
         self.progress.setMaximum(4*(total-1))
-        count = 0
         
-        for i in range(total):
+        count = 0
+        progress_count=0
+        
+        for img in self.framelist:
 
             if self.progressWasCanceled():
                 return False
                 
-            self.progress.setValue(4*i)
-            if self.wnd.listWidget.item(i).checkState()!=2:
-                continue
-            count+=1
-            x_start = self.offsetlist[i][0]
-            y_start = self.offsetlist[i][1]
+            self.progress.setValue(progress_count)
+            progress_count+=1
             
-            rawi_unc=self.openImage(self.filelist[i][0],self.filelist[i][1],True)
-
-            raw=rawi_unc[y_start:y_start+self.result_h,x_start:x_start+self.result_w]
-
-            if use_dark:
-                rad = master_dark[y_start:y_start+self.result_h,x_start:x_start+self.result_w]
-                
-            self.progress.setValue((4*i)+1)
-
-            if self.progressWasCanceled():
-                return False
-                
-            if use_flat:
-                raf = master_flat[y_start:y_start+self.result_h,x_start:x_start+self.result_w]
-
-            self.progress.setValue((4*i)+2)
-
-            if ('RGB' in self.currentDepht) and (len(raw[0][0]) > 3):
-                raw = raw[...,0:3]
-                
-            if use_dark:
-                r = (raw - rad)
+            if img.isUsed():
+                count+=1
             else:
-                r = raw                    
-            if use_flat:
-                r = r/raf
-
-            self.progress.setValue((4*i)+3)
+                progress_count+=3
+                utils.trace("skipping alignment: unused frame")
+                continue
+            
+            r=img.getData(asarray=True, ftype=self.ftype)
+            
+            self.progress.setValue(progress_count)
+            progress_count+=1
 
             if self.progressWasCanceled():
                 return False
+
+            if img.isRGB() and (r.shape[2]>3):
+                r = r[...,0:3]
                 
-            if result is None:    
-                result=r
+            if use_dark:
+                r -=  master_dark
+                
+            if use_flat:
+                r /= master_flat
+
+            if self.progressWasCanceled():
+                return False
+                               
+            if img.angle!=0:
+                r = scipy.ndimage.interpolation.rotate(r,img.angle,order=1,reshape=False,mode='constant',cval=0.0)
+            else:
+                utils.trace("skipping rotation")
+
+            if self.progressWasCanceled():
+                return False  
+            self.progress.setValue(progress_count)
+            progress_count+=1
+
+            shift=numpy.zeros([len(r.shape)])
+            shift[0]=-img.offset[1]
+            shift[1]=-img.offset[0]
+            
+            if (shift[0]!=0) or (shift[1]!=0):
+                utils.trace("shifting of "+str(shift[0:2]))
+                r = scipy.ndimage.interpolation.shift(r,shift,order=1,mode='constant',cval=0.0)
+            else:
+                utils.trace("skipping shift")
+            del shift
+            
+            if self.progressWasCanceled():
+                return False
+            self.progress.setValue(progress_count)
+            progress_count+=1
+                
+            if result is None:
+                result=r.copy()
             else:
                 result+=r
-            del raw
             
-        self.progress.setValue(4*(total-1))   
+        self.progress.setValue(4*(total-1))  
         self.statusBar.showMessage(tr('Computing final image...'))
 
         self._avg=result/count
@@ -3086,29 +3369,29 @@ class theApp(Qt.QObject):
         rgb_mode = (self.save_dlg.rgbFitsCheckBox.checkState()==2)
         
         avg_name=os.path.join(destdir,name)
-        self._imwrite_fit_(avg_name,self._avg.astype(outbits),rgb_mode)
+        self._imwrite_fits_(avg_name,self._avg.astype(outbits),rgb_mode)
         
         if self.save_dlg.saveMastersCheckBox.checkState()==2:
             if (self._drk!=None):
-                drk_name=os.path.join(destdir,name+"-maste-dark")
-                self._imwrite_fit_(drk_name,self._drk.astype(outbits),rgb_mode)
+                drk_name=os.path.join(destdir,name+"-master-dark")
+                self._imwrite_fits_(drk_name,self._drk.astype(outbits),rgb_mode)
             
             if (self._flt!=None):
-                flt_name=os.path.join(destdir,name+"-maste-flat")
-                self._imwrite_fit_(flt_name,self._flt.astype(outbits),rgb_mode)
+                flt_name=os.path.join(destdir,name+"-master-flat")
+                self._imwrite_fits_(flt_name,self._flt.astype(outbits),rgb_mode)
     
     def _save_cv2(self,destdir, name, frmt, bits):
                
         if bits==8:
-            rawavg=utils.normToUint8(self._avg)
-            rawdrk=utils.normToUint8(self._drk)
-            rawflt=utils.normToUint8(self._flt)
+            rawavg=utils.normToUint8(self._avg, False)
+            rawdrk=utils.normToUint8(self._drk, False)
+            rawflt=utils.normToUint8(self._flt, False)
         elif bits==16:
-            rawavg=utils.normToUint16(self._avg)
-            rawdrk=utils.normToUint16(self._drk)
-            rawflt=utils.normToUint16(self._flt)
+            rawavg=utils.normToUint16(self._avg, False)
+            rawdrk=utils.normToUint16(self._drk, False)
+            rawflt=utils.normToUint16(self._flt, False)
         else:
-            #this should neve be executed!
+            #this should never be executed!
             msgBox = Qt.QMessageBox()
             msgBox.setText(tr("Cannot save image:"))
             msgBox.setInformativeText(tr("Unsupported format ")+str(bits)+"-bit "+tr("for")+" "+str(frmt))
@@ -3131,11 +3414,11 @@ class theApp(Qt.QObject):
         
         if self.save_dlg.saveMastersCheckBox.checkState()==2:
             if (self._drk!=None):
-                drk_name=os.path.join(destdir,name+"-maste-dark."+frmt)
+                drk_name=os.path.join(destdir,name+"-master-dark."+frmt)
                 self._imwrite_cv2_(drk_name,rawdrk,flags)
             
             if (self._flt!=None):
-                flt_name=os.path.join(destdir,name+"-maste-flat."+frmt)
+                flt_name=os.path.join(destdir,name+"-master-flat."+frmt)
                 self._imwrite_cv2_(flt_name,rawflt,flags)
         
     def _imwrite_cv2_(self, name, data, flags):
@@ -3183,7 +3466,7 @@ class theApp(Qt.QObject):
            
         hdulist.writeto(url)
     
-    def _imwrite_fit_(self, name, data, rgb_mode=True):
+    def _imwrite_fits_(self, name, data, rgb_mode=True):
 
         if rgb_mode and (len(data.shape) == 3):
             hdu_r = utils.pyfits.PrimaryHDU(data[...,0])
@@ -3216,3 +3499,4 @@ class theApp(Qt.QObject):
             hdl = utils.pyfits.HDUList([hdu])
             self.__fits_secure_imwrite(hdl,name+'.fits')
 
+loading.setValue(80)

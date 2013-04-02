@@ -43,7 +43,7 @@
       </property>
       <property name="minimumSize">
        <size>
-        <width>200</width>
+        <width>225</width>
         <height>200</height>
        </size>
       </property>
@@ -57,15 +57,15 @@
        <number>0</number>
       </property>
       <property name="tabSpacing">
-       <number>-1</number>
+       <number>6</number>
       </property>
       <widget class="QWidget" name="page">
        <property name="geometry">
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>190</width>
-         <height>267</height>
+         <width>198</width>
+         <height>262</height>
         </rect>
        </property>
        <attribute name="label">
@@ -73,151 +73,169 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <property name="spacing">
-           <number>-1</number>
+         <widget class="QGroupBox" name="framesGroupBox">
+          <property name="title">
+           <string/>
           </property>
-          <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
-          </property>
-          <item>
-           <widget class="QPushButton" name="addPushButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>20</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>300</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>+</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="remPushButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>20</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>300</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>-</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="clrPushButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>20</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>200</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Clear</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QListWidget" name="listWidget"/>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_4">
-          <property name="spacing">
-           <number>-1</number>
-          </property>
-          <property name="sizeConstraint">
-           <enum>QLayout::SetMinimumSize</enum>
-          </property>
-          <item>
-           <widget class="QPushButton" name="listCheckAllBtn">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>90</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Check All</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="listUncheckAllBtn">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>90</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Uncheck All</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+          <layout class="QVBoxLayout" name="verticalLayout_20">
+           <property name="spacing">
+            <number>0</number>
+           </property>
+           <property name="margin">
+            <number>2</number>
+           </property>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_3">
+             <property name="spacing">
+              <number>6</number>
+             </property>
+             <property name="sizeConstraint">
+              <enum>QLayout::SetMinimumSize</enum>
+             </property>
+             <item>
+              <widget class="QPushButton" name="addPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>300</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>+</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="remPushButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>20</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>300</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>-</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="clrPushButton">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>200</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Clear</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QListWidget" name="listWidget"/>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <property name="spacing">
+              <number>6</number>
+             </property>
+             <property name="sizeConstraint">
+              <enum>QLayout::SetMinimumSize</enum>
+             </property>
+             <item>
+              <widget class="QPushButton" name="listCheckAllBtn">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>90</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Check All</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="listUncheckAllBtn">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>90</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Uncheck All</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
         </item>
         <item>
          <widget class="QGroupBox" name="captureGroupBox">
           <property name="title">
            <string>Capture</string>
+          </property>
+          <property name="flat">
+           <bool>false</bool>
           </property>
           <property name="checkable">
            <bool>true</bool>
@@ -226,6 +244,12 @@
            <bool>false</bool>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_16">
+           <property name="topMargin">
+            <number>2</number>
+           </property>
+           <property name="bottomMargin">
+            <number>2</number>
+           </property>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_16">
              <item>
@@ -308,14 +332,106 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>190</width>
-         <height>267</height>
+         <width>198</width>
+         <height>377</height>
         </rect>
        </property>
        <attribute name="label">
         <string>Alignment</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_5">
+        <item>
+         <widget class="QComboBox" name="alignMethodComboBox">
+          <item>
+           <property name="text">
+            <string>Phase correlation</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Align points</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="phaseGroupBox">
+          <property name="title">
+           <string>Phase correlation</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_11">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_9">
+             <item>
+              <widget class="QDoubleSpinBox" name="sharp2DoubleSpinBox">
+               <property name="alignment">
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               </property>
+               <property name="singleStep">
+                <double>0.250000000000000</double>
+               </property>
+               <property name="value">
+                <double>2.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_5">
+               <property name="text">
+                <string>sharpening
+ for alignment</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_18">
+             <item>
+              <widget class="QDoubleSpinBox" name="sharp1DoubleSpinBox">
+               <property name="alignment">
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               </property>
+               <property name="singleStep">
+                <double>0.250000000000000</double>
+               </property>
+               <property name="value">
+                <double>2.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_7">
+               <property name="text">
+                <string>sharpening
+for derotation</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
         <item>
          <widget class="QGroupBox" name="alignGroupBox">
           <property name="enabled">
@@ -541,8 +657,8 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>190</width>
-         <height>267</height>
+         <width>215</width>
+         <height>255</height>
         </rect>
        </property>
        <attribute name="label">
@@ -567,7 +683,7 @@ shot</string>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_11">
              <item>
-              <widget class="QSpinBox" name="spinBoxOffsetX">
+              <widget class="QDoubleSpinBox" name="doubleSpinBoxOffsetX">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -577,17 +693,17 @@ shot</string>
                <property name="alignment">
                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
-               <property name="suffix">
-                <string> px</string>
-               </property>
-               <property name="prefix">
-                <string/>
-               </property>
                <property name="minimum">
-                <number>-999999</number>
+                <double>-99999.000000000000000</double>
                </property>
                <property name="maximum">
-                <number>999999</number>
+                <double>99999.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.000000000000000</double>
                </property>
               </widget>
              </item>
@@ -615,7 +731,7 @@ shot</string>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_10">
              <item>
-              <widget class="QSpinBox" name="spinBoxOffsetY">
+              <widget class="QDoubleSpinBox" name="doubleSpinBoxOffsetY">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -625,17 +741,14 @@ shot</string>
                <property name="alignment">
                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                </property>
-               <property name="suffix">
-                <string> px</string>
-               </property>
-               <property name="prefix">
-                <string/>
-               </property>
                <property name="minimum">
-                <number>-999999</number>
+                <double>-99999.000000000000000</double>
                </property>
                <property name="maximum">
-                <number>999999</number>
+                <double>99999.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
                </property>
               </widget>
              </item>
@@ -660,6 +773,51 @@ shot</string>
              </item>
             </layout>
            </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_17">
+             <item>
+              <widget class="QDoubleSpinBox" name="spinBoxOffsetT">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               </property>
+               <property name="suffix">
+                <string> °</string>
+               </property>
+               <property name="minimum">
+                <double>-180.000000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>180.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.250000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="label_6">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>rotation</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
           </layout>
          </widget>
         </item>
@@ -670,7 +828,7 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>173</width>
+         <width>198</width>
          <height>305</height>
         </rect>
        </property>
@@ -738,7 +896,7 @@ shot</string>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_5">
              <property name="spacing">
-              <number>-1</number>
+              <number>6</number>
              </property>
              <item>
               <widget class="QPushButton" name="darkAddPushButton">
@@ -843,7 +1001,7 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>173</width>
+         <width>198</width>
          <height>305</height>
         </rect>
        </property>
@@ -983,8 +1141,8 @@ shot</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>190</width>
-         <height>267</height>
+         <width>215</width>
+         <height>255</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1155,15 +1313,21 @@ result</string>
              <property name="enabled">
               <bool>false</bool>
              </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="minimumSize">
               <size>
-               <width>220</width>
+               <width>180</width>
                <height>23</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>258</width>
+               <width>260</width>
                <height>23</height>
               </size>
              </property>
@@ -1229,9 +1393,12 @@ result</string>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
              </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::MinimumExpanding</enum>
+             </property>
              <property name="sizeHint" stdset="0">
               <size>
-               <width>40</width>
+               <width>0</width>
                <height>20</height>
               </size>
              </property>
@@ -1282,7 +1449,7 @@ result</string>
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>406</width>
+              <width>381</width>
               <height>353</height>
              </rect>
             </property>
@@ -1424,7 +1591,6 @@ result</string>
   <tabstop>addPushButton</tabstop>
   <tabstop>remPushButton</tabstop>
   <tabstop>clrPushButton</tabstop>
-  <tabstop>listWidget</tabstop>
   <tabstop>listCheckAllBtn</tabstop>
   <tabstop>listUncheckAllBtn</tabstop>
   <tabstop>captureGroupBox</tabstop>
@@ -1442,8 +1608,8 @@ result</string>
   <tabstop>autoDetectPushButton</tabstop>
   <tabstop>autoSetPushButton</tabstop>
   <tabstop>listWidgetManualAlign</tabstop>
-  <tabstop>spinBoxOffsetX</tabstop>
-  <tabstop>spinBoxOffsetY</tabstop>
+  <tabstop>doubleSpinBoxOffsetX</tabstop>
+  <tabstop>doubleSpinBoxOffsetY</tabstop>
   <tabstop>masterDarkCheckBox</tabstop>
   <tabstop>masterDarkLineEdit</tabstop>
   <tabstop>masterDarkPushButton</tabstop>
