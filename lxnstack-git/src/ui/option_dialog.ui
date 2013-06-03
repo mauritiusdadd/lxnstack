@@ -8,19 +8,19 @@
     <x>0</x>
     <y>0</y>
     <width>450</width>
-    <height>400</height>
+    <height>420</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>450</width>
-    <height>400</height>
+    <height>420</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>450</width>
-    <height>400</height>
+    <height>420</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -89,7 +89,7 @@
           <item>
            <widget class="QLabel" name="label_3">
             <property name="text">
-             <string>You need to restart the application to apply the changes in this section.</string>
+             <string>You need to restart the application to change language.</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -172,6 +172,43 @@
            <widget class="QCheckBox" name="autoFolderscheckBox">
             <property name="text">
              <string>Automatically search for dark and flat frames</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <item>
+             <widget class="QCheckBox" name="tempPathCheckBox">
+              <property name="text">
+               <string>Use custom directory
+for temporary files</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="tempPathLineEdit">
+              <property name="text">
+               <string>~/lxnstack/.temp</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="tempPathPushButton">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="compressedTempCheckBox">
+            <property name="text">
+             <string>Use compressed temporary files
+(slower, but saves disk space)</string>
             </property>
            </widget>
           </item>
@@ -857,8 +894,8 @@ type</string>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>260</x>
-     <y>345</y>
+     <x>264</x>
+     <y>395</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -873,8 +910,8 @@ type</string>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>323</x>
-     <y>345</y>
+     <x>327</x>
+     <y>395</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -1209,12 +1246,60 @@ type</string>
    <slot>setDisabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>126</x>
-     <y>219</y>
+     <x>141</x>
+     <y>246</y>
     </hint>
     <hint type="destinationlabel">
-     <x>213</x>
-     <y>284</y>
+     <x>245</x>
+     <y>337</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tempPathCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>tempPathLineEdit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>142</x>
+     <y>325</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>196</x>
+     <y>325</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tempPathCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>tempPathPushButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>133</x>
+     <y>313</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>401</x>
+     <y>320</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>useCustomLangCheckBox</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>langComboBox</receiver>
+   <slot>setDisabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>65</x>
+     <y>91</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>66</x>
+     <y>68</y>
     </hint>
    </hints>
   </connection>

@@ -26,10 +26,14 @@ import time
 import cv2
 import math
 import scipy
+import tempfile
 from scipy import signal, ndimage
 
 FORMAT_BLACKLIST = ['BUFR', 'EPS', 'GRIB',
                     'HDF5', 'MPEG','WMF' ]
+
+CUSTOM_EXTENSIONS = {'.npy':'NPY',
+                     '.npz':'NPZ'}
 
 try:
     from PIL import Image
@@ -117,11 +121,12 @@ class frame(object):
         return ('RGB' in self.mode)
     
     def isUsed(self):
-        checked = self.getProperty('listItem').checkState()
+        
+        check = self.getProperty('listItem')
 
-        if checked is None:
-            return False
-        elif checked == 2:
+        if (check is None):
+            return True
+        elif check.checkState() == 2:
             return True        
         else:
             return False
@@ -278,10 +283,44 @@ class frame(object):
                     
                     finally:
                         i+=1
-                
+
+        elif file_type =='NPY':
+            #the files of this type contain
+            #only one array
+            if page > 0:
+                return None
+            
+            img = numpy.load(file_name)
+
+            if asarray:
+                if asuint8:
+                    return normToUint8(img)
+                else:
+                    return img.astype(ftype)
+            else:
+                return Image.fromarray(normToUint8(img))
+
+
+        elif file_type =='NPZ':
+            
+            npzarch = numpy.load(file_name)
+
+            if page < len(npzarch):
+                return npzarch.values()[page]
+            else:
+                return None
+            if asarray:
+                if asuint8:
+                    return normToUint8(img)
+                else:
+                    return img.astype(ftype)
+            else:
+                return Image.fromarray(normToUint8(img))
+            
+            
         elif file_type =='???':
             #New codecs will be added here
-            return False
+            return None
         else:   
 
             try:
@@ -315,7 +354,7 @@ class frame(object):
                     return None
                 except IOError as err:
                     if page==0:
-                        msgBox = Qt.QMessageBox(self.wnd)
+                        msgBox = Qt.QMessageBox()
                         msgBox.setText(str(err))
                         msgBox.setIcon(Qt.QMessageBox.Critical)
                         msgBox.exec_()
@@ -349,76 +388,104 @@ def getSupportedFormats():
  
         if not (key in FORMAT_BLACKLIST):
             formats[ext]=key
+            
+    for ext in CUSTOM_EXTENSIONS.keys():
+        key=str(CUSTOM_EXTENSIONS[ext])
+ 
+        if not (key in FORMAT_BLACKLIST):
+            formats[ext]=key
+            
     return formats
 
-def normToUint8 (data, refit=True):
-    
+def normToUint8 (data,adapt=False):
     if data==None:
         return None
     elif data.dtype == numpy.uint8:
         return data
-    elif refit:
-        norm = data.max()-data.min()
+    else:
+        minv,maxv=getMinMax(data,adapt)
+            
+        norm = maxv-minv
+        
         if norm > 0:
-            spec=(data-data.min())*255.0/norm
+            spec=(data-minv)*255.0/norm
         elif norm==0:
             spec=data
         else:
-            #shold never happens
+            #should never happens
             spec=-(data)*255.0/norm
             
         return spec.astype(numpy.uint8)
-    elif data.max()>255:
-        return (data*255.0/data.max()).astype(numpy.uint8)
-    else:
-        return data.astype(numpy.uint8)
-    
-def normToUint16 (data, refit=True):
+
+def normToUint16 (data, refit=True):    
     if data==None:
         return None
     elif data.dtype == numpy.uint16:
         return data
-    elif refit:
-        norm = data.max() - data.min()
+    else:
+        if data.min() < 0:
+            minv=data.min()
+        else:
+            minv=0
+            
+        if data.max() > 65536:
+            maxv=data.max()
+        else:
+            maxv=65536.0
+            
+        norm = maxv-minv
+        
         if norm > 0:
-            spec=(data-data.min())*65536.0/norm
+            spec=(data-minv)*65536.0/norm
         elif norm==0:
             spec=data
         else:
-            #shold never happens
-            spec=-(data-data.min())*65536.0/norm
+            #should never happens
+            spec=-(data)*65536.0/norm
             
         return spec.astype(numpy.uint16)
-    elif data.max()>65536:
-        return (data*65536.0/data.max()).astype(numpy.uint16)
+
+def getMinMax(data,adapt=False):
+    if adapt or (data.min() < 0):
+        minv=data.min()
     else:
-        return data.astype(numpy.uint16)
+        minv=0
+            
+    if adapt or (data.max() > 65536):
+        maxv=data.max()
+    elif data.max() > 255:
+        maxv=65536.0
+    elif data.max() <= 1:
+        #some float point images have values in range [0,1]
+        maxv=data.max()
+    else:
+        maxv=255.0
+    return (minv,maxv)
 
+def getJetColor(data,fit_levels=True):
+
+    value = data.astype(numpy.float)
+     
+    minv,maxv = getMinMax(data,fit_levels)
+     
+    #TODO:fit_levels
+    x = ((value - minv)/float(maxv-minv)).astype(numpy.float32)
     
-def _min(n1, n2):
-    return ((n1>=n2)*n2 + (n1<n2)*n1)
-
-def getJetColor(data):
-
-     value = data.astype(numpy.float)
-
-     x = ((value - value.min())/float(value.max() - value.min())).astype(numpy.float32)
-     
-     del value
-     
-     r = (4*x - 1.5).clip(0.0,1.0) - (4*x - 3.5).clip(0.0,1.0)
-     g = (4*x - 0.5).clip(0.0,1.0) - (4*x - 2.5).clip(0.0,1.0)
-     b = (4*x + 0.5).clip(0.0,1.0) - (4*x - 1.5).clip(0.0,1.0)
-
-     arr=[255*r, 255*g, 255*b]
-     
-     del r
-     del g
-     del b
-     
-     return arr
+    del value
     
-def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True):
+    r = (4*x - 1.5).clip(0.0,1.0) - (4*x - 3.5).clip(0.0,1.0)
+    g = (4*x - 0.5).clip(0.0,1.0) - (4*x - 2.5).clip(0.0,1.0)
+    b = (4*x + 0.5).clip(0.0,1.0) - (4*x - 1.5).clip(0.0,1.0)
+    
+    arr=[255*r, 255*g, 255*b]
+    
+    del r
+    del g
+    del b
+     
+    return arr
+    
+def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False):
     
     if type(img) != numpy.ndarray:
         raise TypeError('In module utils, in function arrayToQImage, ndarray expected as first argumrnt but '+str(type(img))+' given instead')
@@ -452,12 +519,12 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True):
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         
         if bw_jet:
-            jet=getJetColor(img)
+            jet=getJetColor(img,fit_levels)
             arr[0:h,0:w,2] = jet[0]
             arr[0:h,0:w,1] = jet[1]
             arr[0:h,0:w,0] = jet[2]
         else:
-            img2 = normToUint8(img)
+            img2 = normToUint8(img,fit_levels)
             arr[0:h,0:w,2] = img2
             arr[0:h,0:w,1] = img2
             arr[0:h,0:w,0] = img2
@@ -466,14 +533,14 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True):
         arr[0:,w:,3] = 0
         
     elif (img.ndim==3) and (channels == 3):
-        img2 = normToUint8(img)
+        img2 = normToUint8(img,fit_levels)
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         arr[0:h,0:w,0:3]=img2[...,(B,G,R)]
         arr[h:,0:,3] = 0
         arr[0:,w:,3] = 0
         
     elif (img.ndim==3) and (channels == 4):
-        img2 = normToUint8(img)
+        img2 = normToUint8(img,fit_levels)
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         arr[0:h,0:w]=img2[...,(B,G,R,A)]
     else:
@@ -503,27 +570,51 @@ def logpolar(input, wmul=1, hmul=1, clip=False):
 
     return lpinput
 
-def register_image(ref, img, sharp1=2, sharp2=2):
+def polar(input, wmul=1, hmul=1, clip=False):
+
+    if clip:
+        max_r = min(input.shape)/2
+    else:
+        max_r=((input.shape[0]/2)**2 + (input.shape[1]/2)**2)**0.5
     
-    trace('computing image derotation...')
-    d = _derotate_mono(ref, img, sharp1)    
-    angle = d[1]
-    dsize = d[0].shape
-    dpix = Qt.QPixmap.fromImage(arrayToQImage(d[0]))
-    del d
-    trace('rotation angle = '+str(angle))
+    h = hmul*max_r
+    w = wmul*360.0
+    
+    coordinates = numpy.mgrid[0:h,0:w] 
+    r = (coordinates[0]/hmul)
+    angle = 2.*math.pi*(coordinates[1]/w)
+
+    lpinput = scipy.ndimage.interpolation.map_coordinates(input,(r*numpy.cos(angle)+input.shape[0]/2.,r*numpy.sin(angle)+input.shape[1]/2.),order=1,mode='constant')
+
+    return lpinput
+
+def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True):
+    
+    if derotate:
+        trace('computing image derotation...')
+        d = _derotate_mono(ref, img, sharp1)    
+        angle = d[1]
+        dsize = d[0].shape
+        trace('rotation angle = '+str(angle))
+    else:
+        angle=0
     
     if angle != 0:
         derotated = scipy.ndimage.interpolation.rotate(img,angle,order=0,reshape=False,mode='constant',cval=0.0)
     else:
         derotated = img
-        
-    trace('computing image shift...')
-    s = _correlate_mono(ref, derotated,sharp2)    
-    trace('shift = '+str(s[1]))
-    shift = s[1]
+    
+    if align:
+        trace('computing image shift...')
+        s = _correlate_mono(ref, derotated,sharp2)    
+        trace('shift = '+str(s[1]))
+        shift = s[1]
+        s0 = s[0]
+    else:
+        shift = [0,0]
+        s0 = None
 
-    return s[0],shift,angle
+    return s0,shift,angle
 
 
 def _derotate_mono(im1, im2, sharpening=2):
@@ -661,22 +752,24 @@ def _correlate_mono(im1, im2, sharpening=1):
 def cepstrum(img):
 
     result = []
-
-    for l in range(img.shape[2]):
+    if len(img.shape)==2:
+        return cepstrum_mono(img)
+    else:
+        for l in range(img.shape[2]):
+            
+            result.append(cepstrum_mono(img[...,l]))
         
-        result.append(cepstrum_mono(img[...,l],steps,perc,roll_off,rexp))
-
-    final = numpy.ndarray((len(result[0]),len(result[0][0]),len(result)))
+        final = numpy.ndarray((len(result[0]),len(result[0][0]),len(result)))
     
-    for i in range(len(result)):
-        final[...,i]=result[i]
-    return final 
+        for i in range(len(result)):
+            final[...,i]=result[i]
+        return final 
 
 #This function a test is for future de-blurring feature
 def cepstrum_mono(img):
 
     #this is the cepstrum
-    cep = _IFT_mono(numpy.log(_FFT_mono(img)))
+    cep = _IFT_mono(numpy.log10(_FFT_mono(img)))
 
     #now a better look!    
     h,w = cep.shape
@@ -696,11 +789,26 @@ def cepstrum_mono(img):
 
 #This function a test is for future de-blurring feature
 def getDefocusCircleRadius(img):
+
+    if len(img.shape)==3:
+        cep = cepstrum_mono(img.sum(2))
+    elif len(img.shape)==2:
+        cep = cepstrum_mono(img)
+    
+    i = polar(cep,1,2)
+    
+    mx=i.sum(1).argmax()/2.0
+       
+    return mx,cep
+
+def getDefocusCircleRadius2(img):
     
     if len(img.shape)==3:
         cep = cepstrum_mono(img.sum(2))
     elif len(img.shape)==2:
         cep = cepstrum_mono(img)
+    
+    i=cep
     
     i = cv2.erode(cv2.dilate(cep,None),None)
     
@@ -708,7 +816,7 @@ def getDefocusCircleRadius(img):
    
     c = normToUint8(i)
     
-    del i
+    #del i
     
     circles = cv2.HoughCircles(c,cv2.cv.CV_HOUGH_GRADIENT,c.shape[0]/5.0,1,50,100)
     
@@ -744,9 +852,9 @@ def getDefocusCircleRadius(img):
                 elif difference <= best:
                     best_radius = r
                     
-        cv2.circle(cep,(int(cx),int(cy)),best_radius,cep.min())
+        cv2.circle(i,(int(cx),int(cy)),best_radius,i.min())
         
-        return (best_radius,cep)
+        return (best_radius,i)
 
 def spectrum(fft, shift=False):
     
@@ -783,10 +891,10 @@ def _FFT_mono(img):
     optimal_w = cv2.getOptimalDFTSize(w) 
     optimal_h = cv2.getOptimalDFTSize(h)
 
-    real=cv2.copyMakeBorder(img,0, optimal_h-h, 0, optimal_w-w, cv2.BORDER_CONSTANT)
     cmplx = numpy.zeros((optimal_h,optimal_w,2))
-    cmplx[...,0]=real
-    del real
+    cmplx[0:h,0:w,0]=img.real
+    cmplx[0:h,0:w,1]=img.imag
+
     img_fft=cv2.dft(cmplx)
     
     return img_fft[...,0]+1j*img_fft[...,1]
@@ -830,35 +938,48 @@ def _IFT_RGB(fft):
 
     return rel #((rel-rel.min())*255/rel.max()).astype('uint8')
 
+def fft(img):
+    if len(img.shape)==3:
+        return _FFT_RGB(img)
+    else:
+        return _FFT_mono(img)
+    
+
+def ift(img):
+    if len(img.shape)==3:
+        return _IFT_RGB(img)
+    else:
+        return _IFT_mono(img)
+
 #This function a test is for future de-blurring feature
 def convolve(img, fltr):
 
     i2=fltr.astype('float64')/fltr.max()
     #img = img.astype('float64')/img.max()
     
-    f1 = _FFT_RGB(img)
-    f2 = _FFT_RGB(i2)
+    f1 = fft(img)
+    f2 = fft(i2)
 
     del i2
     
-    f1=(f1*f2)
+    f1=f1*f2
     
     del f2
     
-    rf = _IFT_RGB(f1)
+    rf = ift(f1)
     
     del f1
     
     return rf
-
+    
 #This function a test is for future de-blurring feature
 def deconvolve(img, fltr):
     
     i2=fltr.astype('float64')/fltr.max()
     #img = img.astype('float64')/img.max()
 
-    f1 = _FFT_RGB(img)
-    f2 = _FFT_RGB(i2)
+    f1 = fft(img)
+    f2 = fft(i2)
 
     del i2
 
@@ -866,11 +987,165 @@ def deconvolve(img, fltr):
     
     del f2
     
-    rf = _IFT_RGB(f1)
+    rf = ift(f1)
     
     del f1
     
     return rf
+
+
+def undefocus(img,radius):
+    
+    w = img.shape[1]
+    h = img.shape[0]
+    
+    x,y=numpy.meshgrid(numpy.arange(-w/2,w/2),numpy.arange(-h/2,h/2))
+
+    msk = 1.0*(((x**2+y**2)**0.5) < radius)
+    
+    del x,y
+    
+    df = abs(numpy.fft.fftshift(fft(msk)))
+    del msk
+    
+    return numpy.fft.ifftshift(deconvolve(img,df))
+
+def defocus(img,radius):
+    
+    w = img.shape[1]
+    h = img.shape[0]
+    
+    x,y=numpy.meshgrid(numpy.arange(-w/2,w/2),numpy.arange(-h/2,h/2))
+
+    msk = 1.0*(((x**2+y**2)**0.5) < radius)
+    
+    del x,y
+    
+    df = abs(fft(msk))
+    del msk
+
+    return convolve(img,df)
+   
+
+def storeTmpArray(array, tmpdir=None, compressed=False):
+    
+    if compressed:
+        tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npz', dir=tmpdir)
+        trace("saving to compressed temporary file "+str(tmp.name)+"\n")
+        numpy.savez_compressed(tmp.name,array)
+    else:
+        tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npy', dir=tmpdir)
+        trace("saving to temporary file "+str(tmp.name)+"\n")
+        numpy.save(tmp.name,array)
+    tmp.seek(0)
+    return tmp
+    
+def loadTmpArray(tmpfile):
+    tmpfile.file.seek(0)
+    if tmpfile.name[-1]=='z':
+        npzf=numpy.load(tmpfile.name)
+        data=npzf['arr_0']
+        del npzf.f
+        npzf.close()
+        return data
+    else:
+        return numpy.load(tmpfile.name, mmap_mode='r')
+
+def generateHistGradient(height,color):
+    redlg = Qt.QLinearGradient(0.0,height*0.66,0.0,height*1.2)
+    redlg.setColorAt(0, color)
+    redlg.setColorAt(1, QtCore.Qt.black)
+    return redlg
+
+def generateHistograhms(imgdata, bins=255):
+    
+    hists=[]
+    shape=imgdata.shape
+
+    hrange=getMinMax(imgdata)
+    
+    if len(shape)==2:
+        hists.append(numpy.histogram(imgdata,bins,range=hrange))        
+    else:
+        channels=imgdata.shape[2]
+        hists.append(numpy.histogram(imgdata,bins,range=hrange))
+        for i in range(channels):
+            hists.append(numpy.histogram(imgdata[...,i],bins,range=hrange))
+
+    return numpy.array(hists)
+
+def drawHistograhm(painter, w, h, hists, xmin=None, xmax=None):
+
+    gm1 = 0.05 #geometric corrections
+    gm2 = 1.0 - gm1
+
+    ymax=max(hists[0][0])
+    
+    if xmax==None:
+        xmax=max(hists[0][1])
+    if xmin==None:
+        xmin=min(hists[0][1])
+    
+    for channel in range(len(hists)):
+        draw_axes=False
+        if channel==1:
+            color = QtCore.Qt.red
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+        elif channel==2:
+            color = QtCore.Qt.green
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+        elif channel==3:
+            color = QtCore.Qt.blue
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+        else:
+            draw_axes=True
+            color = QtCore.Qt.darkGray
+            painter.setCompositionMode(0)
+    
+        path = Qt.QPainterPath()
+        hist = hists[channel]
+
+        x0=w*gm1
+        y0=h*gm2
+        x1=w*gm2
+        y1=h*gm1
+    
+        path.moveTo(x0,y0)
+        
+        path.lineTo(x0+w*(hist[1][0]-1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
+        
+        for i in range(len(hist[1])-1):
+            x=hist[1][i]
+            y=hist[0][i]
+        
+            path.lineTo(x0+w*(x-xmin)*(gm2-gm1)/(xmax-xmin),y0-(h*(gm2-gm1))*y/ymax)
+
+        path.lineTo(x0+w*(hist[1][-1]+1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
+        path.lineTo(x1,y0)
+    
+        painter.setBrush(generateHistGradient(h,color))
+        painter.setPen(color)
+        painter.drawPath(path)
+    
+        if draw_axes:
+            painter.setPen(QtCore.Qt.black)
+            painter.drawLine(x0,y0+2,x1,y0+2)
+            painter.drawLine(x0-2,y0,x0-2,y1)
+        
+            painter.setPen(QtCore.Qt.DotLine)
+        
+            for yy in numpy.arange(y1,y0,(y0-y1)/10.0):
+                painter.drawLine(x0,yy,x1,yy)
+                painter.drawText(x0,yy,str(ymax-ymax*(yy-y1)/(y0-y1)))
+        
+            painter.setPen(QtCore.Qt.DashLine)
+            painter.drawLine(x0,y1,x1,y1)
+        
+            painter.drawText(x0,y0+15,str(xmin))
+            for xx in numpy.arange(x1,x0,-(x1-x0)/5.0):
+                painter.drawLine(xx,y0,xx,y1)
+                painter.drawText(xx-15,y0+15,str(xmax*(xx-x0)/(x1-x0)))
+
 
 def getLocale():
     try:
