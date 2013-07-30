@@ -1,5 +1,5 @@
 #lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013  Maurizio D'Addona
+#Copyright (C) 2013  Maurizio D'Addona 
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -1475,18 +1475,17 @@ class theApp(Qt.QObject):
     #paintEvent callback
     def imageLabelPaintEvent(self, obj):
         val=self.imageLabel.__paintEvent__(obj)
-                
+        
         painter = Qt.QPainter(self.imageLabel)
         
         if self.current_image != None:
             painter.scale(self.actual_zoom,self.actual_zoom)
             painter.drawImage(0,0,self.current_image)
-        
-        if self.image_idx<0:
-            return val
-        
+                
         if (not self.manual_align):
-            if (self.current_align_method==0) and (self.is_aligning):
+            if self.image_idx<0:
+                return val
+            elif (self.current_align_method==0) and (self.is_aligning):
                 pass #TODO: draw the phase correlation images
             elif self.current_align_method==1:
                 self._drawAlignPoints(painter)
@@ -2263,6 +2262,7 @@ class theApp(Qt.QObject):
         self.wnd.doubleSpinBoxOffsetX.setValue(img.offset[0])
         self.wnd.doubleSpinBoxOffsetY.setValue(img.offset[1])
         self.wnd.spinBoxOffsetT.setValue(img.angle)
+        self.updateImage()
         self.qapp.restoreOverrideCursor()
 
     def currentManualAlignListItemChanged(self, cur_item):

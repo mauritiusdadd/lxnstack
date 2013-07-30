@@ -1233,7 +1233,7 @@ to compute master-dark file</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>198</width>
+         <width>154</width>
          <height>305</height>
         </rect>
        </property>
@@ -1686,7 +1686,7 @@ result</string>
             </sizepolicy>
            </property>
            <property name="cursor" stdset="0">
-            <cursorShape>CrossCursor</cursorShape>
+            <cursorShape>OpenHandCursor</cursorShape>
            </property>
            <property name="mouseTracking">
             <bool>true</bool>
