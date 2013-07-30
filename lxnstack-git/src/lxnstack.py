@@ -22,14 +22,25 @@ import sys
 sys.path.append("@RESOURCES_PATH")
 
 if ('--help' in sys.argv) or ('-h' in sys.argv):
+    
+    print("\nUsage: lxnstack [OPTION]")
+    print("")
+    print("Mandatory arguments to long options are mandatory for short options too")
+    print("  -h, --help                  show this show this help and exit")
+    print("  -m, --user-manual           show the use manual in a web browser and exit")
+    print("  -v, --version               print the version of the program and exit\n")
+    sys.exit(0)
+
+if ('--user-manual' in sys.argv) or ('-m' in sys.argv):
     show_help = True
     print("Loading user manual...")
 else:
     show_help = False
         
 if ('--version' in sys.argv) or ('-v' in sys.argv):
-    print("version: 1.2.0")
-
+    print("\nversion: 1.3.1\n")
+    sys.exit(0)
+    
 #create main QApplication
 app = Qt.QApplication(sys.argv)
 

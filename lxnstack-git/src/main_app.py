@@ -23,13 +23,23 @@ import subprocess
 import webbrowser
 import tempfile
 from xml.dom import minidom
+import paths
 from PyQt4 import uic, Qt, QtCore, QtGui
 
 loading = Qt.QProgressDialog()
+loading.setWindowFlags(QtCore.Qt.SplashScreen)
+logo =  Qt.QPixmap(os.path.join(paths.RESOURCES_PATH,"splashscreen.jpg"))
+logoLabel=Qt.QLabel()
+logoLabel.setPixmap(logo)
 loading.setWindowTitle("starting lxnstack")
-loading.setLabelText("starting  lxnstack, please wait...")
+loading.setLabel(logoLabel)
+loading.setCancelButton(None)
 loading.setMaximum(100)
+
+loading.show()
 loading.setValue(1)
+
+time.sleep(1)
 
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
@@ -80,12 +90,7 @@ except ImportError:
 loading.setValue(40)
 
 import utils
-if not utils.FITS_SUPPORT:
-    loading.setLabelText("starting  lxnstack, please wait...\n"+
-                         "NOTE: FITS support not enabled.\n"+
-                         "In order to enable it, you must install PYFITS.")
-loading.setValue(50)
-import paths
+        
 loading.setValue(60)
 
 def Int(val):
@@ -106,8 +111,24 @@ class theApp(Qt.QObject):
         self.__operating=False
         self._photo_time_clock=0
         self._ignore_histogrham_update = False #this will be used to avoid recursion loop!
-
-        self.current_match_mode=cv2.TM_SQDIFF
+        
+        
+        # it seems that kde's native dialogs work correctly while, on the contrary,
+        # gnome's dialogs (and also dialogs of other desktop environmets?) will not
+        # display correclty! In this case the Qt dialog (non native) dialogs will be
+        # used.
+        
+        try:
+            #try automatic detection
+            if 'kde' == os.environ['XDG_CURRENT_DESKTOP'].lower():
+                self._dialog_options = Qt.QFileDialog.Option(0)
+            else:
+                self._dialog_options = Qt.QFileDialog.DontUseNativeDialog
+        except Exception:
+            # This should work in each Desktop Environment
+            self._dialog_options = Qt.QFileDialog.DontUseNativeDialog
+        
+        self.current_match_mode=cv2.TM_SQDIFF #TODO: Add selection box
 
         self.qapp=qapp
         
@@ -192,6 +213,10 @@ class theApp(Qt.QObject):
         self.flatframelist=[]
         
         self.tracking_align_point=False
+        self.use_cursor = QtCore.Qt.OpenHandCursor
+        self.panning=False
+        self.panning_startig=(0,0)
+        self.panning_ending=(0,0)
         self.checked_seach_dark_flat=0
         self.checked_autodetect_rectangle_size=2
         self.checked_autodetect_min_quality=2
@@ -233,6 +258,8 @@ class theApp(Qt.QObject):
         
         self.levelfunc_idx=0
         
+        self.current_pixel=(0,0)
+        
         self.statusLabelMousePos = Qt.QLabel()
         self.statusBar = self.wnd.statusBar()
         self.setUpStatusBar()
@@ -241,6 +268,9 @@ class theApp(Qt.QObject):
         self.imageLabel.setAlignment(QtCore.Qt.AlignTop)
         self.wnd.imageViewer.setWidget(self.imageLabel)
         self.wnd.imageViewer.setAlignment(QtCore.Qt.AlignTop)
+        
+        self.viewHScrollBar =  self.wnd.imageViewer.horizontalScrollBar()
+        self.viewVScrollBar =  self.wnd.imageViewer.verticalScrollBar()
         
         self.wnd.colorBar.current_val=None
         self.wnd.colorBar.max_val=1.0
@@ -265,6 +295,10 @@ class theApp(Qt.QObject):
         
         self.imageLabel.__mouseReleaseEvent__ = self.imageLabel.mouseReleaseEvent
         self.imageLabel.mouseReleaseEvent = self.imageLabelMouseReleaseEvent
+        
+        
+        self.wnd.imageViewer.__wheelEvent__ = self.wnd.imageViewer.wheelEvent
+        self.wnd.imageViewer.wheelEvent = self.imageViewerWheelEvent
         
         # paint callback
         self.imageLabel.__paintEvent__= self.imageLabel.paintEvent #base implementation
@@ -396,17 +430,19 @@ class theApp(Qt.QObject):
         
         if not os.path.isdir(self.custom_temp_path):
             os.makedirs(self.custom_temp_path)
+            
+        self.setZoomMode(1,True)
 
     def _generateOpenStrings(self):
         self.supported_formats = utils.getSupportedFormats()
-
+        # all supported formats
         self.images_extensions = ' ('
         for ext in self.supported_formats.keys():
             self.images_extensions+='*'+str(ext)+' '
         self.images_extensions += ');;'
         
         ImageTypes={}
-        
+        # each format
         for ext in self.supported_formats.keys():
             key=str(self.supported_formats[ext])
             
@@ -502,6 +538,7 @@ class theApp(Qt.QObject):
         webbrowser.open(os.path.join(paths.DOCS_PATH,'usermanual.html'))
 
     def lock(self, show_cnacel = True):
+        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.statusLabelMousePos.setText('')
         self.progress.show()
         
@@ -522,6 +559,7 @@ class theApp(Qt.QObject):
         self.wnd.toolBox.setEnabled(True)
         self.wnd.MainFrame.setEnabled(True)
         self.wnd.menubar.setEnabled(True)
+        self.qapp.restoreOverrideCursor()
 
     def setDarkMul(self,val):
         self.master_dark_mul_factor=val
@@ -570,11 +608,17 @@ class theApp(Qt.QObject):
             
         
     def _set_save_video_dir(self):
-        self.save_image_dir = str(Qt.QFileDialog.getExistingDirectory(self.dlg,tr("Choose the detination folder"),self.save_image_dir))
+        self.save_image_dir = str(Qt.QFileDialog.getExistingDirectory(self.dlg,
+                                                                      tr("Choose the detination folder"),
+                                                                      self.save_image_dir,
+                                                                      self._dialog_options))
         self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
         
     def _set_temp_path(self):
-        self.custom_temp_path = str(Qt.QFileDialog.getExistingDirectory(self.dlg,tr("Choose the temporary folder")))
+        self.custom_temp_path = str(Qt.QFileDialog.getExistingDirectory(self.dlg,
+                                                                        tr("Choose the temporary folder"),
+                                                                        self.temp_path,
+                                                                        self._dialog_options))
         self.dlg.tempPathLineEdit.setText(self.custom_temp_path)
         
     def setPreferences(self):
@@ -679,10 +723,12 @@ class theApp(Qt.QObject):
                 keys.sort()
                 keys.reverse()
                 self.fps=self._setParamMenu(self.dlg.fpsComboBox, keys, self.fps)
-                
-                keys=self.device_propetyes['exposure_auto']['menu'].keys()
-                keys.sort()
-                self.exposure_type=self._setParamMenu(self.dlg.expTypeComboBox, keys, self.exposure_type)
+                try:
+                    keys=self.device_propetyes['exposure_auto']['menu'].keys()
+                    keys.sort()
+                    self.exposure_type=self._setParamMenu(self.dlg.expTypeComboBox, keys, self.exposure_type)
+                except:
+                    pass
                 
                 self._setParamLimits(self.dlg.expSlider,self.dlg.expSpinBox,'exposure_absolute')
                 self._setParamLimits(self.dlg.gainSlider,self.dlg.gainSpinBox,'gain')
@@ -738,7 +784,7 @@ class theApp(Qt.QObject):
             self.resolution=self._setParamMenu(self.dlg.resolutionComboBox, keys, self.resolution)
             device=self.devices[self.current_cap_combo_idx]['dev']
             _4CC = cv2.cv.FOURCC(*list(self.format[0:4]))
-            self.current_cap_devicep.set(cv2.cv.CV_CAP_PROP_FOURCC,_4CC)
+            self.current_cap_device.set(cv2.cv.CV_CAP_PROP_FOURCC,_4CC)
             #utils.setV4LFormat(device,'pixelformat='+self.format)
                         
     def deviceResolutionChanged(self, idx):
@@ -1018,7 +1064,9 @@ class theApp(Qt.QObject):
         master_dark_file = str(Qt.QFileDialog.getOpenFileName(self.wnd,
                                                               tr("Select master-dark file"),
                                                               self.current_dir,
-                                                              open_str
+                                                              open_str,
+                                                              None,
+                                                              self._dialog_options
                                                               )
                               )
         if os.path.isfile(master_dark_file):
@@ -1075,7 +1123,9 @@ class theApp(Qt.QObject):
         master_flat_file = str(Qt.QFileDialog.getOpenFileName(self.wnd,
                                                               tr("Select master-flatfield file"),
                                                               self.current_dir,
-                                                              open_str
+                                                              open_str,
+                                                              None,
+                                                              self._dialog_options
                                                               )
                               )
         if os.path.isfile(master_flat_file):
@@ -1238,8 +1288,10 @@ class theApp(Qt.QObject):
     #mouseMoveEvent callback    
     def imageLabelMouseMoveEvent(self, event):
         val = self.imageLabel.__mouseMoveEvent__(event)
-        x=Int(event.x()/self.actual_zoom)
-        y=Int(event.y()/self.actual_zoom)
+        mx=event.x()
+        my=event.y()
+        x=Int(mx/self.actual_zoom)
+        y=Int(my/self.actual_zoom)
 
         if (self.current_image != None) and (not self.manual_align):
             if self.current_image._original_data != None:
@@ -1247,12 +1299,19 @@ class theApp(Qt.QObject):
                 if ((y>=0) and (y < imshape[0]) and
                     (x>=0) and (x < imshape[1])):
                         pix_val=self.current_image._original_data[y,x]
+                        self.current_pixel=(x,y)
                         self.wnd.colorBar.current_val=pix_val
                         self.wnd.colorBar.repaint()
-                        self.statusLabelMousePos.setText('position=(x:'+str(x)+',y:'+str(y)+') value='+str(pix_val))
             else:
                 pix_val=None
                 
+        if self.panning:            
+            sx = mx-self.panning_startig[0]
+            sy = my-self.panning_startig[1]           
+            
+            self.viewHScrollBar.setValue(self.viewHScrollBar.value()-sx)
+            self.viewVScrollBar.setValue(self.viewVScrollBar.value()-sy)
+            
         if (self.tracking_align_point and 
             (self.image_idx>=0) and 
             (self.point_idx>=0)
@@ -1265,10 +1324,34 @@ class theApp(Qt.QObject):
             self.imageLabel.repaint()
         return val
     
+    
+    def imageViewerWheelEvent(self, event):
+        if self.zoom_enabled:
+            delta = numpy.sign(event.delta())*math.log10(self.zoom+1)/2.5
+            mx=event.x()
+            my=event.y()
+            cx = self.wnd.imageViewer.width()/2.0
+            cy = self.wnd.imageViewer.height()/2.0
+            sx=(cx - mx)/2
+            sy=(cy - my)/2
+            self.viewHScrollBar.setValue(self.viewHScrollBar.value()-sx)
+            self.viewVScrollBar.setValue(self.viewVScrollBar.value()-sy)
+                        
+            self.setZoom(self.zoom+delta)
+
+            
+        return Qt.QWheelEvent.accept(event)
+    
     def imageLabelMousePressEvent(self, event):
         val = self.imageLabel.__mousePressEvent__(event)
         btn=event.button()
-        if btn==2:
+        
+        if btn==1:
+            self.wnd.imageViewer.setCursor(QtCore.Qt.ClosedHandCursor)
+            self.imageLabel.setCursor(QtCore.Qt.ClosedHandCursor)
+            self.panning=True
+            self.panning_startig=(event.x(),event.y())
+        elif btn==2:
             self.tracking_align_point=True
         return val
     
@@ -1277,7 +1360,11 @@ class theApp(Qt.QObject):
         btn=event.button()
         x=Int(event.x()/self.actual_zoom)
         y=Int(event.y()/self.actual_zoom)
-        if btn==2:
+        if btn==1:
+            self.panning=False
+            self.wnd.imageViewer.setCursor(self.use_cursor)
+            self.imageLabel.setCursor(self.use_cursor)
+        elif btn==2:
             if self.point_idx >= 0:
                 self.tracking_align_point=False
                 pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
@@ -1292,7 +1379,7 @@ class theApp(Qt.QObject):
     #paintEvent callback for colorBar
     def colorBarPaintEvent(self, obj):
         val=self.wnd.colorBar.__paintEvent__(obj)
-        
+
         if self.current_image==None:
             self.wnd.colorBar.setPixmap(Qt.QPixmap())
             return val
@@ -1308,7 +1395,7 @@ class theApp(Qt.QObject):
             painter.setFont(Qt.QFont("Arial", fnt_size))
             y=(cb.height()+fnt_size/2)/2 + 2
             max_txt=str(cb.max_val)
-                
+            self.statusLabelMousePos.setText('position='+str(self.current_pixel)+' value='+str(cb.current_val))        
             if cb._is_rgb == True:
                 cb.setPixmap(Qt.QPixmap.fromImage(self.rgb_colormap))
                 
@@ -1388,9 +1475,16 @@ class theApp(Qt.QObject):
     #paintEvent callback
     def imageLabelPaintEvent(self, obj):
         val=self.imageLabel.__paintEvent__(obj)
+                
+        painter = Qt.QPainter(self.imageLabel)
+        
+        if self.current_image != None:
+            painter.scale(self.actual_zoom,self.actual_zoom)
+            painter.drawImage(0,0,self.current_image)
+        
         if self.image_idx<0:
             return val
-        painter = Qt.QPainter(self.imageLabel)
+        
         if (not self.manual_align):
             if (self.current_align_method==0) and (self.is_aligning):
                 pass #TODO: draw the phase correlation images
@@ -1437,13 +1531,13 @@ class theApp(Qt.QObject):
             ref = self.framelist[self.ref_image_idx]
             img = self.framelist[self.dif_image_idx] 
             
-            rot_center=(img.width*self.actual_zoom/2.0,img.height*self.actual_zoom/2.0)
+            rot_center=(img.width/2.0,img.height/2.0)
            
-            painter.drawPixmap(0,0,self.updateImage(False,self.ref_image))
+            painter.drawImage(0,0,self.ref_image)
             painter.setCompositionMode(22)
                         
-            x = (img.offset[0]-ref.offset[0])*self.actual_zoom
-            y = (img.offset[1]-ref.offset[1])*self.actual_zoom
+            x = (img.offset[0]-ref.offset[0])
+            y = (img.offset[1]-ref.offset[1])
             
             #this is needed because the automatic aignment takes the first image available as
             #reference to calculate derotation
@@ -1459,10 +1553,14 @@ class theApp(Qt.QObject):
             
             painter.rotate(-img.angle+ref.angle)
 
-            painter.drawPixmap(-int(rot_center[0]),-int(rot_center[1]),self.updateImage(False))
+            painter.drawImage(-int(rot_center[0]),-int(rot_center[1]),self.current_image)
             painter.setCompositionMode(0)
     
-    def setZoomMode(self, val):
+    def setZoomMode(self, val, check=False):
+        
+        if check:
+            self.wnd.zoomCheckBox.setCheckState(val)
+        
         if val is 0:
             self.wnd.zoomCheckBox.setText(tr('zoom: none'))
             self.wnd.zoomSlider.setEnabled(False)
@@ -1482,22 +1580,48 @@ class theApp(Qt.QObject):
         self.updateImage()
     
     def setZoom(self,zoom):
-        self.zoom=zoom
+        
+        if zoom <= self.wnd.zoomDoubleSpinBox.maximum():
+            self.zoom=zoom
+        else:
+            self.zoom=self.wnd.zoomDoubleSpinBox.maximum()
+            
         self.wnd.zoomDoubleSpinBox.setValue(self.zoom)
         self.wnd.zoomSlider.setValue(Int(self.zoom*100))
         
     def signalSliderZoom(self, value, update=False):
         self.zoom=(value/100.0)
+        vp = self.getViewport()
         self.wnd.zoomDoubleSpinBox.setValue(self.zoom)
         if update:
             self.updateImage()
 
+        self.setViewport(vp)
+        
     def signalSpinZoom(self, value, update=True):
         self.zoom=value
+        vp = self.getViewport()
         self.wnd.zoomSlider.setValue(Int(self.zoom*100))
         if update:
             self.updateImage()
-
+        self.setViewport(vp)
+        
+    def getViewport(self):
+        try:
+            x = float(self.viewHScrollBar.value())/float(self.viewHScrollBar.maximum())
+        except ZeroDivisionError:
+            x = 0.5
+        try:
+            y = float(self.viewVScrollBar.value())/float(self.viewVScrollBar.maximum())
+        except ZeroDivisionError:
+            y = 0.5
+            
+        return (x,y)
+    
+    def setViewport(self,viewPoint):
+        self.viewHScrollBar.setValue(viewPoint[0]*self.viewHScrollBar.maximum())
+        self.viewVScrollBar.setValue(viewPoint[1]*self.viewVScrollBar.maximum())
+        
     def updateResultImage(self):
         if self._avg!=None:
             img = utils.arrayToQImage(self._avg,bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels)
@@ -1539,40 +1663,39 @@ class theApp(Qt.QObject):
         
         if overrided_image != None:
             current_image=overrided_image
-        else:
+        elif self.current_image != None:
             current_image=self.current_image
-
-        if current_image is None:
+        else:
             return False
-            
+        
+        imh = current_image.height()
+        imw = current_image.width()
+
+        try:
+            self.wnd.colorBar.current_val=current_image._original_data[self.current_pixel[1],self.current_pixel[0]]
+            self.wnd.colorBar.repaint()
+        except Exception as exc:
+            self.current_pixel=(0,0)
+
         if self.zoom_enabled:
-            pix = Qt.QPixmap.fromImage(current_image.scaled(
-                                        Int(current_image.width()*self.zoom),
-                                        Int(current_image.height()*self.zoom),
-                                        1)
-                                      )
             self.actual_zoom=self.zoom
         elif self.zoom_fit:
-            imh = current_image.height()
-            imw = current_image.width()
-
-            pix = Qt.QPixmap.fromImage(current_image.scaled(
-                                        self.wnd.imageViewer.width()-10,
-                                        self.wnd.imageViewer.height()-10,
-                                        1)
-                                      )
+                        
             self.actual_zoom=min(float(self.wnd.imageViewer.width()-10)/imw,
                                  float(self.wnd.imageViewer.height()-10)/imh
                                 )
                                 
             self.wnd.zoomDoubleSpinBox.setValue(self.zoom)
         else:
-            pix = Qt.QPixmap.fromImage(current_image)
             self.actual_zoom=1
             
         if paint:
-            self.imageLabel.setPixmap(pix)    
-            
+            imh+=1
+            imw+=1
+            self.imageLabel.setMaximumSize(imw*self.actual_zoom,imh*self.actual_zoom)
+            self.imageLabel.setMinimumSize(imw*self.actual_zoom,imh*self.actual_zoom)
+            self.imageLabel.resize(imw*self.actual_zoom,imh*self.actual_zoom)
+            self.imageLabel.update()
             if current_image._original_data != None:
                 self.wnd.colorBar.max_val=current_image._original_data.max()
                 self.wnd.colorBar.min_val=current_image._original_data.min()
@@ -1603,8 +1726,8 @@ class theApp(Qt.QObject):
                 self.wnd.colorBar.min_val=self.wnd.colorBar.min_val-1
                 
             #self.generateScaleMaps()
-        else:
-            return pix
+        #else:
+            #return pix
     
     def setUpStatusBar(self):      
         self.progress = Qt.QProgressBar()
@@ -1637,7 +1760,9 @@ class theApp(Qt.QObject):
         vidname=str(Qt.QFileDialog.getOpenFileName(self.wnd,
                                                    tr("Select a video"),
                                                    self.current_dir,
-                                                   open_str)
+                                                   open_str,
+                                                   None,
+                                                   self._dialog_options)
                    )
 
         if vidname!='':
@@ -1712,7 +1837,9 @@ class theApp(Qt.QObject):
             newlist=list(Qt.QFileDialog.getOpenFileNames(self.wnd,
                                                          tr("Select one or more files"),
                                                          self.current_dir,
-                                                         open_str)
+                                                         open_str,
+                                                         None,
+                                                         self._dialog_options)
                         )
 
         self.statusBar.showMessage(tr('Loading files, please wait...'))
@@ -1855,7 +1982,9 @@ class theApp(Qt.QObject):
             files = list(Qt.QFileDialog.getOpenFileNames(self.wnd,
                                                          tr("Select one or more files"),
                                                          self.current_dir,
-                                                         open_str)
+                                                         open_str,
+                                                         None,
+                                                         self._dialog_options)
                         )
         elif os.path.exists(directory) and os.path.isdir(directory):
             files = []
@@ -1936,7 +2065,9 @@ class theApp(Qt.QObject):
             files = list(Qt.QFileDialog.getOpenFileNames(self.wnd,
                                                          tr("Select one or more files"),
                                                          self.current_dir,
-                                                         open_str)
+                                                         open_str,                                                         
+                                                         None,
+                                                         self._dialog_options)
                         )
             
         elif os.path.exists(directory) and os.path.isdir(directory):
@@ -2100,6 +2231,7 @@ class theApp(Qt.QObject):
     def listItemChanged(self, idx):
         if self.wasStarted:
             return
+        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.image_idx = self.wnd.listWidget.currentRow()
         
         if idx >= 0:
@@ -2118,17 +2250,20 @@ class theApp(Qt.QObject):
             self.wnd.manualAlignGroupBox.setEnabled(False)
             
         self.wnd.colorBar.repaint()
-            
+        self.qapp.restoreOverrideCursor()
+        
     def manualAlignListItemChanged(self,idx):
         item = self.wnd.listWidgetManualAlign.item(idx)
         if item is None:
             return        
         self.dif_image_idx=item.original_id
         img = self.framelist[item.original_id]
+        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
         self.current_image=utils.arrayToQImage(img.getData(asarray=True),bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels)
         self.wnd.doubleSpinBoxOffsetX.setValue(img.offset[0])
         self.wnd.doubleSpinBoxOffsetY.setValue(img.offset[1])
         self.wnd.spinBoxOffsetT.setValue(img.angle)
+        self.qapp.restoreOverrideCursor()
 
     def currentManualAlignListItemChanged(self, cur_item):
         if cur_item == None:
@@ -2280,16 +2415,31 @@ class theApp(Qt.QObject):
     
     def updateToolBox(self, idx):
         self.ref_image_idx=-1
-
+        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
         if (idx<=1) and (self._old_tab_idx>1):
             self.showAlignPoints=True
-            img = self.framelist[self.image_idx]
-            qimg=utils.arrayToQImage(self.debayerize(img.getData(asarray=True)),bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels)
-            self.showImage(qimg)
+            try:
+                try:
+                    img = self.framelist[self.image_idx]
+                except IndexError:
+                    img = self.framelist[self.image_idx]
+                qimg=utils.arrayToQImage(self.debayerize(img.getData(asarray=True)),bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels)
+                self.showImage(qimg)
+            except IndexError:
+                pass #maybe there are no images in the list yet?
                 
         if (idx>1):
             self.showAlignPoints=False
             self.clearImage()
+        
+        if idx==1:
+            self.use_cursor = QtCore.Qt.CrossCursor
+            self.wnd.imageViewer.setCursor(QtCore.Qt.CrossCursor)
+            self.imageLabel.setCursor(QtCore.Qt.CrossCursor)
+        else:
+            self.use_cursor = QtCore.Qt.OpenHandCursor
+            self.wnd.imageViewer.setCursor(QtCore.Qt.OpenHandCursor)
+            self.imageLabel.setCursor(QtCore.Qt.OpenHandCursor)
         
         if idx==2:
             utils.trace("Setting up manual alignment controls")
@@ -2315,6 +2465,7 @@ class theApp(Qt.QObject):
 
         self.imageLabel.repaint()
         self._old_tab_idx=idx
+        self.qapp.restoreOverrideCursor()
         
     def newProject(self):
         self.wnd.toolBox.setCurrentIndex(0)
@@ -2363,8 +2514,7 @@ class theApp(Qt.QObject):
         self.flatframelist=[]
 
         self.setZoom(1)
-        self.setZoomMode(0)
-        self.wnd.zoomCheckBox.setCheckState(0)
+        self.setZoomMode(1,True)
         self.wnd.alignPushButton.setEnabled(False)
         self.wnd.avrPushButton.setEnabled(False)
         self.wnd.saveResultPushButton.setEnabled(False)
@@ -2393,7 +2543,8 @@ class theApp(Qt.QObject):
     def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
                                          os.path.join(self.current_dir,'Untitled.prj'),
-                                         "Project (*.prj);;All files (*.*)"))
+                                         "Project (*.prj);;All files (*.*)",None,
+                                         self._dialog_options))
         if self.current_project_fname == '':
             self.current_project_fname=None
             return
@@ -2584,7 +2735,8 @@ class theApp(Qt.QObject):
         project_fname = str(Qt.QFileDialog.getOpenFileName(self.wnd,
                                                            tr("Open a project"),
                                                            os.path.join(self.current_dir,'Untitled.prj'),
-                                                           "Project (*.prj);;All files (*.*)")
+                                                           "Project (*.prj);;All files (*.*)", None,
+                                                           self._dialog_options)
                            )
 
         if project_fname == '':
@@ -3340,12 +3492,11 @@ class theApp(Qt.QObject):
                 return False
             else:
                 self._flt=_flt
-                
-        self.unlock()
         
         self.statusBar.showMessage(tr('Stacking images, please wait...'))
         _avg=self.getStackingMethod(lght_method,self.framelist, self._drk, self._flt,**lght_args)
         if(_avg == None):
+            self.unlock()
             return False
         else:
             self._avg=_avg
@@ -3357,7 +3508,8 @@ class theApp(Qt.QObject):
             self.wnd.saveResultPushButton.setEnabled(True)
             self.wnd.levelsPushButton.setEnabled(True)
             self.statusBar.showMessage(tr('DONE'))
-            
+        self.unlock()
+        
     def generateMasters(self, dark_image=None, flat_image=None):
         utils.trace("generating master frames\n")
         if (dark_image != None):
@@ -3415,9 +3567,7 @@ class theApp(Qt.QObject):
     def average(self,framelist ,dark_image=None, flat_image=None):
 
         result=None
-        
-        self.lock()
-        
+                
         master_dark, master_flat = self.generateMasters(dark_image,flat_image)
 
             
@@ -3483,8 +3633,6 @@ class theApp(Qt.QObject):
         avg=result/count
 
         self.statusBar.clearMessage()
-        self.unlock()
-        self.statusBar.showMessage(tr('DONE'))
 
         return avg
 
@@ -3653,9 +3801,7 @@ class theApp(Qt.QObject):
     def operationOnImages(self,operation, name,framelist, dark_image=None, flat_image=None, **args):
 
         result=None
-        
-        self.lock()
-        
+                
         master_dark, master_flat = self.generateMasters(dark_image,flat_image)
 
         total = len(framelist)
@@ -3721,8 +3867,7 @@ class theApp(Qt.QObject):
         del tmpfilelist
         
         self.statusBar.clearMessage()
-        self.unlock()
-        self.statusBar.showMessage(tr('DONE'))        
+
         return mdn
     
     def levelsDialogButtonBoxClickedEvent(self, button):

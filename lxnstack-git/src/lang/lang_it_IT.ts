@@ -1127,7 +1127,7 @@ for derotation</source>
         <translation>sharpening
 derotazione</translation>
     </message>
-    <message utf8="true">
+    <message>
         <location filename="main.ui" line="1015"/>
         <source> °</source>
         <translation> °</translation>
@@ -1348,7 +1348,8 @@ delle immagini</translation>
         <location filename="main.ui" line="1473"/>
         <source>Image
 levels</source>
-        <translation>Livelli immagine</translation>
+        <translation>Livelli
+immagine</translation>
     </message>
     <message>
         <location filename="main.ui" line="1502"/>

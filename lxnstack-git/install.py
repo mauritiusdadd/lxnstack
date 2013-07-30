@@ -88,6 +88,7 @@ def doInstallation():
         shutil.copy('./src/utils.py', getPath(paths.RESOURCES_PATH))
         #shutil.copy('./src/paths.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/splashscreen.jpg', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', icons_path)
         shutil.copy('./src/lxnstack.desktop',apps_path)
         shutil.copy('./src/doc/gpl-3.0.txt',license_path)

@@ -1127,7 +1127,7 @@ for derotation</source>
         <translation>sharpening
 for derotation</translation>
     </message>
-    <message utf8="true">
+    <message>
         <location filename="main.ui" line="1015"/>
         <source> °</source>
         <translation> °</translation>
@@ -1302,7 +1302,8 @@ to compute master-dark file</source>
         <location filename="main.ui" line="1473"/>
         <source>Image
 levels</source>
-        <translation></translation>
+        <translation>Image
+levels</translation>
     </message>
     <message>
         <location filename="main.ui" line="1502"/>
