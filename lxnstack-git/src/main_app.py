@@ -121,12 +121,12 @@ class theApp(Qt.QObject):
         try:
             #try automatic detection
             if 'kde' == os.environ['XDG_CURRENT_DESKTOP'].lower():
-                self._dialog_options = Qt.QFileDialog.Option(0)
+                self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails)
             else:
-                self._dialog_options = Qt.QFileDialog.DontUseNativeDialog
+                self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
         except Exception:
             # This should work in each Desktop Environment
-            self._dialog_options = Qt.QFileDialog.DontUseNativeDialog
+            self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
         
         self.current_match_mode=cv2.TM_SQDIFF #TODO: Add selection box
 
