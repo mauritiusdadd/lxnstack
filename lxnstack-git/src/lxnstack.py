@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 #lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013  Maurizio D'Addona
+#Copyright (C) 2013  Maurizio D'Addona <mauritiusdadd@gmail.com>
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ else:
     show_help = False
         
 if ('--version' in sys.argv) or ('-v' in sys.argv):
-    print("\nversion: 1.3.1\n")
+    print("\nversion: 1.4.0\n")
     sys.exit(0)
     
 #create main QApplication
@@ -85,9 +85,12 @@ mainApp.wnd.show()
 main_app.loading.setValue(99)
 
 try:
+    utils.trace('loading application settings')
     mainApp.loadSettings()
-except:
+except Exception as exc:
     #probably the first execution
+    utils.trace('an error has occured while loading the application settings:\n'+str(exc))
+    utils.trace('Ignore this warning if it is the first execution after the installation/upgrade.')
     pass
 
 main_app.loading.setValue(100)

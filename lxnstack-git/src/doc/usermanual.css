@@ -3,30 +3,328 @@ body
     height     : auto;
     width      : auto;
     text-align : center;
+    line-height: 1.5em;
     background-color: #777777;
+}
+
+h1
+{
+    font-family: 'Lucida Grande',Arial,sans-serif;
+}
+
+#sidebar
+{
+    background-color : #AABBFF;
+    height           : 100%;
+    width            : 18em;
+    position         : fixed;
+    top              : 0;
+    left             : -16.5em;
+    padding-top      : 0.5em;
+        
+    -moz-box-shadow:
+                2px 0px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    -webkit-box-shadow:
+                2px 0px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    -ms-box-shadow:
+                2px 0px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    -o-box-shadow:
+                2px 0px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    box-shadow:
+                2px 0px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    
+    transition         : all 1s ease;
+    -moz-transition    : all 1s ease;
+    -webkit-transition : all 1s ease;
+    -ms-transition     : all 1s ease;
+    -o-transition      : all 1s ease;
+    overflow: hidden;
+}
+
+#sidebar a
+{
+    text-decoration : none;
+}
+
+#sidebar:hover
+{
+    left : 0;
+}
+
+#sidebar:hover #sidebar-button
+{
+    left           : 17em;
+}
+
+#sidebar:hover #sidebar-button
+{
+    color : rgba(175,175,255,0);
+}
+
+#sidebar-body
+{
+}
+
+#sidebar-button
+{
+    position       : fixed;
+    top            : 20%;
+    left           : 0.2em;    
+    text-align     : center;
+    color : rgba(0,0,0,0.5);
+    transition         : all 1s ease;
+    -moz-transition    : all 1s ease;
+    -webkit-transition : all 1s ease;
+    -ms-transition     : all 1s ease;
+    -o-transition      : all 1s ease;
+}
+
+#menu-index:hover
+{
+    max-height  : 100%;
+}
+
+ul.tree-view
+{
+    margin: 1.5em;
+    max-height: 50%;
+    overflow-y : auto;
+    background-color: #FFFFFF;
+    border-radius: 0.5em;    
+    -moz-border-radius: 0.5em;
+    -webkit-border-radius: 0.5em;
+    -ms-border-radius: 0.5em;
+    -o-border-radius: 0.5em;
+    
+    -moz-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    -webkit-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    -ms-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    -o-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    box-shadow:
+                inset 0px 5px 5px rgba(255,255,255,0.5),
+                inset 0px 0px 5px rgba(0,0,0,0.5);
+}
+
+li.tree-item
+{
+    border-left      : 4px solid #7788FF;
+    padding          : 0.15em;
+    padding-left     : 0.5em;
+    text-align       : left;   
+}
+
+li.tree-item:hover a
+{
+    color: red;
+}
+
+li.tree-item:hover
+{
+    border-left      : 4px solid red;
+}
+
+li.tree-item#current-item
+{
+    border-left      : 4px solid blue;
+}
+
+#index-link
+{
+    height           : auto;
+    width            : auto;
+    float            : left;
+    text-align       : left;
+    margin           : 0;
+    padding          : 0;
+    margin-top       : 0.5em;
+    padding-left     : 1em;
+}
+
+#menu-index ul
+{
+    list-style: none;
+    padding: 0;
+    float: left;    
+}
+
+#navigation
+{
+    width : 100%;
+    text-decoration : none;
+    position : fixed;
+    top : 1em;
+}
+
+#navigation a
+{
+    text-decoration : none;
+}
+
+.selector a
+{
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.button
+{
+    display: inline;
+    height           : auto;
+    width            : auto;
+    margin-left      : auto;
+    margin-right     : auto;
+    margin-top       : auto;
+    margin-bottom    : auto;
+    text-align       : center;
+    
+    padding-top    : 0.5em;
+    padding-bottom : 0.5em;
+    padding-right  : 0.5em;
+    padding-left   : 0.5em;
+    
+    margin-top    : 0.1em;
+    margin-bottom : 0.1em;
+    margin-right  : 0.1em;
+    margin-left   : 0.1em;
+    
+    border-radius: 0.4em;
+    -moz-border-radius: 0.4em;
+    -webkit-border-radius: 0.4em;
+    -ms-border-radius: 0.4em;
+    -o-border-radius: 0.4em;
+    
+    background-color: #ffffff;
+
+    -moz-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    -webkit-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,1);
+    -ms-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    -o-box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    box-shadow:
+                0px 1px 2px rgba(000,000,000,0.5),
+                inset 0px 0px 2px rgba(55,55,55,0.25);
+    
+    transition         : all 0.5s ease;
+    -moz-transition    : all 0.5s ease;
+    -webkit-transition : all 0.5s ease;
+    -ms-transition     : all 0.5s ease;
+    -o-transition      : all 0.5s ease;
+}
+
+.button:hover a
+{
+    color: #FFFFFF;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.button:hover
+{
+    background-color: #77AAFF;
+    border: 1px solid #FFFFFF;
+    cursor: pointer;
+}
+
+.button.disabled,
+.button.disabled a
+{
+    cursor: default;
+    color : gray;
+}
+
+.button.disabled:hover
+{
+    color            : gray;
+    background-color : #ffffff;
+    border           : none;
+}
+
+#back-to-language.button
+{
+    float: center;
+    position : relative;
+    top: 0.5em;
 }
 
 #about.footpage
 {
-    font-size     : 70%;
-    color         : #333333;
-    padding-top   : 1em;
-    padding-right : 1em;
-    float         : center;
+    color         : #222222;
+    height        : auto;
+    width         : auto;
+    margin-left   : 0em;
+    margin-right  : 0em;
+    margin-top    : auto;
+    margin-bottom : auto;
+    text-align    : center;
+    padding       : 0.5em;
+    font-size     : 75%;
 }
 
+.red-rect
+{
+    border : 1px solid red;
+    position : relative;
+}
+
+.image-box
+{
+    text-align : center;
+    text-align : vertical-center;
+}
+
+
+sup.note,
+sub.note
+{
+    font-size: 75%;
+    line-height: 1em;
+}
+
+.message-box
+{
+    border: 2px solid blue;
+    background-color:  #99CCCC;
+    color : blue;
+    padding : 1em;
+    border-radius: 0.4em;
+    -moz-border-radius: 0.4em;
+    -webkit-border-radius: 0.4em;
+    -ms-border-radius: 0.4em;
+    -o-border-radius: 0.4em; 
+    font-family: 'Lucida Grande',Arial,sans-serif;
+    font-weight: bold;
+}
 
 #mainframe
 {
     background-color : #FFFFFF;
     height           : auto;
-    width            : 70%;
+    width            : 50em;
     margin-left      : auto;
     margin-right     : auto;
     margin-top       : auto;
     margin-bottom    : auto;
     text-align       : left;
-
     padding          : 5%;
     
     border-radius: 0.4em;

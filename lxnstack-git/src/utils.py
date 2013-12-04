@@ -27,18 +27,41 @@ import cv2
 import math
 import scipy
 import tempfile
+import cPickle
+
 from scipy import signal, ndimage
 
 FORMAT_BLACKLIST = ['BUFR', 'EPS', 'GRIB',
                     'HDF5', 'MPEG','WMF' ]
 
 CUSTOM_EXTENSIONS = {'.npy':'NPY',
-                     '.npz':'NPZ'}
+                     '.npz':'NPZ',
+                     '.avi':'VIDEO',
+                     '.mp4':'VIDEO'}
+
+_LOG_FILE = os.path.join(paths.HOME_PATH,'lxnstack.log')
+
+def trace(msg,log=True,reset=False):
+
+    if log:
+        try:
+            if reset:
+                f = open(_LOG_FILE,'w')
+            else:
+                f = open(_LOG_FILE,'a')
+            f.write(time.strftime('[%Y-%m-%d %H:%M:%S] ==> ')+msg.replace('\n','')+'\n')
+            f.close()
+        except:
+            pass #nothing to do
+    
+    if _VERBOSE:
+        print(msg)
 
 try:
-    from PIL import Image
+    from PIL import Image, ExifTags
     Image.init()
 except ImportError:
+    trace('ERROR: \'PIL\' python module not found! exiting program.')
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'PIL\' python module not found!"))
     msgBox.setInformativeText(tr("Please install the python imaging library (PIL)."))
@@ -49,42 +72,121 @@ except ImportError:
 try:
     import pyfits
     FITS_SUPPORT=True
-    print("FITS support enabled")
+    std_fits_header=[('SWCREATE',str(paths.PROGRAM_NAME))]
+    trace("FITS support enabled")
+    
+    def getFitsStdHeader():
+        return pyfits.header.Header(std_fits_header)
+        
+    
 except ImportError:
 
-    print("FITS support not enabled:")
-    print("to enable FITS support please install the \'pyfits\' python package!")
+    trace("FITS support not enabled:\nto enable FITS support please install the \'pyfits\' python package!")
 
     FITS_SUPPORT=False
     FORMAT_BLACKLIST.append('FITS')   
 
+try:
+    import cr2plugin
+    CR2_SUPPORT=True
+    trace("CR2 support enabled")
+    for ext in cr2plugin.EXTENSION.keys():
+        CUSTOM_EXTENSIONS[ext]=cr2plugin.EXTENSION[ext]
+except:
+    FORMAT_BLACKLIST.append('CR2')
+
+
 PROGRAM = paths.PROGRAM_NAME
 PROGRAM_NAME = paths.PROGRAM_NAME
 
-def trace(msg):
-    if _VERBOSE:
-        print(msg)
 
-class frame(object):
+def getCreationTime(url):
+    # Some times I found files modified before their creation!
+    return min(os.path.getctime(url),os.path.getmtime(url))
+
+def getModificationTime(url):
+    # Some times I found files modified before their creation!
+    return max(os.path.getctime(url),os.path.getmtime(url))
+
+def notUpdated(url1, url2):
+    if os.path.exists(url1) and os.path.exists(url2):
+        t1 = getModificationTime(url1)
+        t2c = os.path.getctime(url2)
+        t2m = os.path.getmtime(url2)
+        return (t1 > t2m) or (t2m != t2c)
+    else:
+        return True
+
+def _getCTime(v, sep=' '):
+    tm_struct=[0]*9
+    stm=v.strip('\x00\n\r').split(sep)
+    
+    dt = stm[0].split(':')  #the date is yyyy:mm:dd
+    
+    if len(dt)<3: #maybe it is yyyy-mm-dd
+        dt = stm[0].split('-')
+    
+    if len(dt)<3: # the try to detect the separator
+        dt = stm[0].split(stm[-3])
+    
+    if len(stm)==2:
+        tm = stm[1].split(':')
+        
+        if len(tm)<3: # the try to detect the separator
+            tm = stm[0].split(stm[-3])
+            
+        tm_struct[3]=int(tm[0])
+        tm_struct[4]=int(tm[1])
+        ff=float(tm[2])
+        tm_struct[5]=int(ff)
+    else:
+        return None
+    
+    yy=int(dt[0])
+    
+    if dt[0]<100:
+        tm_struct[0]=1990+yy
+    else:
+        tm_struct[0]=yy
+    
+    tm_struct[1]=int(dt[1])
+    tm_struct[2]=int(dt[2])
+    tm_struct[8]=-1
+    return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
+
+class Frame(object):
     
     """
     command for args**
-    rgb_fits = True;False 
+    rgb_fits = True;False
     """
     
     def __init__(self, file_name, page=0, **args):
 
-        self.url=str(file_name)
-        self.name=os.path.basename(str(file_name))
-        self.page=page
-        self.tool_name = self.name+'-page'+str(self.page)
-        self.long_tool_name = self.url+'-page'+str(self.page)   
+        self.setUrl(file_name, page)
         self.properties={}
-                      
-        if 'rgb_fits' in args:
-            self. RGB_mode=args['rgb_fits']
+        
+        self._open_args=args
+                        
+        if (('progress_bar' in args) and args['progress_bar']!=None):
+            self.pb = args['progress_bar']
+            self.delete_pb = False
         else:
-            self. RGB_mode=False            
+            self.pb = Qt.QProgressDialog()
+            self.delete_pb = True
+        
+        self.pb.setWindowTitle('Please wait')
+        if not os.path.exists(self.url):
+            # Probably you want to save a new file
+            args['skip_loading']=True
+            
+        elif not os.path.isfile(self.url):
+            raise IOError('the file '+self.url+' does not exist')
+                      
+        if 'rgb_fits_mode' in args:
+            self.RGB_mode=args['rgb_fits_mode']
+        else:
+            self.RGB_mode=False            
         
         if (('skip_loading' in args) and 
             (args['skip_loading']==True) and
@@ -95,19 +197,30 @@ class frame(object):
         else:
         
             if ('data' in args):
-                    _tmp_data = Image.fromarray(args['data'])
+                _tmp_data = args['data']
+                self.width = _tmp_data.shape[0]
+                self.height = _tmp_data.shape[1]
+                
+                if len(_tmp_data.shape) > 2:
+                    dpth = _tmp_data.shape[2]
+                    if dpth == 1:
+                        self.mode = 'L'
+                    elif dpth == 3:
+                        self.mode = 'RGB'
+                    elif dpth == 4:
+                        self.mode = 'RGBA'
+                    else:
+                        return None
+                
+                self.mode = _tmp_data.shape[3]
             else:
-                _tmp_data = self.open(file_name, page, PIL_priority=True)
-        
+                _tmp_data = self.open(self.url, page, PIL_priority=True, only_sizes=True, **args)
+            
             if _tmp_data==None:
                 self.is_good=False
                 return
             else:
                 self.is_good=True
-            
-            self.width = _tmp_data.size[0]
-            self.height = _tmp_data.size[1]
-            self.mode = _tmp_data.mode
             
             if not ('data' in args):
                 del _tmp_data
@@ -116,6 +229,19 @@ class frame(object):
         self.angle=0
         self.offset=None
         self.setOffset([0,0])        
+
+
+    def setUrl(self, url, page):
+        self.url=str(url)
+        self.name=os.path.basename(self.url)
+        self.page=page
+        self.tool_name = self.name+'-frame'+str(self.page)
+        self.long_tool_name = self.url+'-frame'+str(self.page)
+
+        
+    def __del__(self):
+        if self.delete_pb:
+            del self.pb
         
     def isRGB(self):
         return ('RGB' in self.mode)
@@ -139,6 +265,7 @@ class frame(object):
         if key in self.properties:
             return self.properties[key]
         else:
+            trace('WARNING: image '+str(self.name)+' has no property '+str(key))
             return None
             
     """
@@ -153,12 +280,23 @@ class frame(object):
 
     def setAngle(self,ang):
         self.angle=ang
+     
+    def getData(self, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32, PIL_priority=False):
+        return self.open(self.url, self.page, asarray, asuint8, fit_levels, ftype, PIL_priority, **self._open_args)
+       
+    def open(self, file_name, page=0, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32,
+             PIL_priority=False, only_sizes=False, **args):
         
-    def getData(self, asarray=False, asuint8=False, ftype=numpy.float32, PIL_priority=False):
-        return self.open(self.url, self.page, asarray, asuint8, ftype, PIL_priority)
+        image = None
         
-    def open(self, file_name, page=0, asarray=False, asuint8=False, ftype=numpy.float32, PIL_priority=False):
-        file_ext = os.path.splitext(file_name)[1].lower()
+        file_path,file_ext = os.path.splitext(file_name)
+        
+        file_ext=file_ext.lower()
+                                      
+        if 'rgb_fits_mode' in args:
+            self.RGB_mode=args['rgb_fits_mode']
+        else:
+            self.RGB_mode=False 
         
         if numpy.dtype(ftype).kind!='f':
             raise Exception("Error: float type neede for \'ftype\' argument")
@@ -168,15 +306,29 @@ class frame(object):
         else:
             return None
         
+        ctime = None
+        exif_file_path = file_path+'.exif'
+        
+        if os.path.isfile(exif_file_path):
+            self.importProperties(exif_file_path)
+        
         #choosing among specific loaders
         if file_type == 'FITS':
 
             if not FITS_SUPPORT:
-                #this should never happens
+                #this should never happen
                 return None
                 
             hdu_table=pyfits.open(file_name)
-
+            header = hdu_table[0].header
+            
+            for k, v in header.items():
+                self.addProperty(k, v)
+            
+            for date_tag,time_tag in (('DATE-OBS','TIME-OBS'),('DATE','TIME')):
+                if date_tag in header:
+                    ctime=_getCTime(header[date_tag],'T')
+                    
             #checking for 3 ImageHDU (red, green and blue components)
             if self.RGB_mode and (len(hdu_table) >= 3):
                 layers = []
@@ -189,30 +341,34 @@ class frame(object):
                         (layers[0].shape == layers[2].shape)):
                         is_RGB=True
                 else:
-                    #if there are more or less than 3 ImageHDU
-                    #then it is not an RGB fits file
+                    # if there are more or less then 3 ImageHDU
+                    # it is not an RGB fits file
                     is_RGB=False
             else:
                 is_RGB=False
-                
-
+            
+            
             if self.RGB_mode and is_RGB:
                 if page!=0:
                     return None
                 else:
                     imh,imw=layers[0].shape
                     img = numpy.zeros((imh,imw,len(layers)))
-                
+                    
                     for j in range(len(layers)):
                         img[...,j]=layers[j].data
                     
-                    if asarray:
+                    self._setSize(img)
+                    
+                    if only_sizes:
+                        return True
+                    elif asarray:
                         if asuint8:
-                            return normToUint8(img)
+                            image = normToUint8(img, fit_levels)
                         else:
-                            return img.astype(ftype)
+                            image = img.astype(ftype)
                     else:
-                        return Image.fromarray(normToUint8(img))
+                        image = Image.fromarray(normToUint8(img))
 
             else:
                 i=0
@@ -238,12 +394,12 @@ class frame(object):
                             #this should work
                             naxis=len(imagehdu.shape)
                         except:
-                            print("ERROR: corrupted data")
+                            trace("ERROR: FITS: corrupted data")
                             return None
                     else:
                         if naxis <= 1:
                             #cannot handle 0-D or 1-D image data!
-                            print("WARNING: unsupported data format")
+                            trace("WARNING: FITS: unsupported data format in HDU "+str(i))
                         else:
                             axis=imagehdu.shape[:-2] #number of image layers
                             imh,imw=imagehdu.shape[-2:] #image size
@@ -252,7 +408,7 @@ class frame(object):
                             total=1
                             for x in axis:
                                 total*=x
-
+                            
                             if npages >= total:
                                 #the request layer is not in this ImageHDU
                                 npages-=total
@@ -272,14 +428,20 @@ class frame(object):
                                 #scaled data is automatically rescaled
                                 #and BZERO and BSCALE are removed
                                 data = imagehdu.data[index]
-                                    
-                                if asarray:
+                                self._setSize(data)
+                                
+                                if only_sizes:
+                                    return True
+                                elif asarray:
                                     if asuint8:
-                                        return normToUint8(data)
+                                        image = normToUint8(data, fit_levels)
+                                        break
                                     else:
-                                        return data.astype(ftype)
+                                        image = data.astype(ftype)
+                                        break
                                 else:
-                                    return Image.fromarray(normToUint8(data))
+                                    image = Image.fromarray(normToUint8(data))
+                                    break
                     
                     finally:
                         i+=1
@@ -289,35 +451,209 @@ class frame(object):
             #only one array
             if page > 0:
                 return None
-            
+                        
+            ctime=getCreationTime(file_name)
             img = numpy.load(file_name)
-
-            if asarray:
+            
+            self._setSize(img)
+                    
+            if only_sizes:
+                return True            
+            elif asarray:
                 if asuint8:
-                    return normToUint8(img)
+                    image = normToUint8(img, fit_levels)
                 else:
-                    return img.astype(ftype)
+                    image = img.astype(ftype)
             else:
-                return Image.fromarray(normToUint8(img))
+                image = Image.fromarray(normToUint8(img))
 
 
         elif file_type =='NPZ':
             
             npzarch = numpy.load(file_name)
-
+            ctime=getCreationTime(file_name)
+                        
             if page < len(npzarch):
-                return npzarch.values()[page]
+                img = npzarch.values()[page]
             else:
                 return None
-            if asarray:
+            
+            self._setSize(img)
+                    
+            if only_sizes:
+                return True            
+            elif asarray:
                 if asuint8:
-                    return normToUint8(img)
+                    image = normToUint8(img, fit_levels)
                 else:
-                    return img.astype(ftype)
+                    image = img.astype(ftype)
             else:
-                return Image.fromarray(normToUint8(img))
+                image = Image.fromarray(normToUint8(img))
             
+        elif file_type =='CR2':
+            cr2file = cr2plugin.imread(file_name)
             
+            for k, v in cr2file.EXIF.items():  #READING EXIF
+                if (k==306) or (k==36867) or (k==36868):
+                    ctime=_getCTime(v)
+                    self.addProperty('UTCEPOCH',ctime)
+                if k in ExifTags.TAGS:
+                    self.addProperty(ExifTags.TAGS[k], v)
+                else:
+                    self.addProperty(k, v)
+                        
+            for k, v in cr2file.MAKERNOTES.items():
+                self.addProperty(('MAKERNOTE',k), v)
+                            
+            if page > 0:
+                return None
+
+            self.width,self.height = cr2file.size
+            self.mode = 'L'
+            
+            cr2file.decodingProgressChanged.connect(self.pb.setValue)
+            cr2file.decodingStarted.connect(self.pb.show)
+            cr2file.decodingEnded.connect(self.pb.hide)
+                               
+            if FITS_SUPPORT:
+                fits_header=[]
+                if ctime!=None:
+                    gm=time.gmtime(ctime)
+                    date = '{0:02d}-{1:02d}-{2:02d}T{3:02d}:{4:02d}:{5:02.0f}'.format(
+                        gm.tm_year,gm.tm_mon,gm.tm_mday,gm.tm_hour,gm.tm_min,gm.tm_sec)
+                    fits_header.append(('DATE-OBS',date,'Date of observations'))
+                data_file_name=file_path+'.fits'
+            else:
+                data_file_name=file_path+'.npy'
+                                       
+            if asarray:
+
+                self.pb.setLabelText(tr('decoding image ')+self.name+', '+tr('please wait...'))
+                                
+                if notUpdated(self.url,data_file_name):
+                    trace(tr('decoding raw data to file')+' '+data_file_name)
+                    self.pb.setLabelText(tr('decoding raw data to file')+'\n'+data_file_name)
+                    
+                    try:
+                        img = cr2file.load()
+                    except SyntaxError as exc:
+                        msgBox = Qt.QMessageBox()
+                        msgBox.setText('Corrupted CR2 data!')
+                        msgBox.setInformativeText(str(exc))
+                        msgBox.setIcon(Qt.QMessageBox.Critical)
+                        msgBox.exec_()
+                        return None
+                    
+                    if FITS_SUPPORT:
+                        self._imwrite_fits_(img, override_name=os.path.splitext(data_file_name)[0],
+                                            header=fits_header, force_overwrite=True)
+                    else:
+                        numpy.save(data_file_name,img)
+                        
+                    self.exportProperties(exif_file_path)
+                    
+                    del cr2file
+                    
+                    if asuint8:
+                        image = normToUint8(img, fit_levels)
+                    else:
+                        image = img.astype(ftype)
+
+                else:
+                    trace(tr(' loading raw data'))
+                    self.pb.setLabelText(tr('decoding image ')+self.name+', '+tr('please wait...'))
+                    image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
+            else:
+                if (('convert_cr2' in args) and args['convert_cr2']==True):
+                    self.pb.setLabelText(tr('decoding image')+', '+tr('please wait...'))
+                     
+                    if notUpdated(self.url,data_file_name):
+                        trace(tr('decoding raw data to file')+' '+data_file_name)
+                        self.pb.setLabelText(tr('decoding raw data to file')+'\n'+data_file_name)
+                        
+                        try:
+                            img = cr2file.load()
+                        except SyntaxError as exc:
+                            msgBox = Qt.QMessageBox()
+                            msgBox.setText('Corrupted CR2 data!')
+                            msgBox.setInformativeText(str(exc))
+                            msgBox.setIcon(Qt.QMessageBox.Critical)
+                            msgBox.exec_()
+                            return None
+                        
+                        if FITS_SUPPORT:
+                            self._imwrite_fits_(img, override_name=os.path.splitext(data_file_name)[0],
+                                                header=fits_header, force_overwrite=True, compressed=True)
+                        else:
+                            numpy.save(data_file_name,image)
+
+                self.exportProperties(exif_file_path)
+                image = cr2file
+        
+            cr2file.decodingProgressChanged.disconnect()
+            cr2file.decodingStarted.disconnect(self.pb.show)
+            cr2file.decodingEnded.disconnect(self.pb.hide)
+        
+        elif file_type =='VIDEO':
+            video = cv2.VideoCapture(file_name)
+            s=video.read()
+            total_frames=video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+            if not s[0]:
+                return None
+            elif page >= total_frames:
+                self.pb.hide()
+                return None
+            else:
+
+                if only_sizes:
+                    self.pb.setMaximum(total_frames)
+                    self.pb.setValue(page)
+                    self.pb.setLabelText(tr('loading frame') +' '+ str(page) +'/'+str(total_frames)+ tr('of video')+' \n'+file_name)
+                else:
+                    self.pb.hide()
+                    
+                shape = s[1].shape
+                
+                imh = s[1].shape[0]
+                imw = s[1].shape[1]
+                
+                if len(shape) > 2:
+                    dpth = shape[2]
+                    if dpth == 1:
+                        dep = 'L'
+                    elif dpth == 3:
+                        dep = 'RGB'
+                    elif dpth == 4:
+                        dep = 'RGBA'
+                    else:
+                        return None
+                            
+                self.width = imw
+                self.height = imh
+                self.mode = dep
+
+                trace("loading frame "+str(page)+" of video "+str(file_name))
+                
+                if only_sizes:
+                    return True
+                else:
+                    video.set(cv2.cv.CV_CAP_PROP_POS_FRAMES,page)
+                    
+                    time_offset=video.get(cv2.cv.CV_CAP_PROP_POS_MSEC)/1000.0
+                    
+                    ctime=getCreationTime(file_name)+time_offset
+                    
+                    img = bgr2rgb(video.read()[1])
+
+                
+                    if asarray:
+                        if asuint8:
+                            image = normToUint8(numpy.asarray(img), fit_levels)
+                        else:
+                            image = (numpy.asarray(img)).astype(ftype)
+                    else:
+                        image = Image.fromarray(normToUint8(img))
+                
         elif file_type =='???':
             #New codecs will be added here
             return None
@@ -329,54 +665,281 @@ class frame(object):
                 cv2img=None
                 
             if (page==0) and (cv2img!=None) and not(PIL_priority):
-                #img = numpy.empty_like(cv2img)
-
-                if (len(cv2img.shape) == 3) and (cv2img.shape[2]==3):
-                    img=cv2img[...,(2,1,0)]
-                else:
-                    img=cv2img
+                    
+                img = bgr2rgb(cv2img)
                 
-                if asarray:
+                self._setSize(img)
+                    
+                if only_sizes:
+                    return True            
+                elif asarray:
                     if asuint8:
-                        return normToUint8(numpy.asarray(img))
+                        image = normToUint8(numpy.asarray(img), fit_levels)
                     else:
-                        return (numpy.asarray(img)).astype(ftype)
+                        image = (numpy.asarray(img)).astype(ftype)
                 else:
-                    return Image.fromarray(normToUint8(img))
+                    image = Image.fromarray(normToUint8(img))
             else:
+                _using_cv2=False
                 try:
-                
+
                     img = Image.open(file_name)
                     img.seek(page)
+                    
+                    self.mode = img.mode
+                    self.width = img.width
+                    self.height = img.height
+                    
+                    try:
+
+                        for k, v in img._getexif().items(): #READING EXIF
+                            if (k==306) or (k==36867) or (k==36868):
+                                tm_struct=[0]*9
+                                stm=v.split(' ')
+                                
+                                dt = stm[0].split(':')  #the date is yyyy:mm:dd
+                                
+                                if len(dt)<3: #maybe it is yyyy-mm-dd
+                                    dt = stm[0].split('-')
+                                
+                                if len(dt)<3: # the try to detect the separator
+                                    dt = stm[0].split(stm[-3])
+                                
+                                if len(stm)==3:
+                                    tm = stm[1].split(':')
+                                    
+                                    if len(tm)<3: # the try to detect the separator
+                                        tm = stm[0].split(stm[-3])
+                                        
+                                    tm_struct[3]=int(tm[0])
+                                    tm_struct[4]=int(tm[1])
+                                    ff=float(tm[2])
+                                    tm_struct[5]=int(tm[2])
+                                else:
+                                    continue
+                                
+                                yy=int(dt[0])
+                                
+                                if dt[0]<100:
+                                    tm_struct[0]=1990+yy
+                                else:
+                                    tm_struct[0]=yy
+                                
+                                tm_struct[1]=int(dt[1])
+                                tm_struct[2]=int(dt[2])
+                                
+                                ctime=time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
+                                
+                            if k in ExifTags.TAGS:
+                                self.addProperty(ExifTags.TAGS[k], v)
+                            else:
+                                self.addProperty(k, v)
+                    except AttributeError:
+                        pass
                     #testing decoder
                     pix = img.getpixel((0,0))
                 except EOFError:
                     return None
-                except IOError as err:
+                except Exception as err:
                     if page==0:
-                        msgBox = Qt.QMessageBox()
-                        msgBox.setText(str(err))
-                        msgBox.setIcon(Qt.QMessageBox.Critical)
-                        msgBox.exec_()
-                    return None
-           
-                if asarray:
-                    if asuint8:
-                        return normToUint8(numpy.asarray(img))
+                        if cv2img == None:  # Nor PIL neither CV2 can open the file!
+                            msgBox = Qt.QMessageBox()
+                            msgBox.setText(str(err))
+                            msgBox.setIcon(Qt.QMessageBox.Critical)
+                            msgBox.exec_()
+                            return None
+                        else: # PIL can't open the image but CV2 can!
+                            _using_cv2=True
+                            img = bgr2rgb(cv2img)
+                            self._setSize(img)
                     else:
-                        return (numpy.asarray(img)).astype(ftype)
+                        return None
+                
+                if only_sizes:
+                    return True            
+                elif asarray:
+                    if asuint8:
+                        image = normToUint8(numpy.asarray(img), fit_levels)
+                    else:
+                        image = (numpy.asarray(img)).astype(ftype)
                 else:
-                    return img
+                    if _using_cv2:
+                        image = Image.fromarray(normToUint8(img))
+                    else:
+                        image = img
+    
+        if not 'UTCEPOCH' in self.properties:
+            if ctime==None:
+                self.addProperty('UTCEPOCH',getCreationTime(file_name))
+            else:
+                self.addProperty('UTCEPOCH',ctime)
+        
+        return image
+    
+    def _setSize(self, data):
+        shape = data.shape
+        
+        self.height = shape[0]
+        self.width = shape[1]
+        
+        if len(shape) > 2:
+            dpth = shape[2]
+            if dpth == 1:
+                self.mode = 'L'
+            elif dpth == 3:
+                self.mode = 'RGB'
+            elif dpth == 4:
+                self.mode = 'RGBA'
+            else:
+                return None
+        else:
+            self.mode = 'L'
+                
+    def exportProperties(self,url):
+        try:
+            f=open(url,'w')
+            cPickle.dump(self.properties,f)
+            return True
+        except Exception as exc:
+            trace('Cannot create file '+url+':'+str(exc))
+            return False
+        
+    def importProperties(self,url):
+        try:
+            f=open(url,'r')
+            newprop=cPickle.load(f)
+            newprop.update(self.properties)
+            self.properties = newprop
+            f.close()
+            del f
+            return True
+        except Exception as exc:
+            trace('Cannot read file '+url+':'+str(exc))
+            return False
 
+    def _fits_secure_imwrite(self, hdulist, url, force=False):
+        if os.path.exists(url):
+            if force:
+                os.remove(url)
+            else:
+                msgBox = Qt.QMessageBox()
+                msgBox.setText(tr("A file named")+" \""+
+                            os.path.basename(url)
+                            +"\" "+tr("already exists."))
+                msgBox.setInformativeText(tr("Do you want to overwite it?"))
+                msgBox.setIcon(Qt.QMessageBox.Question)
+                msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+                if msgBox.exec_() == Qt.QMessageBox.Yes:
+                    os.remove(url)
+                else:
+                    return False
+           
+        hdulist.writeto(url)
 
+    def _imwrite_fits_(self, data, rgb_mode=True, override_name=None, force_overwrite=False, compressed=False, header={}):
+
+        if override_name!= None:
+            name = override_name
+        else:
+            name = self.url
+            
+        if compressed:
+            imgHDU=pyfits.CompImageHDU
+        else:
+            imgHDU=pyfits.ImageHDU
+            
+        
+        if rgb_mode and (len(data.shape) == 3):
+            
+            hdu=pyfits.PrimaryHDU(header=getFitsStdHeader())
+            for k,v,d in header:
+                hdu.header.update(str(k).upper(),v,str(d))
+            
+            hdu_r = imgHDU(data[...,0].copy())
+            hdu_r.update_ext_name('RED')
+            
+            hdu_g = imgHDU(data[...,1].copy())
+            hdu_g.update_ext_name('GREN')
+            
+            hdu_b = imgHDU(data[...,2].copy())
+            hdu_b.update_ext_name('BLUE')
+            
+            hdl = pyfits.HDUList([hdu,hdu_r,hdu_g,hdu_b])
+            trace('Saving to '+name+'-RGB.fits')
+            self._fits_secure_imwrite(hdl,name+'-RGB.fits',force=force_overwrite)
+            trace(hdl.info())
+            
+        elif (len(data.shape) == 3):
+            hdu_r = pyfits.PrimaryHDU(header=getFitsStdHeader())
+            for k,v,d in header:
+                hdu_r.header.update(str(k).upper(),v,str(d))
+            hdl_r = pyfits.HDUList([hdu_r,imgHDU(data[...,0].copy())])
+            trace('Saving to '+name+'-R.fits')
+            self._fits_secure_imwrite(hdl_r,name+'-R.fits',force=force_overwrite)
+            trace(hdl_r.info())
+            
+            hdu_g = pyfits.PrimaryHDU(header=getFitsStdHeader())
+            for k,v,d in header:
+                hdu_g.header.update(str(k).upper(),v,str(d))
+            hdl_g = pyfits.HDUList([hdu_g,imgHDU(data[...,1].copy())])
+            trace('Saving to '+name+'-G.fits')
+            self._fits_secure_imwrite(hdl_g,name+'-G.fits',force=force_overwrite)
+            trace(hdl_g.info())
+            
+            hdu_b = pyfits.PrimaryHDU(header=getFitsStdHeader())
+            for k,v,d in header:
+                hdu_b.header.update(str(k).upper(),v,str(d))
+            hdl_b = pyfits.HDUList([hdu_b,imgHDU(data[...,2].copy())])
+            trace('Saving to '+name+'-B.fits')
+            self._fits_secure_imwrite(hdl_b,name+'-B.fits',force=force_overwrite)
+            trace(hdl_b.info())
+            
+        else:    
+            hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
+            for k,v,d in header:
+                hdu.header.update(str(k).upper(),v,str(d))
+            hdl = pyfits.HDUList([hdu,imgHDU(data)])
+            trace('Saving to '+name+'.fits')
+            self._fits_secure_imwrite(hdl,name+'.fits',force=force_overwrite)
+            trace(hdl.info())
+            
+    def _imwrite_cv2_(self, data, flags):
+        try:
+            if os.path.exists(self.url):
+                msgBox = Qt.QMessageBox()
+                msgBox.setText(tr("A file named")+" \""+
+                               os.path.basename(self.url)
+                               +"\" "+tr("already exists."))
+                msgBox.setInformativeText(tr("Do you want to overwite it?"))
+                msgBox.setIcon(Qt.QMessageBox.Question)
+                msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+                if msgBox.exec_() == Qt.QMessageBox.Yes:
+                    os.remove(self.url)
+                else:
+                    return False
+            if len(data.shape) == 3:
+                return cv2.imwrite(self.url,data[...,(2,1,0)],flags)
+            elif len(data.shape) == 2:
+                return cv2.imwrite(self.url,data,flags)
+            else:
+                #this should never happens
+                raise TypeError("Cannot save "+str(len(data.shape))+"-D images")
+        except Exception as exc:
+            utils.trace("Cannot save image due to cv2 exception: " + str(err))
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr("Cannot save image due to cv2 exception:"))
+            msgBox.setInformativeText(str(exc))
+            msgBox.setIcon(Qt.QMessageBox.Critical)
+            msgBox.exc_()
+            return False
 
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
-    #python3 return str...
+    #python3 returns str...
     if type(news) == str:
         return news
     else:
-        #... while python2 return QString 
+        #... while python2 returns QString 
         # that must be converted to str
         return str(news.toAscii())
 
@@ -397,13 +960,18 @@ def getSupportedFormats():
             
     return formats
 
-def normToUint8 (data,adapt=False):
+def bgr2rgb(cv2img):
+    if (len(cv2img.shape) == 3) and (cv2img.shape[2]==3):
+        return cv2img[...,(2,1,0)]
+    else:
+        return cv2img
+        
+
+def normToUint8 (data,adapt=False, lrange=None):
     if data==None:
         return None
-    elif data.dtype == numpy.uint8:
-        return data
     else:
-        minv,maxv=getMinMax(data,adapt)
+        minv,maxv=getMinMax(data,adapt, lrange)
             
         norm = maxv-minv
         
@@ -414,8 +982,8 @@ def normToUint8 (data,adapt=False):
         else:
             #should never happens
             spec=-(data)*255.0/norm
-            
-        return spec.astype(numpy.uint8)
+        
+        return spec.clip(0,255).astype(numpy.uint8)
 
 def normToUint16 (data, refit=True):    
     if data==None:
@@ -444,15 +1012,15 @@ def normToUint16 (data, refit=True):
             spec=-(data)*65536.0/norm
             
         return spec.astype(numpy.uint16)
+    
+def getMinMax(data,adapt=False, lrange=None):
 
-def getMinMax(data,adapt=False):
-    if adapt or (data.min() < 0):
-        minv=data.min()
-    else:
-        minv=0
-            
-    if adapt or (data.max() > 65536):
+    if adapt==1 or (data.max() > 65536):
         maxv=data.max()
+    elif ((adapt==2) and
+          (lrange!=None) and
+          (len(lrange)>=2)):
+        maxv=numpy.max(lrange)*data.max()/100.0
     elif data.max() > 255:
         maxv=65536.0
     elif data.max() <= 1:
@@ -460,15 +1028,24 @@ def getMinMax(data,adapt=False):
         maxv=data.max()
     else:
         maxv=255.0
+        
+    if adapt==1 or (data.min() < 0):
+        minv=data.min()
+    elif ((adapt==2) and
+        (lrange!=None) and
+        (len(lrange)>=2)):
+        minv=numpy.min(lrange)*data.max()/100.0
+    else:
+        minv=0
+            
     return (minv,maxv)
 
-def getJetColor(data,fit_levels=True):
+def getJetColor(data,fit_levels=True, lrange=None):
 
     value = data.astype(numpy.float)
+    
+    minv,maxv = getMinMax(data,fit_levels,lrange)
      
-    minv,maxv = getMinMax(data,fit_levels)
-     
-    #TODO:fit_levels
     x = ((value - minv)/float(maxv-minv)).astype(numpy.float32)
     
     del value
@@ -485,7 +1062,7 @@ def getJetColor(data,fit_levels=True):
      
     return arr
     
-def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False):
+def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False,levels_range=None):
     
     if type(img) != numpy.ndarray:
         raise TypeError('In module utils, in function arrayToQImage, ndarray expected as first argumrnt but '+str(type(img))+' given instead')
@@ -519,12 +1096,12 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False):
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         
         if bw_jet:
-            jet=getJetColor(img,fit_levels)
+            jet=getJetColor(img,fit_levels,levels_range)
             arr[0:h,0:w,2] = jet[0]
             arr[0:h,0:w,1] = jet[1]
             arr[0:h,0:w,0] = jet[2]
         else:
-            img2 = normToUint8(img,fit_levels)
+            img2 = normToUint8(img,fit_levels,levels_range)
             arr[0:h,0:w,2] = img2
             arr[0:h,0:w,1] = img2
             arr[0:h,0:w,0] = img2
@@ -533,14 +1110,14 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False):
         arr[0:,w:,3] = 0
         
     elif (img.ndim==3) and (channels == 3):
-        img2 = normToUint8(img,fit_levels)
+        img2 = normToUint8(img,fit_levels,levels_range)
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         arr[0:h,0:w,0:3]=img2[...,(B,G,R)]
         arr[h:,0:,3] = 0
         arr[0:,w:,3] = 0
         
     elif (img.ndim==3) and (channels == 4):
-        img2 = normToUint8(img,fit_levels)
+        img2 = normToUint8(img,fit_levels,levels_range)
         arr = 255*numpy.ones((optimal_h, optimal_w, 4), numpy.uint8, 'C')
         arr[0:h,0:w]=img2[...,(B,G,R,A)]
     else:
@@ -588,26 +1165,26 @@ def polar(input, wmul=1, hmul=1, clip=False):
 
     return lpinput
 
-def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True):
+def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_order=3):
     
     if derotate:
-        trace('computing image derotation...')
+        trace(' computing image derotation...')
         d = _derotate_mono(ref, img, sharp1)    
         angle = d[1]
         dsize = d[0].shape
-        trace('rotation angle = '+str(angle))
+        trace('  rotation angle = '+str(angle))
     else:
         angle=0
     
     if angle != 0:
-        derotated = scipy.ndimage.interpolation.rotate(img,angle,order=0,reshape=False,mode='constant',cval=0.0)
+        derotated = scipy.ndimage.interpolation.rotate(img,angle,order=int_order,reshape=False,mode='constant',cval=0.0)
     else:
         derotated = img
     
     if align:
-        trace('computing image shift...')
+        trace(' computing image shift...')
         s = _correlate_mono(ref, derotated,sharp2)    
-        trace('shift = '+str(s[1]))
+        trace('  shift = '+str(s[1]))
         shift = s[1]
         s0 = s[0]
     else:
@@ -673,6 +1250,16 @@ def _derotate_mono(im1, im2, sharpening=2):
 
 def _correlate_mono(im1, im2, sharpening=1):
     
+    #mean_1=im1.mean()
+    #max_1=im1.max()
+    #min_1=im1.min()
+    
+    #mean_2=im2.mean()
+    #max_2=im2.max()
+    #min_2=im2.min()
+    
+    #im2=((im2-min_2)*(max_1-min_1)/(max_2-min_2)) + min_1
+    
     n = numpy.zeros_like(im1)
 
     n[0:im2.shape[0],0:im2.shape[1]]=im2
@@ -686,7 +1273,34 @@ def _correlate_mono(im1, im2, sharpening=1):
     del f2
     
     r = _IFT_mono(f)
+    
+    #this section is necessary to avoid 
+    #the bad infuence of the maximum at
+    #the ceter of the image
+    
+    r_0_0=r[0,0]
+    r_1_0=r[-1,0]
+    r_0_1=r[0,-1]
+    r_1_1=r[-1,-1]
+    
+    mean_1 = r.mean()
+    max_1= r.max()
+    
     r[0,0]=r.min()-1
+    r[-1,0]=r.min()-1
+    r[0,-1]=r.min()-1
+    r[-1,-1]=r.min()-1
+    
+    mean_2 = r.mean()
+    max_2 = r.max()
+
+    if ((mean_1/mean_2)<0.2) and ((max_1*max_2)<max_1):
+        #then probably the center is the only maximum present in the image
+        utils.trace(' probably very small shift')
+        r[0,0]=r_0_0
+        r[-1,0]=r_1_0
+        r[0,-1]=r_0_1
+        r[-1,-1]=r_1_1
 
     del f
     
@@ -710,13 +1324,11 @@ def _correlate_mono(im1, im2, sharpening=1):
     rmax=numpy.unravel_index(r.argmax(),r.shape)
     
     #subpixel alignment
-    #subw=int(r.shape[1]/(2*numpy.log2(r.shape[1])))
-    #subh=int(r.shape[0]/(2*numpy.log2(r.shape[0])))
     
     if ((rmax[0] < 10) or (rmax[0] > (r.shape[0]-10)) or
         (rmax[1] < 10) or (rmax[1] > (r.shape[1]-10))):
         #this is a very bad situation!
-        trace("Shift is too big for sub-pixe alignment")
+        trace(" Shift is too big for sub-pixe alignment")
         shift=[center[1]-rmax[1],center[0]-rmax[0]]
         return (r,shift)
     
@@ -747,6 +1359,302 @@ def _correlate_mono(im1, im2, sharpening=1):
     shift=[center[1]+x_corr-pos_max[1],center[0]+y_corr-pos_max[0]]
 
     return (r,shift)
+
+def brakets(text):
+    def wrapped(text):
+        return '('+text+')'
+    return wrapped(text)
+
+
+def getSciStr(val):
+
+    if val!=0.0:    
+        exp = int(numpy.floor(math.log10(abs(val))))
+    
+        if (exp >= 2) or (exp < 0):
+            sv = val/(10.0**exp)
+    
+            return '{0:1.2f}e{1:02d}'.format(sv,exp)
+        else:
+            return '{0:1.2f}'.format(val)
+    else:
+        return '0.00'
+    
+def getTimeStr(val):
+    return time.strftime('%H:%M:%S',time.gmtime(val))
+
+def drawMarker(painter, x, y, r=7, l=4, ring=True, cross=True):
+    if ring:
+        painter.drawEllipse(Qt.QPointF(x,y),r,r)
+    if cross:
+        painter.drawLine(Qt.QPointF(x-r-l,y),Qt.QPointF(x-r+l,y))
+        painter.drawLine(Qt.QPointF(x+r-l,y),Qt.QPointF(x+r+l,y))
+        painter.drawLine(Qt.QPointF(x,y-l-r),Qt.QPointF(x,y-r+l))
+        painter.drawLine(Qt.QPointF(x,y+r+l),Qt.QPointF(x,y+r-l))
+    
+    if not (cross or ring):
+        painter.drawPolygon(Qt.QPointF(x-r,y),Qt.QPointF(x,y-r),Qt.QPointF(x+r,y),Qt.QPointF(x,y+r))
+        
+def drawAxis(painter, data_x=(0,1), data_y=(0,1), x_offset=60.0, y_offset=30.0, axis_name=('x','y'),
+             inverted_y=False, x_str_func=str,y_str_func=getSciStr):
+    
+    surface_window=painter.window()
+    
+    w=surface_window.width()
+    h=surface_window.height()
+    
+    miny=data_y[0]-0.1
+    maxy=data_y[-1]+0.1
+    minx=data_x[0]-0.1
+    maxx=data_x[-1]+0.1
+    
+    
+    if inverted_y:
+        x1=x_offset
+        y1=y_offset
+        x2=w-x_offset 
+        y2=h-y_offset 
+        y3=5
+        x_scale=(w-2*x_offset)/(maxx-minx)
+        y_scale=(h-2*y_offset)/(maxy-miny)
+    else:
+        x1=x_offset
+        y1=h-y_offset
+        x2=w-x_offset 
+        y2=y_offset 
+        y3=-15
+        x_scale=(w-2*x_offset)/(maxx-minx)
+        y_scale=-(h-2*y_offset)/(maxy-miny)
+    
+    pxy1=Qt.QPointF(x1,y1)
+    px2=Qt.QPointF(x2,y1)
+    py2=Qt.QPointF(x1,y2)
+    
+    painter.setPen(Qt.QPen(QtCore.Qt.black,1,QtCore.Qt.SolidLine))
+    
+    #draw x-axis    
+    painter.drawLine(pxy1,py2)
+    painter.drawText(Qt.QPointF(x2,y1-y3),brakets(axis_name[0]))
+    for x in getChartDivision(minx,maxx):
+        p1 = Qt.QPointF((x-minx)*x_scale+x1,y1)
+        p2 = Qt.QPointF((x-minx)*x_scale+x1,y1-y3)
+        p3 = Qt.QPointF((x-minx)*x_scale+x1,y1-2*y3)
+        painter.drawLine(p1,p2)
+        painter.drawText(p3,x_str_func(x))
+    
+    #draw y-axis
+    painter.drawLine(pxy1,px2)
+    painter.drawText(Qt.QPointF(10,y2-y3-20),brakets(axis_name[1]))
+    for y in getChartDivision(miny,maxy):
+        p1 = Qt.QPointF(2*x1/3,(y-miny)*y_scale+y1)
+        p2 = Qt.QPointF(x1,(y-miny)*y_scale+y1)
+        p3 = Qt.QPointF(5,(y-miny)*y_scale+y1)
+        painter.drawLine(p1,p2)
+        painter.drawText(p3,y_str_func(y))
+    
+def getChartDivision(vmin,vmax,n=10):
+
+    ivmax = numpy.ceil(vmax)
+    ivmin = numpy.floor(vmin)
+    
+    diff = ivmax-ivmin+1
+
+    fp,deci =  math.modf(math.log(diff,n))
+
+    if (fp < 0.397):
+        c_factor=4
+    elif (fp<0.699):
+        c_factor=2
+    else:
+        c_factor=1
+    
+    step=(n**deci)/c_factor
+
+    arr = numpy.arange(ivmin,ivmax,step)
+
+    return arr
+    
+    
+def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
+               point_type='+', line_type=False, bar_type=False, int_param=64,
+               point_size=2, line_width=1,x_offset=60.0,y_offset=30.0, inverted_y=False):
+    
+    
+    surface_window=painter.window()
+    w=surface_window.width()
+    h=surface_window.height()
+        
+    pcount=len(data_y)
+    
+    miny=min_max[0]-0.1
+    maxy=min_max[1]+0.1
+    minx=data_x.min()-0.1
+    maxx=data_x.max()+0.1
+    
+    if inverted_y:
+        x1=x_offset
+        y1=y_offset
+        x_scale=(w-2*x_offset)/(maxx-minx)
+        y_scale=(h-2*y_offset)/(maxy-miny)
+    else:
+        x1=x_offset
+        y1=h-y_offset
+        x_scale=(w-2*x_offset)/(maxx-minx)
+        y_scale=-(h-2*y_offset)/(maxy-miny)
+    
+    painter.setPen(color)
+    
+    showpoints=True
+    showline=True
+    showbars=True
+    
+    if point_type=='+':
+        cross=True
+        ring=False
+        painter.setBrush(0)
+        r1=point_size
+        r2=point_size
+    elif point_type=='o':
+        cross=False
+        ring=True
+        painter.setBrush(color)
+        r1=point_size
+        r2=point_size
+    elif point_type=='*':
+        cross=True
+        ring=True
+        painter.setBrush(0)
+        r1=3.0*point_size/2.0
+        r2=point_size/2.0
+    elif point_type=='d':
+        cross=False
+        ring=False
+        painter.setBrush(color)
+        r1=point_size+1
+        r2=point_size+1
+    elif point_type==False:
+        showpoints=False
+        
+    if line_type=='-':
+        linetype=QtCore.Qt.SolidLine
+    elif line_type=='--':
+        linetype=QtCore.Qt.DashLine
+    elif line_type=='..':
+        linetype=QtCore.Qt.DotLine
+    elif line_type=='-.':
+        linetype=QtCore.Qt.DashDotLine
+    elif line_type=='-..':
+        linetype=QtCore.Qt.DashDotDotLine    
+    elif line_type==False:
+        showline=False
+       
+    painter.setPen(color)
+    if showpoints:
+        for i in range(pcount):
+            x=(data_x[i]-minx)*x_scale + x1
+            y=(data_y[i]-miny)*y_scale + y1
+            drawMarker(painter,x,y,r1,r2,ring,cross)
+            if (errors!=None):
+                if bar_type=='|':
+                    ys=(data_y[i]+errors[i]-miny)*y_scale + y1
+                    yl=(data_y[i]-errors[i]-miny)*y_scale + y1
+                    painter.drawLine(Qt.QPointF(x,yl),Qt.QPointF(x,ys))        
+    
+    if showline:
+        painter.setPen(Qt.QPen(color, line_width, linetype))
+        points=[]
+        # now signal will be interpolated and all high frequency noise will be removed
+        for p in interpolate(data_x, data_y,10,4,int_param):
+            x=(p[0]-minx)*x_scale + x1
+            y=(p[1]-miny)*y_scale + y1
+            points.append(Qt.QPointF(x,y))
+            #drawMarker(painter,x,y,r1,r2,False,True) #debug purpose only
+        painter.drawPolyline(*points)
+        
+def interpolate(data_x, data_y, upsample_factor=4.0, downsample_factor=1.0, mask_factor=0, padding=20):
+    
+    ON=len(data_y)
+    
+    #padding for better results
+    yst=data_y[0]
+    ynd=data_y[-1]
+    
+    new_y_data=((yst,)*padding)+tuple(data_y)+((ynd,)*padding)
+    data_y=numpy.array(new_y_data)
+    
+    #the actual interpolation process
+    
+    N=len(data_y)
+    
+    mask=numpy.zeros_like(data_y)
+
+    for i in xrange(N):
+        mask[i]=((1+numpy.cos(i*2.0*scipy.pi/N))/2.0)**(mask_factor)
+    
+    ry=scipy.signal.resample(data_y,N*upsample_factor,window=mask)
+
+    if downsample_factor > 0:
+        ry=scipy.signal.resample(ry,N*downsample_factor)
+    
+    #now deleting the padding and retrieving the actual data
+    delta=padding*downsample_factor
+    ry=ry[delta:-delta]
+    
+    # NOTE: it seems that scipy.signal.resample does not offer
+    #       a valid way to correcly resample the data_x values!
+    rx=[]    
+    for i in xrange(ON-1):
+        dd=(data_x[i+1]-data_x[i])/downsample_factor
+        for n in xrange(downsample_factor):
+            rx.append(data_x[i]+n*dd)
+            
+    for n in xrange(downsample_factor):
+            rx.append(data_x[-1]+n*dd)
+    
+    newN = len(ry)
+    
+    result = numpy.empty((newN,2),dtype=numpy.float)
+    
+    for i in range(newN):
+        result[i,0]=rx[i]
+        result[i,1]=ry[i]
+    
+    return result
+
+
+def exportTableCSV(self, qtable, fname, sep='\t', newl='\n', unit=','):
+    
+    try:
+        f = open(fname,'w')
+    except Exception as exc:
+        msgBox = Qt.QMessageBox()
+        msgBox.setText(tr("Cannot create the data file: ")+str(exc))
+        msgBox.setInformativeText(tr("Assure you have the authorization to write the file."))
+        msgBox.setIcon(Qt.QMessageBox.Critical)
+        msgBox.exec_()
+    else:
+        line = ''
+        rows = xrange(qtable.rowCount())
+        cols = xrange(qtable.columnCount())
+        
+        for c in cols:
+            itm = qtable.horizontalHeaderItem(c)
+            line+=str(itm.text()).replace(' ','_')+str(sep)
+        
+        line = line[:-1]+str(newl)
+        f.write(line)
+        
+        for r in rows:
+            line=''
+            for c in cols:
+                itm = qtable.item(r,c)
+                line+=str(itm.text()).replace('.',unit)+str(sep)   
+            line = line[:-1]+str(newl)
+            f.write(line)
+        
+        f.close()
+        
+
 
 #This function a test is for future de-blurring feature
 def cepstrum(img):
@@ -1031,11 +1939,11 @@ def storeTmpArray(array, tmpdir=None, compressed=False):
     
     if compressed:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npz', dir=tmpdir)
-        trace("saving to compressed temporary file "+str(tmp.name)+"\n")
+        trace(" saving to compressed temporary file "+str(tmp.name)+"\n")
         numpy.savez_compressed(tmp.name,array)
     else:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npy', dir=tmpdir)
-        trace("saving to temporary file "+str(tmp.name)+"\n")
+        trace(" saving to temporary file "+str(tmp.name)+"\n")
         numpy.save(tmp.name,array)
     tmp.seek(0)
     return tmp
@@ -1062,7 +1970,7 @@ def generateHistograhms(imgdata, bins=255):
     hists=[]
     shape=imgdata.shape
 
-    hrange=getMinMax(imgdata)
+    hrange=(imgdata.min(),imgdata.max())
     
     if len(shape)==2:
         hists.append(numpy.histogram(imgdata,bins,range=hrange))        
@@ -1074,10 +1982,14 @@ def generateHistograhms(imgdata, bins=255):
 
     return numpy.array(hists)
 
-def drawHistograhm(painter, w, h, hists, xmin=None, xmax=None):
+def drawHistograhm(painter, hists, xmin=None, xmax=None):
 
     gm1 = 0.05 #geometric corrections
     gm2 = 1.0 - gm1
+
+    surface_window=painter.window()
+    w=surface_window.width()
+    h=surface_window.height()
 
     ymax=max(hists[0][0])
     
@@ -1135,7 +2047,7 @@ def drawHistograhm(painter, w, h, hists, xmin=None, xmax=None):
             painter.setPen(QtCore.Qt.DotLine)
         
             for yy in numpy.arange(y1,y0,(y0-y1)/10.0):
-                painter.drawLine(x0,yy,x1,yy)
+                painter.ne(x0,yy,x1,yy)
                 painter.drawText(x0,yy,str(ymax-ymax*(yy-y1)/(y0-y1)))
         
             painter.setPen(QtCore.Qt.DashLine)
@@ -1146,6 +2058,51 @@ def drawHistograhm(painter, w, h, hists, xmin=None, xmax=None):
                 painter.drawLine(xx,y0,xx,y1)
                 painter.drawText(xx-15,y0+15,str(xmax*(xx-x0)/(x1-x0)))
 
+# Light curves generation functions
+def getStarMagnitudeADU(ndimg, star_x, star_y, inner_radius, middle_radius, outer_radius):
+
+    val_adu=[]
+    bkg_adu=[]
+    ir2 = (inner_radius**2)
+    mr2 = (middle_radius**2)
+    or2 = (outer_radius**2)
+    
+    for x in range(-int(inner_radius)-1,int(inner_radius)+1):
+        for y in range(-int(inner_radius)-1,int(inner_radius)+1):
+                                   
+            p = (x**2+y**2)
+            
+            if p <= ir2:
+                val_adu.append(ndimg[star_y+y,star_x+x])
+            
+    for x in range(-int(outer_radius)-1,int(outer_radius)+1):
+        for y in range(-int(outer_radius)-1,int(outer_radius)+1):
+            
+            p = (x**2+y**2)
+            
+            if (p<=or2) and (p>mr2):
+                bkg_adu.append(ndimg[star_y+y,star_x+x])
+    
+    val_adu=numpy.array(val_adu)
+    bkg_adu=numpy.array(bkg_adu)
+    
+    total_star_pixels = len(val_adu)
+    
+    total_val_adu=val_adu.sum(0) # total value for star
+    mean_bkg_adu=bkg_adu.mean(0) # average for background
+    
+    total_val_adu_delta=val_adu.shape[0] # error value for star
+    mean_bkg_adu_sigma=bkg_adu.std(0) # average for background
+    
+    mean_adu = total_val_adu - mean_bkg_adu*total_star_pixels # best value for star
+    mean_adu_delta = total_val_adu_delta/3.0 + mean_bkg_adu_sigma
+
+    #this avoids negative or null value:
+    if (mean_adu >0).all():        
+        return (mean_adu, mean_adu_delta)
+    else:
+        raise ValueError('Negative or null ADU values are not allowed!\nPlease set the star marker correctly.')
+            
 
 def getLocale():
     try:
