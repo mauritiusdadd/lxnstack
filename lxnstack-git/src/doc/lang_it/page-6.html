@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-5.html'">
+     <a href="page-5.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-7.html'">      
+     <a href="page-7.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item" id="current-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Darkframe e Flatfield</h1></p>
+   <p>
+    In queste due sezioni è possibile selezionare le immagini di calibrazione di master-dark e 
+    di master-flatfield.
+   </p>
+   <p>
+    Se non si vogliono utilizzare immagini di dark e flatfield, ignorare queste sezioni.
+   </p>
+   <p>
+    E' possibile creare le immagine di calibrazione aggiungendo le singole immagini di dark e di flatfield
+    alle rispettive liste. Queste verranno utilizzate per creare le immagini di master-dark e di
+    master-flatfield.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/dark_list.png"></image>
+    <image src="../imgs/flat_list.png"></image>
+   </p>
+   <p class="message-box" id="info">
+    NOTA: Se si vuole è possibile cercare automaticamente le immagini di dark e di flatfield
+    abilitando la casella "Cerca automaticamente le immagini di dark e flatfield" nelle impostazioni
+    dell'applicazione. In tal modo, se nella directory da cui sono state caricate le immagini sono
+    presenti le cartelle 'dark' e 'flat', le immagini al loro interno saranno automaticamente aggiunte
+    alle rispettive liste (ad esempio se si sono caricate le immagini dalla directory '/home/immagini',
+    le immagini di dark e flatfield verranno cercate automaticamente nelle directory 
+    '/home/immagini/dark' e '/home/immagini/flat').
+   </p>
+   <p>
+    Se invece si dispone già di immagini di maste-dark e di maste-flatfield, è possibile selezionarle
+    attivando le caselle 'Usa master-dark' ed 'Usa master-flatfield' e  sceglierle cliccando sui
+    pulsanti '...', oppure scrivendo il loro percorso completo nell'apposito riquadro.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/dark_master.png"></image>
+    <image src="../imgs/flat_master.png"></image>
+   </p>
+   <p>
+    Infine è possibile scegliere per entrambi i master il fattore moltipicativo che verrà
+    usato nel processo di calibrazione delle singole immagini (il valore predefinito è 1).
+   </p>   
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

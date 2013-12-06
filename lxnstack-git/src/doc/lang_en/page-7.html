@@ -1,0 +1,200 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Lxnstack User's Manual</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-6.html'">
+     <a href="page-6.html">&lt;&lt; back</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-8.html'">      
+     <a href="page-8.html">next &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; change language</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduction</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Files loading</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Image capture</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Zoom and Display</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Selecting images</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Images alignment</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe and Flatfield</a>
+      </li>
+      <li class="tree-item" id="current-item">       
+       <a href="page-7.html">Stacking</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Lightcurves generation</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Tutorials</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferences</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>E</p>
+    <p>X</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Stacking</h1></p>
+   <p>
+    Before proceding with the stacking process be sure all images have been aligned
+    (see <a href="page-5.html">Images alignment</a>) and then click the 'stack' button
+    in the 'Tools' section.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/tools.png"></image>
+   </p>
+   <p>
+    A dialog window will be shown in which you can select the stcking method:
+   </p>
+   <p class="image-box">
+    <image src="../imgs/stacking_opt.png"></image>
+   </p>
+   <p>
+    Currently the following stacking method are available:
+    <ul>
+     <li>
+      Average (native) : the average of all selected image is computed.
+     </li>
+     <li>
+      Median : the median of all selected image is computed.
+     </li>
+     <li>
+      Sigma-clipping : the average of all selected image is computed, and the standard deviation rejection method is applied <sup class="note"><a href="notes.html#note_3">[3]</a></sup>.
+     </li>
+     <li>
+      Standard deviation (native) : the standard deviation of all selected image is computed.
+     </li>
+     <li>
+      Variance (native) : the variance of all selected image is computed..
+     </li>
+     <li>
+      Maximum (native) : An image containing the maximum value for eache pixel (computed an all images) is returned.
+     </li>
+     <li>
+      Minimum (native) : An image containing the minimum value for eache pixel (computed an all images) is returned.
+     </li>
+     <li>
+      Product (native) : the product of all images is computed.
+     </li>
+    </ul>
+   </p>
+   <p class="message-box" id="warning">
+    WARNING: The 'native' stacking methods use algorithms that can store data directly to the RAM,
+    the others instead MUST store data to temporary files (see <a href="page-10.html">impostazioni</a>)
+    in a folder that is '/tmp/lxnstack' by default. Due to the use of 32bit or 64bit float point numbers,
+    the temprary files can be very big. For this reason you must assure you have enough space on the disk
+    where the temporary folder is located (or enough free RAM if native methods are used).
+   </p>
+   <p>
+    Here an example of the average of some images.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/averaged.png"></image>
+   </p>
+   <p>
+    Once the stacking is completed, you can adjust the output level of the result image by clicking
+    the 'Image levels' image in the 'Tools' section. The following dialog window will appear:
+   </p>
+   <p class="image-box">
+    <image src="../imgs/levels.png"></image>
+   </p>
+   <p>
+    On the right side of the window the histograhm of the result image is displayed and on the
+    left side there are the curves controls to adjust the levels of the image.
+    If the 'data clipping' section is enabled you can choose if to 'clip' pixel valuex outside
+    the specified data range ( [0,255] or [0,65535] ) or to 'scale' the image levels in order
+    that the maximum and minimum values are contained in the specified data range.
+   </p>
+   <p>
+    To explain how the curves work, we use the notation previously introduced in the section 
+    <a href="page-3.html">'Zoom and Display'</a>. So let I be the matrix of size WxHxC where
+    W and H are the width and the height of the image and C the number of components.
+    Now if I(x,y,c) is the element of I at position x,y,c and F(X) the curve to apply to I, then
+    the result image I' is I'(x,y,c)=F(I(x,y,c)) for each x,y,c.
+   </p>
+   <p>
+    Now if we introduce the parameters A,B,O,M,N, the following curves can be defined:
+    <ul>
+     <li>
+      Linear: F(X) = A+B×X
+     </li>
+     <li>
+      Logarithmic: F(X) = A + B×Log<sub>N</sub>(O + M×X)
+     </li>
+     <li>
+      Power : F(X) = A + B×(O + M×X)<sup>N</sup>
+     </li>
+     <li>
+      Exponential : F(X) = A + B×N<sup>(O + M×X)</sup>
+     </li>
+    </ul>
+   </p>
+   <p>
+    The image shown below is the above one to which a Power curve is applyed.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/levels_mod.png"></image>
+   </p>
+   <p class="image-box">
+    <image src="../imgs/averaged_mod.png"></image>
+   </p>
+   <p class="message-box" id="warning">
+    WARNING: Lxnstack is NOT an image editor. The level adjustment functionality provided only to obtain a
+    better image to pass to other image-editing programs and reduce so nasty unwanted artifacts.
+   </p>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

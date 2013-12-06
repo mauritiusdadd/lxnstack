@@ -1,0 +1,162 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-7.html'">
+     <a href="page-7.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-9.html'">      
+     <a href="page-9.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item" id="current-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Curve di Luce</h1></p>
+   <p class="message-box" id="info">
+    IMPORTANTE: Attualmente lxnstack può generare curve di luce solo per oggetti fissi come stelle e galassie.
+   </p>
+   <p><h4>Premesse</h4></p>
+   <p>
+    Prima di poter effetuare qualsiasi operazione in questa sezione, è necessario aver caricato ed allineato
+    correttamente delle immagini. 
+   </p>
+   <p>
+    Sono da preferirsi le immagini in formato RAW poichè tali immagini sono di tipo lineare, ovvero immaginiamo
+    che sul sensore incidano N fotoni nul pixel P1 e 2N fotoni sul pixel P2. Nell'immagine raw al pixel P1
+    corrisponerà un certo valore X mentre al pixel P2 corrisponerà il valore 2X. Per generare un immagine 
+    'normale' (Jpeg, Tiff, ...) invece, la fotocamera applica una serie di correzioni che eliminano questa linearità
+    cosi da inficiare la validità di qualsiasi misura.
+   </p>
+   <p>
+    Inoltre è preferibile utilizzare immagini provenienti da sensori con matrice Bayer, poichè permettono di riprendere
+    in tre bande dello spettro visibile, mentre i sensori monocromatici possono riprendere solo in una banda alla volta.
+    Utilizzando una sola banda dello spettro si potrà calcolare solo a magnitudine dell'oggetto in quella banda, mentre
+    utilizzando le tre bande I,V,B ( che in linguaggio informatico prendono il nome di R,G,B)<sup class="note"><a href="notes.html#note_4">[4]</a></sup>,
+    è possibile calcolare la magnitudine standard <sup class="note"><a href="notes.html#note_5">[5]</a></sup>.
+   </p>
+   <p><h4>Generazione delle curve di luce</h4></p>
+   <p>
+    Fatte queste premesse, è possibile mostrare come generare delle cureve di luce. Innanzitutto bisogna spostarsi nella
+    sezione 'curve di luce'. Quì è possibile aggiungere le stelle da utilizzare cliccando il pulsante '+'. Una volta
+    fatto cio nella lista apparirà il nome della nuova stella.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_1.png"></image>
+   </p>
+   <p>
+    Una volta creata una nuova stella, bisogna posizionare il suo l'indicatore selezionando il suo nome dalla lista
+    e cliccando sull'immagine con il tasto destro del mouse.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_2.png"></image>
+   </p>
+   <p>
+    Infine si devono impostare i raggi 1,2 e 3 affincè la stella nell'immagine sia interamente contenuta nel cerchio
+    più piccolo, e nella corona circolare esterna sia presente solo lo sfondo del cielo.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_3.png"></image>
+    <image src="../imgs/curves_4.png"></image>
+   </p>
+   <p>
+    Se si vuole effettuare un'analisi fotometrica comparativa, bisogna anche selezionare delle stelle di
+    riferimento di magnitudine nota spuntando, nella lista, la casella alla sinistra del nome corrispondente
+    e inserire il valore della magnitudine nell'apposita casella.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/light_curves_1.png"></image>
+   </p>
+   <p>
+    Infine basta cliccare sul pulsante 'Curve di luce' nella sezione 'Accessori',
+   </p>
+   <p class="image-box">
+    <image src="../imgs/tools.png"></image>
+   </p>
+   <p>
+    ed eventualmente scegliere il metodo di creazione dei file di calibrazione.
+    Iniziera quindi il processo di creazione delle curve di luce, che è possibile visualizzare
+    nella schermata 'grafici'.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/charts.png"></image>
+   </p>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

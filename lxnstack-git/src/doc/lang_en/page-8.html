@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Lxnstack User's Manual</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-7.html'">
+     <a href="page-7.html">&lt;&lt; back</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-9.html'">      
+     <a href="page-9.html">next &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; change language</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduction</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Files loading</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Image capture</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Zoom and Display</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Selecting images</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Images alignment</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe and Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Stacking</a>
+      </li>
+      <li class="tree-item" id="current-item">
+       <a href="page-8.html">Lightcurves generation</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Tutorials</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferences</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>E</p>
+    <p>X</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Light curves</h1></p>
+   <p class="message-box" id="info">
+    WARNING: Lxnstack can currently generate lightcurves only for fixed objects like starts, galaxies,...
+   </p>
+   <p><h4>Abstract</h4></p>
+   <p>
+    Before you procede, be sure you have loaded and aligned the images you want to use.
+   </p>
+   <p>
+    The use of raw images is preferred because this images are linear unless the sensor reaches saturation.
+    Infact, if we suppose that N photons hit the pixel P1 on the sensor and 2N photons hit the pixel P2 on the
+    sensor, then in the RAW image if the value of the pixel P1 is X the the value of pixel P2 will be 2X.
+    In 'normal' images (Jpeg, Tiff, ...) this linearity is lost due to the corrections and intepolations
+    applied by the firmware of the camera.
+   </p>
+   <p>
+    Moreover the use of RAW images coming from sensors equipped with a Bayer matrix is preferred becaus they contain
+    data acquired at the same time from three band I,V,B of visible light 
+    ( that in coputer science are called R,G,B)<sup class="note"><a href="notes.html#note_4">[4]</a></sup>
+    and bolometric magnitudes<sup class="note"><a href="notes.html#note_5">[5]</a></sup> can be computed. If the sensor
+    is a monochromatic one, it is still possible to generate a lightcurve however the magnitude values will be valid
+    for a specific band of visible light.
+   </p>
+   <p><h4>Light curves generation</h4></p>
+   <p>
+    First of all, go to the 'Light curves' section and then add a star using the '+' button. A the name of the new
+    start will appear in the 'stars' list.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_1.png"></image>
+   </p>
+   <p>
+    After you added one or more stars, you have to place them on the image: select from the list the name of the start
+    you want to place and then click with the right mouse button on the star in the image.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_2.png"></image>
+   </p>
+   <p>
+    Finally you have to set the valuer for the radiuses 1,2 and 3 so that the star is fully contained in the smaller
+    circle and in the area between the external and the middle circle must be only sky background.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/curves_3.png"></image>
+    <image src="../imgs/curves_4.png"></image>
+   </p>
+   <p>
+    If you want to make a comparative photometric analisys then one or more reference stars with a known
+    magnitude must be set: to do this, select first the name of a star form the star list and check the
+    box on its left side and then enter the value of the magnitude in the 'magnitude' text box.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/light_curves_1.png"></image>
+   </p>
+   <p>
+    Now click the 'Light curves' button in the 'Tools' section
+   </p>
+   <p class="image-box">
+    <image src="../imgs/tools.png"></image>
+   </p>
+   <p>
+    and, if needed, chose the stacking method to generate the calibration images.
+    After the end of the generation process, you can display the light curves in the 'lightcurve charts' section.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/charts.png"></image>
+   </p>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

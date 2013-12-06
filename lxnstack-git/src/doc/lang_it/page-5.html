@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-4.html'">
+     <a href="page-4.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-6.html'">      
+     <a href="page-6.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item" id="current-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Allineamento automatico</h1></p>   
+   <p>
+    Per effettuare una allineamento automatico bisogna per prica cosa scegliere il tipo di 
+    allineamento dall'apposito menù a tendina. Dopo aver effettuato gli opportuni settaggi
+    si può effettuare l'allineamento utilizzando il pulsante 'Allinea' nella sezione 'Accessori'.
+    Comparirà allora la seguente finestra di dialogo:
+   </p>
+   <p>
+   <p class="image-box">
+    <image src="../imgs/align_dialog.png"></image>
+   </p>
+   </p>
+   <p>
+    in cui è possibile selezionare se effettuare
+    un allineamento semplie, un allineamento con derotazione, solo una derotazione oppure azzerare
+    ognli l'allineamento effettuato in precedenza.
+   </p>
+   <p>
+    Di seguito è fornita una breve descrizione dei due metodi di allineamento automatico disponibili:
+   </p>   
+   <section id="phase">
+   <p><h4>Allineamento tramite correlazione di fase</h4></p>
+   <p class="image-box">
+    <image src="../imgs/alignment_phase.png"></image>
+   </p>
+   <p>
+    Questo tipo di allineamento è completamente automatico e non necessita interventi da parte
+    dell'utente. Se l'allineamento devesse risultare errato, provare a modificare i valori di
+    sharpening. Durante l'allineamento viene mostrata un immagine che rappresenta la correlazione
+    di fase tra l'immagine da allineare e quella di riferimento.
+   </p>   
+   <p class="image-box">
+    <image src="../imgs/phase_image.png"></image>
+   </p>
+   </section>
+   <section id="points">
+   <p><h4>Allineamento tramite punti di riferimento</h4></p>
+   <p>
+    Per aggiungere o rimuovere un punto di allineamento, utilizzare rispettivamente i pulsanti
+    '+' e '-' presenti nel riquadro 'punti di allineamento' nella sezione 'Allineamento'.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/alignment_points.png"></image>
+   </p>
+   <p>
+    Premendo il pulsante 'autorilevamento', dei punti di allineamento verranno aggiunti automaticamente
+    a seconda della loro facilità di riconoscimento ( vedi la sezione <a href="page-10.html#align">Preferenze</a> ).
+   </p>
+   <p class="image-box">
+    <image src="../imgs/auto_points.png"></image>
+   </p>
+   <p>
+    E' possibile spostare un punto di allineamento selezionandolo dalla lista e cliccando con il
+    tasto destro del mouse sul punto dell'immagine in cui lo si vuole posizionare, oppure utilizzando
+    i riquadri 'X offset' ed 'Y offset'.
+   </p>
+   <p>
+    Per un corretto allineamento tutti i punti devono essere posizionati sulle immagini rimanenti.
+    Per evitare di farlo manualmente, si può utilizzare la funzione di posizionamento automatico,
+    disponibile tramite il pulsante 'Imposta su tutte le immagini'. Questa funzione posizionerà
+    automaticamente su tutte le immagini i punti di allineamento che non sono già stati posizionati
+    in precedenza o che sono stati spostati.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/points_detection.png"></image>
+   </p>
+   <p class="message-box" id="info">
+    IMPORTANTE: evitare di posizionare i punti di allineamento troppo vicino ai bordi dell'immagine!
+   </p>
+   </section>
+   <section id="manual">
+   <p><h1>Allineamento manuale</h1></p>
+   <p>
+    Nella sezione 'Allineamento manuale', in alternativa all'allineamento automatico, è disponibile
+    anche un allineamento manuale, basato sul rilevamento della differenza tra un'immagine di
+    riferimento e le altre immagini da allineare.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/manual_alignment.png"></image>
+   </p>
+   <div class="message-box" id="warning">
+    ATTENZIONE: l'utilizzo di uno dei metodi di allineamento automatico resetta qualsiasi
+    modifica fatta in questa sezione, quindi è bene utilizzare l'allineamento manuale dopo
+    aver effettuato quello automatico (magari come rifinitura o per correggere alcuni errori).
+   </div>
+   <p>
+    L'immagine di riferimento viene scelta tramite una casella situata alla sinistra del nome
+    dell'immagine. L'immagine da allineare viene scelta selezionando il suo nome dalla lista 
+    con il tasto sistro del mouse.
+   </p>
+   <p>
+    L'allineamento avviene tramite i riquadri 'X offset' ed 'Y offset'.
+    Minore sarà la differenza tra le immagini, più sarà scura la loro differenza mostrata nel riquadro
+    a destra (se le immagini fossero identiche allora si vedrebbe solo un sfondo nero uniforme).
+   </p>
+   </section>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

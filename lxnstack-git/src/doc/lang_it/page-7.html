@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-6.html'">
+     <a href="page-6.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-8.html'">      
+     <a href="page-8.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item" id="current-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Somma</h1></p>
+   <p>
+    Per effettuare la somma delle immagini prima di tutto occorre effettuare l'allineamento
+    (vedi <a href="page-5.html">allineamento delle immagini</a>) ed in seguito effettuare
+    la somma cliccando il pulsante 'stack' nella sezione 'Accessori'.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/tools.png"></image>
+   </p>
+   <p>
+    Verrà quindi mostrata una finestra di dialogo in cui selezionare il tipo di stacking
+    da effettuare:
+   </p>
+   <p class="image-box">
+    <image src="../imgs/stacking_opt.png"></image>
+   </p>
+   <p>
+    Attualmente sono disponibili i seguenti tipi di stacking:
+    <ul>
+     <li>
+      Media (nativo) : viene calcolata la media (o somma) delle immagini.
+     </li>
+     <li>
+      Mediana : viene calcolata la mediana delle immagini.
+     </li>
+     <li>
+      Sigma-clipping : viene calcolata la media delle immagini, applicando il rigetto dei valori<sup class="note"><a href="notes.html#note_3">[3]</a></sup>.
+     </li>
+     <li>
+      Deviazione Standard (nativo) : viene calcolata la deviazione standard delle immagini.
+     </li>
+     <li>
+      Varianza (nativo) : viene calcolata la varianza delle immagini.
+     </li>
+     <li>
+      Massimo (nativo) : viene restituita un immagine contenente i valori massimi per ogni pixel
+      calcolati su tutte le immagini
+     </li>
+     <li>
+      Minimo (nativo) : viene restituita un immagine contenente i valori minimi per ogni pixel
+      calcolati su tutte le immagini
+     </li>
+     <li>
+      Prodotto (nativo) : viene calcolata la produttoria delle immagini.
+     </li>
+    </ul>
+   </p>
+   <p class="message-box" id="warning">
+    ATTENZIONE: I metodi 'nativi' utilizzano un algoritmo in grado di lavorare sui dati memorizzati nella
+    RAM, metre gli atri devono necessariamente creare dei file temporanei in una cartella (vedi 
+    <a href="page-10.html">impostazioni</a>) che per impostazione predefinita è /tmp/lxnstack.
+    Poiche i calcoli vengono effettuati con numeri a virgola mobile a 32bit o 64bit, i file temporanei
+    possono avere delle dimensioni puittosto elevate. Assicurarsi quindi di avere sufficiente spazio
+    su disco (o sufficiente RAM nel caso di metodi nativi) per portare a termine le operazioni.
+   </p>
+   <p>
+    Ecco un esempio di di media di immagini.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/averaged.png"></image>
+   </p>
+   <p>
+    Una volta effettuato lo stacking, è possibile modificare i livelli dell'immagine utilizzando il
+    pulsante 'Livelli' nella sezione 'Accessori'. Verrà quindi mostrata la seguente finestra di dialogo
+   </p>
+   <p class="image-box">
+    <image src="../imgs/levels.png"></image>
+   </p>
+   <p>
+    Nella parte destra viene visualizzato l'istogramma dell'immagine, mentre della parte sinistra
+    si strovano gli strumenti per modificare le curve dell'immagine<sup class="note"><a href="notes.html#note_4">[4]</a></sup>.
+    Se è attivata la sezione 'data clipping', sarà possibile scegliere se 'tagliare' i valori che non 
+    rientrano nell'intervallo selezionato ( [0,255] oppure [0,65535] ) oppure 'riscalare' i livelli 
+    affinche i valori massimo e minimo rientrino nell'intervallo selezionato.
+   </p>
+   <p>
+    Per capire meglio il funzionamento delle curve, utilizziamo nuovamente la notazione introdotta
+    nella sezione <a href="page-3.html">'visualizzazione e zoom'</a> per descrivere il contrasto,
+    ovvero: sia I la matrice di dimesioni WxHxC che rappresenta l'immagine, dove W e H sono l'altezza
+    e la largezza espresse in pixel e C il numero di componenti colore. Sia poi I(x,y,c) l'elemento
+    di posizione x,y,c e sia F(X) la curva da applicare all'immagine, il risultato dell'operazione
+    sarà una nuova immagine I' i cui elementi saranno I'(x,y,c)=F(I(x,y,c)) per ogni x,y,c.    
+   </p>
+   <p>
+    Detti allora A,B,O,M,N dei parametri scelti dall'utente, si possono definire le seguenti curve:
+    <ul>
+     <li>
+      Lineare: F(X) = A+B×X
+     </li>
+     <li>
+      Logaritmica: F(X) = A + B×Log<sub>N</sub>(O + M×X)
+     </li>
+     <li>
+      Potenza : F(X) = A + B×(O + M×X)<sup>N</sup>
+     </li>
+     <li>
+      Esponenziale : F(X) = A + B×N<sup>(O + M×X)</sup>
+     </li>
+    </ul>
+   </p>
+   <p>
+    Di seguito è mostrata invece la precedente immagine a cui è stata però applicata una curva di potenza.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/levels_mod.png"></image>
+   </p>
+   <p class="image-box">
+    <image src="../imgs/averaged_mod.png"></image>
+   </p>
+   <p class="message-box" id="warning">
+    ATTENZIONE: Questo programma non è stato progettato per effettuare image-editing avanzato. La modifica
+    dei livelli serve solo a fornire un immagine migliore possibile per la successiva modifica con altri
+    programmi, in modo da ridurre eventuali artefatti dovuti ad un'elaborazaione troppo spinta.
+   </p>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

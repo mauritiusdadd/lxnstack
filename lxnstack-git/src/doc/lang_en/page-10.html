@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Lxnstack User's Manual</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-9.html'">
+     <a href="page-9.html">&lt;&lt; back</a>
+    </li>
+    <li class="button" onclick="window.location.href='notes.html'">      
+     <a href="notes.html">next &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; change language</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduction</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Files loading</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Image capture</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Zoom and Display</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Selecting images</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Images alignment</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe and Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Stacking</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Lightcurves generation</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Tutorials</a>
+      </li>
+      <li class="tree-item" id="current-item">       
+       <a href="page-10.html">Preferences</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>E</p>
+    <p>X</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">
+   <p><h1>Preferences</h1></p>
+   <p>
+    To modify the application settings, go to the menu 'Options' -> 'Preferences'
+   <p>
+   </p>
+    In the 'Settings' tab you can change the language of the application and some of its defaults behaving.
+   <p class="image-box">
+    <image src="../imgs/preferences_settings.png"></image>
+   </p>   
+   <p>
+    In the 'Alignment' tab you can modify the settings of the automatic alignment methods.
+   </p>
+   <p>
+    In the 'rectangle size' section you can control the size of the portion of the image, centred on an 
+    alignment point and marked by a yellow rectangle, that will be compared with the other images during
+    the alignment process ( see <a href="page-5.html#points">Automatic alignment by points</a> ). This 
+    rectangle will be compared by defaults only on a limited portion of the images. If there are misalignmets,
+    try to check the box 'Use the whole image to track alignment points', but this opttion has also some
+    sideway effects that can easly lead to the detection of "false" alignment points.
+   </p>
+   <p>
+    In the 'Auto detection' section you can modify the maximum number of alignment points to be detected
+    and ist minimum quality (for more information see the opencv user's manual and search for 
+    "goodFeaturesToTrack").    
+   </p>
+   <p class="message-box" id="warning">
+    WARNING : The 'automatic detection' function may detect cosmic rays and hot pixels
+    as stars so make sure all alignment points are set correclty!
+   </p>
+   <p class="image-box">
+    <image src="../imgs/preferences_alignment.png"></image>
+   </p>
+   
+   <p>
+    In the 'Capture devices' section you can select a capture device and modify its properties.
+    For more information see the user's manual of the program 'v4l2-ctl'
+   </p>
+   <p class="message-box" id="warning">
+      WARNING: The OpenCV libraries cannot manage devices already in use by othe applications
+      and this can lead to a crash. Please MAKE SURE NO OTHER PROGRAM IS USING A CAPTURE DEVICE.
+   </p>
+   <p class="message-box" id="warning">
+      WARNING: The OpenCV libraries may not handle some properties like FPS.
+      Their controls are shown for a possible future implementation.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/preferences_capture_devices.png"></image>
+   </p>   
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

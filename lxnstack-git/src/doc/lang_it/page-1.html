@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-0.html'">
+     <a href="page-0.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-2.html'">      
+     <a href="page-2.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item" id="current-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Caricamento dei file</h1></p>
+   <p>
+    Lxnstack è in grado di leggere diversi formati immagine (tra cui anche i file CR2) e video.
+    Per caricare i file da utilizzare basta cliccare il menu 'File'->'Apri file', oppure utilizzare
+    il pulsante '+' nella sezione 'Lista immagini'. Apparirà quindi una finestra di dialogo in cui
+    selezionare i files da utilizzare. 
+   </p>
+   <p class="image-box">
+    <image src="../imgs/main_window.png"></image>
+   </p>
+   <p>
+    Le immagini ed i video devono avere tutte la stessa dimensione e lo stesso numero di canali 
+    (non è possibile ad esempio sommare un'immagine RGB con una a scala di grigio). Se sono 
+    selezionati file con caratteristiche incompatibili con quelli già caricati, questi vengono
+    scartati automaticamente ed è mostrato un messaggio di avvertimento contenente la lista
+    delle immagini ignorate.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/warning_dismatch.png"></image>
+   </p>
+   <p> 
+    Le immagini in formato CR2 invece devono essere decompresse per poter essere utilizzate e
+    l'immagine decodificata viene salvata in formato FITS qualora possibile<sup class="note"><a href="notes.html#note_1">[1]</a></sup>
+    oppure in formato NPY. A seconda delle impostazioni (vedi <a href="page-10.html">Preferenze</a>),
+    quest'operazione può essere effettuata automaticamente su tutti i files durante il caricamento
+    o in alternativa solo quando necessario.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/decoding_cr2.png" ></image>
+   </p>
+   <p>
+    Se le immagini contengono anche dati EXIF, questi ultimi vengono salvati in file con
+    estensione .exif e leggibili tramite il modulo pickle<sup class="note"><a href="notes.html#note_2">[2]</a></sup>
+    di python.
+   </p>   
+   <p>
+    Se le immagini caricate sono di tipo RAW (ovvero un'immagine monocromatica contenente i
+    dati grezzi provenienti dal sensore) di un CCD/CMOS con matrice Bayer, allora è possibile attivare
+    la casella "modalità RAW" e selezionare quindi il tipo di matrice Bayer del sensore.
+   </p>
+   <p>
+    Di seguito è mostrato una porzione di immagine RAW (sinistra) e la stessa porzione in modalità RAW.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/capture_controls.png"></image>
+    <image src="../imgs/raw_mode.png"></image>
+   </p>
+   <p class="image-box">
+    <image src="../imgs/raw_star.png"></image>
+    <image src="../imgs/raw_star_good.png"></image>
+   </p>
+   <p>
+    Bisogna essere attenti a selezionare la matrice Bayer corretta (molte DSLR utilizzano una matrice RGGB),
+    altrimenti si otterranno risultati "poco soddisfacenti" come quello mostrato di seguito.
+   </p>   
+   <p class="image-box">
+    <image src="../imgs/raw_star_wrong.png"></image>
+   <p>
+   <p><h4> ESEMPIO :</h4></p>
+   <p>
+    Immaginiamo di voler caricare il file nome_file.cr2. Durante il caricamento questi verrà
+    decompresso e l'immagine sarà salvata come nome_file.fits (oppure nome_file.npy) ed i dati
+    EXIF verranno salvati come nome_file.exif.
+   </p>
+   <p>
+    Quando si caricherà nuovamente il file nome_file.cr2 i dati immagine verranno letti
+    automaticamente da nome_file.fits (o nome_file.npy) ed i metadati EXIF verranno caricati
+    da nome_file.exif senza necessità di dover nuovamente decomprimere il file.
+   </p>
+   
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

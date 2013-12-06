@@ -1,0 +1,47 @@
+#######################################################
+#                      LXNSTACK                       #
+#######################################################
+
+version 1.0.0:
+  * First public release.
+    
+version 1.1.0:
+  * Added FITS file support (optional, by installig
+    pyfits python package).
+  * Added 'jet' colormap for black & white images.
+  * Added automatic detection of best size and quality
+    of alignpoints.
+  * Fixed some minor bugs.
+  * Removed the "exposure control" tool because it does
+    not work anymore.
+  
+version 1.2.0:
+  * Added derotation ability.
+  * Added phase correlation alignment method.
+  * Added sub-pixel precision (0.1 pixel for 
+    phase correlation and 0.01 for manual alignment).
+  * Fixed some flatfield calibration errors.
+  * Now image levels are preserved when saving the
+    result as JPG, PNG or TIFF.
+    
+version 1.3.0:
+  * Fixed a bug that prevented loading of some 
+    non RGB fits.
+  * Added grayscale "raw" images support.
+  * Improoved displaying of images.
+  * Added image levels editing ability.
+  
+version 1.3.1:
+  * Fixed file dialog displaying in GNOME environment
+  * Fixed minor bugs in capture controls
+  * Faster zooming
+  * Added mouse Pan&Zoom
+
+version 1.4.0:
+  * Fixed a bug in captured image naming
+  * Fixed a bug in align points displaying
+  * Added the ability to save the image list as a video
+  * Added CR2 file native support
+  * Added lightcurve generation module
+  * Updated documentation
+  

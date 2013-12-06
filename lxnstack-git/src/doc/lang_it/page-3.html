@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Manuale Utente di lxnstack</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-2.html'">
+     <a href="page-2.html">&lt;&lt; indietro</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-4.html'">      
+     <a href="page-4.html">avanti &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; cambia lingua</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduzione</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Caricamento dei file</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-2.html">Acquisizione</a>
+      </li>
+      <li class="tree-item" id="current-item">
+       <a href="page-3.html">Visualizzazione e Zoom</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Scelta delle immagini da utilizzare</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-5.html">Allineamento delle immagini</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe e Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Somma delle immagini</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Generazione curve di luce</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Alcuni esempi</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferenze</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>I</p>
+    <p>C</p>
+    <p>E</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Visualizzazione e Zoom</h1></p>
+   <p>
+    Una volta caricato o acquisito le immagini, è possibile visualizzarle nell'apposito
+    riquadro selezionandole dalla lista con il tasto sinistro del mouse.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/file_loaded.png"></image>
+   </p>
+   <p>
+    Per spostare l'area dell'immagine visualizzata è possibile utilizzare le barre di scorrimento
+    laterale ed inferiore, oppure utilizzare la funzione 'pan-and-scan' cliccando sull'immagine con
+    il pulsante sinistro del mouse mentre si sposta in cursore. E' possibile poi modificare 
+    l'ingrandimento tramite il controllo dello zoom.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/zoom_controls.png"></image>
+   </p>
+   <p>
+    Sono disponibili tre tipi di zoom:
+   </p>
+   <p>
+    zoom: nessuno
+   </p>
+   <p class="image-box">
+    <image src="../imgs/zoom_none.png"></image>
+   </p>
+   <p>
+    zoom: adatta
+   </p>
+   <p class="image-box">
+    <image src="../imgs/zoom_fit.png"></image>
+   </p>
+   <p>
+    zoom: si
+   </p>
+   <p class="image-box">
+    <image src="../imgs/zoom_full.png"></image>
+   </p>
+   <p>
+    Se l'immagine ha una sola componente colore (scala di grigio) è possibile visualizzarla in falsi
+    colori utilizzando la colormap 'JET' (vedi <a href="page-10.html">Preferenze</a>).
+   </p>
+   <p>
+    Ecco un esempio di immagine a scala di grigio...
+   </p>
+   <p class="image-box">
+    <image src="../imgs/bw_colormap.png"></image>
+   </p>
+   <p>
+    ... e la stessa immagine visualizzata tramite la colormap 'JET'
+   </p>
+   <p class="image-box">
+    <image src="../imgs/jet_colormap.png"></image>
+   </p>   
+   <p>
+    Alle volte capita che le immagini acquisite siano troppo scure (ad esempio quando si 
+    vuole rimanere nella zona di risposta lineare del sensore) e risulta difficile vederne
+    i dettagli. Per ovviare a questo problema si può utilizzare la barra del contrasto.
+   </p>   
+   <p class="image-box">
+    <image src="../imgs/color_bar.png"></image>
+   </p>   
+   <p class="message-box" id="warning">
+    ATTENZIONE: la modifica del contrasto ha effetto solo sulla visualizzazione dell'immagine,
+    i dati di quest'ultima NON verranno cambiati in alcun modo!
+   </p>   
+   <p>
+    Sono disponibili tre tipi di contrasto: nessuno, pieno e si.
+   </p>
+   <p>
+    Per spiegare il funzionamento dei tre tipi di contrasto, bisogna innanzitutto definire
+    l'immagine come una matrice I di dimensioni WxHxC, dove W e H sono rispettivamente
+    la largezza e l'altezza dell'immagine espresse in pixel e C è il numero di componenti colore.
+    Un'immagine a scala di grigio avrà una sola componente colore (C=1) mentre una di tipo RGB
+    avrà tre componenti colore (C=3).Sia quindi I(x,y,c) l'elemento della matrice I situato 
+    nel punto (x,y,c) e siano I<sub>MAX</sub>=max{I(x,y,c) per ogni x,y,c} e I<sub>MIN</sub>=min{I(x,y,c)  per ogni x,y,c}
+    rispettivamente i valori massimo e minimo assoluti dell'immagine, si avranno i seguenti
+    tipi di contrasto:
+    <ul>
+     <li>
+      Nessuno: il contrasto dell'immagine viene regolato automaticamente in modo che il nero
+      corrisponda al valore min{0;I<sub>MIN</sub>} ed il bianco a 255 se I<sub>MAX</sub>&le;255  oppure a 65535 se
+      255&lt;I<sub>MAX</sub>&le;65535 oppure a I<sub>MAX</sub> se I<sub>MAX</sub>&gt;65535
+     </li>
+     <li>
+      Pieno: al nero corrisponde il valore I<sub>MIN</sub> ed al bianco il valore I<sub>MAX</sub>.
+     </li>
+     <li>
+      Si : al nero corrispondono tutti I(x,y,c) &le; P<sub>MIN</sub>×I<sub>MIN</sub> ed al bianco corrispondono tutti i
+      valori I(x,y,c) &ge; P<sub>MAX</sub>×I<sub>MAX</sub>, dove P<sub>MIN</sub> e P<sub>MAX</sub> sono delle percentuali scelte dall'utente.
+     </li>
+    </ul>
+   </p>
+   <p>
+    Ecco ad esempio un immagine che ritrae la zona intorno alla stella variabile DY-Pegasi... 
+   </p>
+   <p class="image-box">
+    <image src="../imgs/contrast_none.png"></image>
+   </p>
+   <p>
+    ... dove le stelle risultano visibili solo modificando il contrasto dell'immagine.
+   </p>
+   <p>
+   </p>   
+   <p class="image-box">
+    <image src="../imgs/contrast_yes.png"></image>
+   </p>
+   
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+

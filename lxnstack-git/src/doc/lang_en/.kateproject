@@ -1,0 +1,4 @@
+{
+  "name": "lxnstack-doc"
+, "files": [ { "directory": ".", "filters": ["*.html","*.css"], "recursive": 1 } ]
+}

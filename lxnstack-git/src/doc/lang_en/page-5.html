@@ -1,0 +1,178 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict //EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+
+ <head>
+  <title>Lxnstack User's Manual</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual.css"  media="screen"/>
+  <link rel="stylesheet" type="text/css" href="../usermanual-print.css"  media="print"/>
+ </head>
+
+ <body>
+
+   
+  <div id="navigation">
+   <ul>
+    <li class="button" onclick="window.location.href='page-4.html'">
+     <a href="page-4.html">&lt;&lt; back</a>
+    </li>
+    <li class="button" onclick="window.location.href='page-6.html'">      
+     <a href="page-6.html">next &gt;&gt;</a>
+    </li>
+   </ul>
+  </div>
+ 
+  <div id="sidebar">
+   <div id="sidebar-body">
+    <p class="button" id="back-to-language" onclick="window.location.href='../usermanual.html'">
+     <a href="index.html">&lt;&lt; change language</a>
+    </p>
+    <div id="menu-index">
+     <ul class="tree-view">
+      <li class="tree-item">
+       <a href="page-0.html">Introduction</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-1.html">Files loading</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-2.html">Image capture</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-3.html">Zoom and Display</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-4.html">Selecting images</a>
+      </li>
+      <li class="tree-item" id="current-item">
+       <a href="page-5.html">Images alignment</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-6.html">Darkframe and Flatfield</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-7.html">Stacking</a>
+      </li>
+      <li class="tree-item">
+       <a href="page-8.html">Lightcurves generation</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-9.html">Tutorials</a>
+      </li>
+      <li class="tree-item">       
+       <a href="page-10.html">Preferences</a>
+      </li>
+      <li class="tree-item">       
+       <a href="notes.html">Notes</a>
+      </li>
+     </ul>
+    </div>
+   </div>
+   <div id="sidebar-button">
+    <p>»</p>
+    <p>I</p>
+    <p>N</p>
+    <p>D</p>
+    <p>E</p>
+    <p>X</p>
+    <p>»</p>
+   </div>
+  </div>
+  
+  <div id="mainframe">   
+   <p><h1>Automatic alignment</h1></p>   
+   <p>
+    To do an automatic alignment, you must select the desired alignment method from 
+    the combobox and then, after you modified its settings, press the "Align" button
+    in the "Tools" section. The following dialog window will then appear:
+   </p>
+   <p>
+   <p class="image-box">
+    <image src="../imgs/align_dialog.png"></image>
+   </p>
+   </p>
+   <p>
+    In which you can chose to do a simple alignment, an alignment with derotation,
+    a simple derotation or to reset any change you previously made.
+   </p>
+   <p>
+    Here there is a short description of the two automatic alignment methods available:
+   </p>   
+   <section id="phase">
+   <p><h4>Phase Correlation Alignment</h4></p>
+   <p class="image-box">
+    <image src="../imgs/alignment_phase.png"></image>
+   </p>
+   <p>
+    This type of alignment is fully automatic and no user's interventions are reuired.
+    If there are some misalignments try to change the sharpening parameters.
+    The phase correlation between the current image and the reference image is shown 
+    during the aligment process.
+   </p>   
+   <p class="image-box">
+    <image src="../imgs/phase_image.png"></image>
+   </p>
+   </section>
+   <section id="points">
+   <p><h4>Alignment by align-points</h4></p>
+   <p>
+    Use the '+' and '-' buttons in the "Align points" section to add or remove an align-point.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/alignment_points.png"></image>
+   </p>
+   <p>
+    Press the 'Automatic detection' button to automatic detect the best alignment points
+    (see <a href="page-10.html#align">Preferences</a> ).
+   </p>
+   <p class="image-box">
+    <image src="../imgs/auto_points.png"></image>
+   </p>
+   <p>
+    Click on the image with the Right Mouse Button to move the currently selected align point
+    or set its position in the 'X offset' and 'Y offset' boxes.
+   </p>
+   <p>
+    All the points must be correctly positioned on all images. If you don't want to do it 
+    manually, you can press the 'Set on all images' button.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/points_detection.png"></image>
+   </p>
+   <p class="message-box" id="info">
+    WARNING: do not place aligment points near the image borders!
+   </p>
+   </section>
+   <section id="manual">
+   <p><h1>Manual alignment</h1></p>
+   <p>
+    A manual aligment method is also available in the "Manual alignment" section.
+   </p>
+   <p class="image-box">
+    <image src="../imgs/manual_alignment.png"></image>
+   </p>
+   <div class="message-box" id="warning">
+    WARNING: the use of any of the automatic aligment methods will override any canges
+    done in the manual aligment section. If you want to manually modify the alignment of
+    an image then do it after the execution of the automatic aligment.
+   </div>
+   <p>
+    The reference image is select using the checkbox on the leftside of its name.
+    The image to be aligned is selected by clicking its name with the left mouse button.
+    The difference if the two images is shown in the "image viewer" box.
+   </p>
+   <p>
+    To shift the image use the 'X offset' and 'Yoffset' boxes.
+    A darker difference means well aligned images.
+   </p>
+   </section>
+  </div>
+  
+  <div class="footpage" id="about">
+   <a>lxnstack &copy; 2013 Maurizio D'Addona</a>
+  </div>
+ </body>
+</html>
+
