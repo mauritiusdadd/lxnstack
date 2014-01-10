@@ -1056,6 +1056,170 @@ on all used images.</string>
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="page_bias">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>198</width>
+         <height>301</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Bias-frame</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_36">
+        <item>
+         <widget class="QCheckBox" name="masterBiasCheckBox">
+          <property name="text">
+           <string>Use master-bias</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="masterBiasGroupBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>Select an existing master-dark file</string>
+          </property>
+          <property name="title">
+           <string>master-bias file</string>
+          </property>
+          <property name="flat">
+           <bool>false</bool>
+          </property>
+          <property name="checkable">
+           <bool>false</bool>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_33">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_21">
+             <item>
+              <widget class="QLineEdit" name="masterBiasLineEdit"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="masterBiasPushButton">
+               <property name="text">
+                <string>...</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="biasFramesGroupBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>Here you can add dark-frames
+to compute master-dark file</string>
+          </property>
+          <property name="title">
+           <string>bias frames</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_34">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_22">
+             <property name="spacing">
+              <number>6</number>
+             </property>
+             <item>
+              <widget class="QPushButton" name="biasAddPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>300</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Add</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="biasClearPushButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Clear</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QListWidget" name="biasListWidget"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox_5">
+          <property name="title">
+           <string>Moltiplication factor</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_35">
+           <item>
+            <widget class="QDoubleSpinBox" name="biasMulDoubleSpinBox">
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <double>99999999.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="value">
+              <double>1.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="page_dark">
        <property name="geometry">
         <rect>
@@ -1066,7 +1230,7 @@ on all used images.</string>
         </rect>
        </property>
        <attribute name="label">
-        <string>Darkframe</string>
+        <string>Dark-frame</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
@@ -1387,7 +1551,7 @@ to compute master-flat file</string>
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>-59</y>
+         <y>0</y>
          <width>202</width>
          <height>283</height>
         </rect>
@@ -3346,22 +3510,6 @@ under the mous pointer.</string>
     <hint type="destinationlabel">
      <x>319</x>
      <y>239</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>darkClearPushButton</sender>
-   <signal>released()</signal>
-   <receiver>darkListWidget</receiver>
-   <slot>clear()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>186</x>
-     <y>279</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>119</x>
-     <y>314</y>
     </hint>
    </hints>
   </connection>

@@ -84,48 +84,56 @@
   <div id="mainframe">
    <p><h1>Preferences</h1></p>
    <p>
-    To modify the application settings, go to the menu 'Options' -> 'Preferences'
+    Tramite il menu 'Opzioni'->'Preferences' si accede alle impostazioni
+    dell'applicazione.
    <p>
    </p>
-    In the 'Settings' tab you can change the language of the application and some of its defaults behaving.
+    Nella scheda 'Impostazioni' è possibili scegliere la lingua in cui visualizzare il programma,
+    e modificare alcuni comportamenti del programma del programma.
    <p class="image-box">
     <image src="../imgs/preferences_settings.png"></image>
-   </p>   
+   </p>
+   
    <p>
-    In the 'Alignment' tab you can modify the settings of the automatic alignment methods.
+    Nella scheda 'Allineamento' possono essere cambiate le impostazioni dell'allineamento automatico,
+    come le 'dimensioni del rettangolo' che indicano le dimensioni della porzione dell'immagine, centrata
+    sul punto di allineamento ed evidenziata da un rettangolo giallo attorno a quest'ultimo,
+    da confrontare con le altre immagini nel processo di auto rilevamento dei punti di allineamento.
+    ( vedi la sezione <a href="page-5.html#points">Allineamento automatico</a> ).
+    Come impostazione predefinita, tale "rettangolo" viene confrontato in un intorno del punto originale.
+    Se lo spostamento delle immagini è eccessivo il punto potrebbe non essere rilevato correttamente, in
+    tal caso potrebbe essere utile fare un confronto sull'intera immagine: in tal caso basta spuntare
+    la voce 'Utilizza tutta l'immagine per il tracciamento'. Anche utilizzare l'intera immagine però
+    ha i suoi svantaggi: oltre ad essere un processo più lento, è soggetto maggiormente a rilevamento
+    di falsi positivi, vanificando così il processo di allineamento.
    </p>
    <p>
-    In the 'rectangle size' section you can control the size of the portion of the image, centred on an 
-    alignment point and marked by a yellow rectangle, that will be compared with the other images during
-    the alignment process ( see <a href="page-5.html#points">Automatic alignment by points</a> ). This 
-    rectangle will be compared by defaults only on a limited portion of the images. If there are misalignmets,
-    try to check the box 'Use the whole image to track alignment points', but this opttion has also some
-    sideway effects that can easly lead to the detection of "false" alignment points.
-   </p>
-   <p>
-    In the 'Auto detection' section you can modify the maximum number of alignment points to be detected
-    and ist minimum quality (for more information see the opencv user's manual and search for 
-    "goodFeaturesToTrack").    
+    Nella sezione 'Rilevamento automatico' si possono invece impostare il numero massimo di punti
+    da rilevare e la qualità minima dei punti (per ulteriori informazioni vedi il manuale utente della
+    libreria opencv, in particolare la funzione "goodFeaturesToTrack")
    </p>
    <p class="message-box" id="warning">
-    WARNING : The 'automatic detection' function may detect cosmic rays and hot pixels
-    as stars so make sure all alignment points are set correclty!
+    ATTENZIONE : la funzionalita 'Rilevamento automatico' può scambiare raggi cosmici o pixel caldi per
+    stelle, assicurarsi quindi che i punti di allineamento siano posizionati correttamente.
    </p>
    <p class="image-box">
     <image src="../imgs/preferences_alignment.png"></image>
    </p>
    
    <p>
-    In the 'Capture devices' section you can select a capture device and modify its properties.
-    For more information see the user's manual of the program 'v4l2-ctl'
+    Nella sezione 'Dispositivi di acquisizione' si può scegliere il dispositivo da utilizzare
+    e regolare le impostazioni base dello stesso. Per ulteriori impostazioni utilizzare il
+    programma v4l2-ctl.
    </p>
    <p class="message-box" id="warning">
-      WARNING: The OpenCV libraries cannot manage devices already in use by othe applications
-      and this can lead to a crash. Please MAKE SURE NO OTHER PROGRAM IS USING A CAPTURE DEVICE.
+      IMPORTANTE: Le librerie opencv non sono in grado di gestire i DISPOSITIVI GIA' IN USO da altri
+      programmi e faranno CRASHARE lxnstack!
+      CHIUDERE QUINDI OGNI ALTRA APPLICAZIONE CHE UTILIZZA I DISPOSITIVI DI ACQUISIZIONE.
    </p>
    <p class="message-box" id="warning">
-      WARNING: The OpenCV libraries may not handle some properties like FPS.
-      Their controls are shown for a possible future implementation.
+      IMPORTANTE: Le librerie opencv non sono in grado di gestire le proprietà come il formato
+      (ad esempio 'YUYV') o fps.
+      Tali proprietà sono mostrate solo per un eventuale loro implementazione futura!
    </p>
    <p class="image-box">
     <image src="../imgs/preferences_capture_devices.png"></image>

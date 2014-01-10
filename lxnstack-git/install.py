@@ -102,6 +102,7 @@ def doInstallation():
 
         shutil.copy('./src/main_app.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/utils.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/cr2plugin.py', getPath(paths.RESOURCES_PATH))
         #shutil.copy('./src/paths.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/splashscreen.jpg', getPath(paths.RESOURCES_PATH))

@@ -44,4 +44,15 @@ version 1.4.0:
   * Added CR2 file native support
   * Added lightcurve generation module
   * Updated documentation
+
+version 1.4.1:
+  * Updated installation script to
+    include "cr2plugin.py"
+  * Fixed a bug that caused the introduction
+    of extra noise in the result image
+  * Fixed some other minor bugs in cr2plugin
+  * Fixed the reading of EXIF data
+  * Added the Bias-frame section
+  * Added hot-pixels automatic correction routines
+  * Added white balance.
   

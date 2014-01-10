@@ -18,7 +18,8 @@
 
 
 from PyQt4 import Qt, QtCore
-import sys
+import sys, os, time
+
 sys.path.append("@RESOURCES_PATH")
 
 if ('--help' in sys.argv) or ('-h' in sys.argv):
@@ -44,14 +45,13 @@ if ('--version' in sys.argv) or ('-v' in sys.argv):
 #create main QApplication
 app = Qt.QApplication(sys.argv)
 
+import paths
+import utils
+
+splash=utils.SplashScreen(os.path.join(paths.RESOURCES_PATH,"splashscreen.jpg"),app)
+
 #import the main application
 import main_app
-
-import paths
-main_app.loading.setValue(90)
-import utils
-main_app.loading.setValue(91)
-
 
 if ('--verbose' in sys.argv) or ('-d' in sys.argv):
     utils._VERBOSE=True
@@ -61,28 +61,29 @@ else:
 #set some informations
 app.setOrganizationName(utils.PROGRAM)
 app.setApplicationName(utils.PROGRAM_NAME)
-main_app.loading.setValue(92)
+splash.setValue(10)
+splash.showMessage('Loading qt environment...')
 
 #loading translations
 qtr = Qt.QTranslator()
-main_app.loading.setValue(93)
+splash.setValue(30)
 lang=utils.getLocale()
-main_app.loading.setValue(94)
+splash.setValue(50)
 qtr.load(lang)
-main_app.loading.setValue(95)
+splash.setValue(60)
 app.installTranslator(qtr)
-main_app.loading.setValue(96)
+splash.setValue(80)
 
+splash.showMessage('loading application settings...')
 #create the main application
 mainApp = main_app.theApp(app,lang)
-main_app.loading.setValue(98)
+splash.setValue(90)
 
 if show_help:
     mainApp.showUserMan()
     sys.exit(0)
     
 mainApp.wnd.show()
-main_app.loading.setValue(99)
 
 try:
     utils.trace('loading application settings')
@@ -93,8 +94,15 @@ except Exception as exc:
     utils.trace('Ignore this warning if it is the first execution after the installation/upgrade.')
     pass
 
-main_app.loading.setValue(100)
-del main_app.loading
+splash.setValue(100)
+splash.showMessage('Welcome to lxnstack')
 
+time.sleep(1)
+
+splash.close()
 #executes
-sys.exit(app.exec_())
+retval=app.exec_()
+
+utils.trace('Shutting down...')
+
+sys.exit(retval)

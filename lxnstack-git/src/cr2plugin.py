@@ -132,7 +132,48 @@ def _getTypeSize(ind):
     elif ind == 12: #"double",
         return 8
 
-
+def _getExifValue(data, data_type):
+    if data_type==1:
+        return np.ubyte(data)
+    elif data_type==2:
+        return str(data)
+    elif data_type==3:
+        return np.uint16(data)
+    elif data_type==4:
+        return np.uint32(data)
+    elif data_type==5:
+        n=np.uint32(0xffffffff&data)
+        d=np.uint32(((0xffffffff<<32)&data)>>32)
+        if n==0:
+            return 0
+        elif d==0:
+            return "nan"
+        else:
+            return (n,d)
+    elif data_type==6:
+        return np.byte(data)
+    elif data_type==7:
+        return data
+    elif data_type==8:
+        return np.int16(data)
+    elif data_type==9:
+        return np.int32(data)
+    elif data_type==10:
+        n=np.int32(0xffffffff&data)
+        d=np.int32(((0xffffffff<<32)&data)>>32)
+        if n==0:
+            return 0
+        elif d==0:
+            return "nan"
+        else:
+            return (n,d)
+    elif data_type==11:
+        return np.float32(data)
+    elif data_type==12:
+        return np.float64(data)
+    else:
+        return data
+    
 class Sensor(object):
 
    def __init__(self,data=(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)):
@@ -522,7 +563,12 @@ class QCR2Image(QtCore.QObject):
         
         self.Sensor = Sensor(self.MAKERNOTES[SensorInfo])
         
-        self.size = (self.Sensor.width,self.Sensor.height)
+        bbord = self.Sensor.bottom_border + (self.Sensor.bottom_border%2)
+        tbord = self.Sensor.top_border - (self.Sensor.top_border%2)
+        lbord = self.Sensor.left_border - (self.Sensor.left_border%2)
+        rbord = self.Sensor.right_border + (self.Sensor.right_border%2)
+        
+        self.size = (rbord-lbord,bbord-tbord)
         #the RAW IFD
         
         self.IFD3 = self._readIfd(byteorder,ifd3_offset)
@@ -994,17 +1040,17 @@ class QCR2Image(QtCore.QObject):
                 self.fp.seek(tagValOff,0)
                 datasize = _getTypeSize(tagType)
                 if datasize == -1:
-                    val = self.fp.read(tagNum)
+                    val = _getExifValue(self.fp.read(tagNum),tagType)
                 elif datasize == -2:
-                    val = ('undefined',tagNum,tagValOff)
+                    val = ('undefined',tagNum, _getExifValue(tagValOff,tagType))
                 else:
                     val=[]
                     for i in range(tagNum):
                         data = self.fp.read(datasize)
-                        val.append(_reconstructDataFromString(byteorder,data))
+                        val.append(_getExifValue(_reconstructDataFromString(byteorder,data),tagType))
                 self.fp.seek(fppos,0)
             else:
-                val = tagValOff
+                val = _getExifValue(tagValOff,tagType)
             if (type(val) == tuple) or (type(val) == list):
                 if len(val) == 1:
                     val = val[0]

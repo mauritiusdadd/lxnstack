@@ -41,8 +41,43 @@ CUSTOM_EXTENSIONS = {'.npy':'NPY',
 
 _LOG_FILE = os.path.join(paths.HOME_PATH,'lxnstack.log')
 
-def trace(msg,log=True,reset=False):
+POINTS_TYPE=['o','d','s','+','*']
 
+__var_trace_time=0
+__var_trace_time_msg=""
+__var_trace_time_started=False
+__var_trace_time_log=True
+__var_trace_time_reset=False
+
+def traceTimeStart(msg,log=True,reset=False):
+    
+    global __var_trace_time_started,__var_trace_time_strat
+    global __var_trace_time_msg,__var_trace_time_log
+    global __var_trace_time_reset
+    
+    __var_trace_time_started=True
+    __var_trace_time_strat=time.clock()
+    __var_trace_time_msg=msg
+    __var_trace_time_log=log
+    __var_trace_time_reset=reset
+    trace(msg + " [STARTED]",log,reset)
+    
+def traceTimeStop():
+    
+    global __var_trace_time_started,__var_trace_time_strat
+    global __var_trace_time_msg,__var_trace_time_log
+    global __var_trace_time_reset
+
+    
+    if __var_trace_time_started:
+        __var_trace_time_strat=time.clock()-__var_trace_time_strat
+        trace(__var_trace_time_msg+" [DONE in "+str(__var_trace_time_strat)+" sec]",
+              __var_trace_time_log,
+              __var_trace_time_reset)
+    
+
+def trace(msg,log=True,reset=False):
+    global _VERBOSE
     if log:
         try:
             if reset:
@@ -154,6 +189,108 @@ def _getCTime(v, sep=' '):
     tm_struct[8]=-1
     return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
 
+class SplashScreen(Qt.QObject):
+    
+    def __init__(self,file_name,qapp=None):
+        Qt.QObject.__init__(self)
+        self._qapp=qapp
+        self._pxm = Qt.QPixmap(os.path.join(paths.RESOURCES_PATH,"splashscreen.jpg"))
+        self._qss = Qt.QSplashScreen(self._pxm, 
+                                     (QtCore.Qt.WindowStaysOnTopHint |
+                                      QtCore.Qt.X11BypassWindowManagerHint))
+        
+        self._msg=''
+        self._maxv=100.0
+        self._minv=0.0
+        self._cval=0.0
+                
+        self._qss.__drawContents__=self._qss.drawContents
+        self._qss.drawContents=self._drawContents
+        
+        self._qss.show()
+        
+        self.processEvents()
+        
+    def close(self):
+        self.update()
+        self._qss.close()
+    
+    def setMaximum(self,val):
+        self._maxv=val
+        self.update()
+    
+    def setMinimum(self,val):
+        self._minv=val
+        self.update()
+    
+    def setValue(self,val):
+        
+        for i in numpy.arange(self._cval,val,self._maxv/1000.0):
+            self._cval=i
+            self.update()
+    
+    def maximum(self):
+        return self._maxv
+    
+    def minimum(self):
+        return self._minv
+    
+    def value(self):
+        return self._cval
+    
+    def message(self):
+        return self._msg
+    
+    def showMessage(self,msg):
+        self._msg=msg
+        #self._qss.showMessage(msg,QtCore.Qt.AlignBottom|QtCore.Qt.AlignLeft,QtCore.Qt.white)
+        self.update()
+    
+    def update(self):
+        self._qss.update()
+        self.processEvents()
+        
+    def _drawContents(self,painter):
+        #self._qss.__drawContents__(painter)
+        
+        view_port=painter.viewport()
+        
+        w=view_port.right()
+        h=view_port.bottom()
+        
+        
+        
+        painter.setPen(Qt.QColor(55,55,55,255))
+        painter.setBrush(Qt.QColor(0,0,0,255))
+        painter.drawRect(10,h-25,w-20,15)
+        
+        redlg = Qt.QLinearGradient(0,0,w,0)
+        redlg.setColorAt(0, Qt.QColor(10,10,155))
+        redlg.setColorAt(0.8, Qt.QColor(10,10,255))
+        
+        alg = Qt.QLinearGradient(0,h-25,0,h)
+        alg.setColorAt(0, Qt.QColor(0,0,0,150))
+        alg.setColorAt(0.5, Qt.QColor(0,0,0,0))
+        
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(redlg)
+        painter.drawRect(11,h-24,(w-21)*self._cval/self._maxv,14)
+        
+        painter.setBrush(alg)
+        painter.drawRect(11,h-24,(w-21)*self._cval/self._maxv,14)
+        
+        painter.setPen(QtCore.Qt.white)
+        
+        rect=Qt.QRectF(10,h-23,w-20,15)
+        painter.drawText(rect, QtCore.Qt.AlignCenter, str(self._msg))
+        
+    def finish(self,qwid):
+        self._qss.finish(qwid)
+    
+    def processEvents(self):
+        if self._qapp!=None:
+            self._qapp.processEvents()
+            
 class Frame(object):
     
     """
@@ -285,7 +422,7 @@ class Frame(object):
         return self.open(self.url, self.page, asarray, asuint8, fit_levels, ftype, PIL_priority, **self._open_args)
        
     def open(self, file_name, page=0, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32,
-             PIL_priority=False, only_sizes=False, **args):
+             PIL_priority=False, only_sizes=False, force_update=False, **args):
         
         image = None
         
@@ -530,7 +667,7 @@ class Frame(object):
 
                 self.pb.setLabelText(tr('decoding image ')+self.name+', '+tr('please wait...'))
                                 
-                if notUpdated(self.url,data_file_name):
+                if notUpdated(self.url,data_file_name) or force_update==True:
                     trace(tr('decoding raw data to file')+' '+data_file_name)
                     self.pb.setLabelText(tr('decoding raw data to file')+'\n'+data_file_name)
                     
@@ -563,6 +700,9 @@ class Frame(object):
                     trace(tr(' loading raw data'))
                     self.pb.setLabelText(tr('decoding image ')+self.name+', '+tr('please wait...'))
                     image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
+                    
+                    if (cr2file.size[0] != self.width) or (cr2file.size[1] != self.height):
+                        self.open(file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,force_update=True,**args)
             else:
                 if (('convert_cr2' in args) and args['convert_cr2']==True):
                     self.pb.setLabelText(tr('decoding image')+', '+tr('please wait...'))
@@ -687,11 +827,10 @@ class Frame(object):
                     img.seek(page)
                     
                     self.mode = img.mode
-                    self.width = img.width
-                    self.height = img.height
+                    self.width = img.size[0]
+                    self.height = img.size[1]
                     
                     try:
-
                         for k, v in img._getexif().items(): #READING EXIF
                             if (k==306) or (k==36867) or (k==36868):
                                 tm_struct=[0]*9
@@ -1014,13 +1153,12 @@ def normToUint16 (data, refit=True):
         return spec.astype(numpy.uint16)
     
 def getMinMax(data,adapt=False, lrange=None):
-
-    if adapt==1 or (data.max() > 65536):
-        maxv=data.max()
-    elif ((adapt==2) and
-          (lrange!=None) and
-          (len(lrange)>=2)):
+    if ((adapt==2) and
+        (lrange!=None) and
+        (len(lrange)>=2)):
         maxv=numpy.max(lrange)*data.max()/100.0
+    elif adapt==1 or (data.max() > 65536):
+        maxv=data.max()
     elif data.max() > 255:
         maxv=65536.0
     elif data.max() <= 1:
@@ -1028,25 +1166,26 @@ def getMinMax(data,adapt=False, lrange=None):
         maxv=data.max()
     else:
         maxv=255.0
-        
-    if adapt==1 or (data.min() < 0):
-        minv=data.min()
-    elif ((adapt==2) and
+
+    if ((adapt==2) and
         (lrange!=None) and
         (len(lrange)>=2)):
-        minv=numpy.min(lrange)*data.max()/100.0
+        minv=data.min()+numpy.min(lrange)*(data.max()-data.min())/100.0
+    elif adapt==1 or (data.min() < 0):
+        minv=data.min()
     else:
         minv=0
-            
     return (minv,maxv)
 
 def getJetColor(data,fit_levels=True, lrange=None):
 
     value = data.astype(numpy.float)
-    
     minv,maxv = getMinMax(data,fit_levels,lrange)
-     
-    x = ((value - minv)/float(maxv-minv)).astype(numpy.float32)
+    
+    if maxv==minv:
+        x = (value/float(2*maxv)).astype(numpy.float32)
+    else:
+        x = ((value - minv)/float(maxv-minv)).astype(numpy.float32)
     
     del value
     
@@ -1066,7 +1205,6 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False,levels_range=
     
     if type(img) != numpy.ndarray:
         raise TypeError('In module utils, in function arrayToQImage, ndarray expected as first argumrnt but '+str(type(img))+' given instead')
-
     #searching for NaN values
     if img.dtype.kind == 'f':
         tb=(img!=img).nonzero()
@@ -1130,6 +1268,41 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False,levels_range=
     result._raw_data=rawdata
     result._original_data=img
     return result
+
+def getNeighboursAverage(array,x0,y0,raw_mode=False):
+    
+    h,w = array.shape[0:2]
+    
+    total1=0.0
+    count1=0.0
+    
+    if raw_mode == False:
+        x1=x0-1
+        x2=x0+1
+        y1=y0-1
+        y2=y0+1
+    else:
+        x1=x0-2
+        x2=x0+2
+        y1=y0-2
+        y2=y0+2
+    
+    if (x1 >= 0):
+        total1+=array[y0,x1]
+        count1+=1
+            
+    if (x2 < w):
+        total1+=array[y0,x2]
+        count1+=1
+            
+    if (y1 >= 0):
+        total1+=array[y1,x0]
+        count1+=1
+    if (y2 < h):
+        total1+=array[y2,x0]
+        count1+=1
+    
+    return (total1/count1)
 
 def logpolar(input, wmul=1, hmul=1, clip=False):
 
@@ -1383,9 +1556,11 @@ def getSciStr(val):
 def getTimeStr(val):
     return time.strftime('%H:%M:%S',time.gmtime(val))
 
-def drawMarker(painter, x, y, r=7, l=4, ring=True, cross=True):
+def drawMarker(painter, x, y, r=7, l=4, ring=True, cross=True, square=False):
     if ring:
         painter.drawEllipse(Qt.QPointF(x,y),r,r)
+    if square:
+        painter.drawRect(Qt.QRectF(x-r/2.0,y-r/2.0,r,r))
     if cross:
         painter.drawLine(Qt.QPointF(x-r-l,y),Qt.QPointF(x-r+l,y))
         painter.drawLine(Qt.QPointF(x+r-l,y),Qt.QPointF(x+r+l,y))
@@ -1508,27 +1683,40 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
     showline=True
     showbars=True
     
-    if point_type=='+':
+    POINTS_TYPE=['o','d','s','+','*']
+    
+    if point_type==POINTS_TYPE[3]:
         cross=True
         ring=False
+        square=False
         painter.setBrush(0)
         r1=point_size
         r2=point_size
-    elif point_type=='o':
+    elif point_type==POINTS_TYPE[0]:
         cross=False
         ring=True
+        square=False
         painter.setBrush(color)
         r1=point_size
         r2=point_size
-    elif point_type=='*':
+    elif point_type==POINTS_TYPE[4]:
         cross=True
         ring=True
+        square=False
         painter.setBrush(0)
         r1=3.0*point_size/2.0
         r2=point_size/2.0
-    elif point_type=='d':
+    elif point_type==POINTS_TYPE[1]:
         cross=False
         ring=False
+        square=False
+        painter.setBrush(color)
+        r1=point_size+1
+        r2=point_size+1
+    elif point_type==POINTS_TYPE[2]:
+        cross=False
+        ring=False
+        square=True
         painter.setBrush(color)
         r1=point_size+1
         r2=point_size+1
@@ -1553,7 +1741,7 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
         for i in range(pcount):
             x=(data_x[i]-minx)*x_scale + x1
             y=(data_y[i]-miny)*y_scale + y1
-            drawMarker(painter,x,y,r1,r2,ring,cross)
+            drawMarker(painter,x,y,r1,r2,ring,cross,square)
             if (errors!=None):
                 if bar_type=='|':
                     ys=(data_y[i]+errors[i]-miny)*y_scale + y1
@@ -1959,48 +2147,122 @@ def loadTmpArray(tmpfile):
     else:
         return numpy.load(tmpfile.name, mmap_mode='r')
 
-def generateHistGradient(height,color):
+def generateHistGradient(height,color1,color2= QtCore.Qt.black):
     redlg = Qt.QLinearGradient(0.0,height*0.66,0.0,height*1.2)
-    redlg.setColorAt(0, color)
-    redlg.setColorAt(1, QtCore.Qt.black)
+    redlg.setColorAt(0, color1)
+    redlg.setColorAt(1, color2)
     return redlg
+
+def generatePreview(imgdata,max_dim):
+    
+    h=float(imgdata.shape[0])
+    w=float(imgdata.shape[1])
+    
+    zoom_factor=0
+    
+    if w>=h:
+        zoom_factor=max_dim/w
+    else:
+        zoom_factor=max_dim/h
+    
+    if (zoom_factor >= 1):
+        trace("WARNING: A preview bigger than/equal to the actual image was requested!")
+        return imgdata
+    
+    zoom=numpy.ones(len(imgdata.shape))
+    zoom[0]=zoom_factor
+    zoom[1]=zoom_factor
+    
+    return scipy.ndimage.interpolation.zoom(imgdata,zoom,order=0)
 
 def generateHistograhms(imgdata, bins=255):
     
     hists=[]
     shape=imgdata.shape
 
-    hrange=(imgdata.min(),imgdata.max())
+    hrange=[imgdata.min(),imgdata.max()]
     
     if len(shape)==2:
-        hists.append(numpy.histogram(imgdata,bins,range=hrange))        
+        hists.append(numpy.array(numpy.histogram(imgdata,bins,range=hrange)))
+        hists.append(numpy.array(numpy.histogram(imgdata,bins,range=hrange)))
     else:
         channels=imgdata.shape[2]
-        hists.append(numpy.histogram(imgdata,bins,range=hrange))
+        hists.append(numpy.array(numpy.histogram(imgdata,bins,range=hrange)))
         for i in range(channels):
-            hists.append(numpy.histogram(imgdata[...,i],bins,range=hrange))
+            hists.append(numpy.array(numpy.histogram(imgdata[...,i],bins,range=hrange)))
 
     return numpy.array(hists)
 
-def drawHistograhm(painter, hists, xmin=None, xmax=None):
+def applyWhiteBalance(data, factors, table):
+    
+    dmax=data.max()
+    
+    #TODO FIX l AND h
+    
+    factors_l=numpy.zeros(len(table),dtype=data.dtype)
+    factors_m=numpy.zeros(len(table),dtype=data.dtype)
+    factors_h=numpy.zeros(len(table),dtype=data.dtype)
+    
+    for i in table:
+        
+        l=factors[table[i]][0]
+        m=factors[table[i]][1]
+        h=factors[table[i]][2]
+        
+        #middle tones
+        xm = numpy.tan(numpy.pi*(0.5-0.5*m))
+
+        factors_l[i]=l
+        factors_m[i]=xm
+        factors_h[i]=h
+        
+    return (factors_h - factors_l)*dmax*((data/dmax)**factors_m)+dmax*factors_l
+
+def applyHistWhiteBalance(hists, factors, table):
+    
+    hists2=hists.copy()
+    for i in range(1,len(hists)):
+        hmax=hists[i,1].max()
+        
+        l=factors[table[i-1]][0]
+        m=factors[table[i-1]][1]
+        h=factors[table[i-1]][2]
+        
+        xm = numpy.tan(numpy.pi*(0.5-0.5*m))
+        
+        hists2[i,1]=(h-l)*hmax*((hists[i,1]/hmax)**xm)+l*hmax
+    
+    return hists2
+
+def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
 
     gm1 = 0.05 #geometric corrections
     gm2 = 1.0 - gm1
-
+    
     surface_window=painter.window()
     w=surface_window.width()
     h=surface_window.height()
-
-    ymax=max(hists[0][0])
+    
+    ymax=0
+    
+    if logY:
+        ymax=max(ymax,max(numpy.emath.logn(10,hists[0][0]+1)))
+    else:
+        ymax=max(ymax,max(2,max(hists[0][0])))
     
     if xmax==None:
         xmax=max(hists[0][1])
     if xmin==None:
         xmin=min(hists[0][1])
     
-    for channel in range(len(hists)):
+    num_of_components=len(hists)
+    
+    for channel in range(num_of_components):
         draw_axes=False
-        if channel==1:
+        if channel==0:
+            color = QtCore.Qt.darkGray
+            painter.setCompositionMode(0)
+        elif channel==1:
             color = QtCore.Qt.red
             painter.setCompositionMode(painter.CompositionMode_Plus)
         elif channel==2:
@@ -2010,26 +2272,37 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None):
             color = QtCore.Qt.blue
             painter.setCompositionMode(painter.CompositionMode_Plus)
         else:
-            draw_axes=True
-            color = QtCore.Qt.darkGray
+            color = QtCore.Qt.gray
             painter.setCompositionMode(0)
-    
+        
+        if channel==(num_of_components-1):
+            draw_axes=True
+        
         path = Qt.QPainterPath()
         hist = hists[channel]
 
         x0=w*gm1
-        y0=h*gm2
         x1=w*gm2
+        y0=h*gm2
         y1=h*gm1
     
         path.moveTo(x0,y0)
+        
+        if xmax==xmin:
+            xmax=xmin+1
+            
+        if ymax==0:
+            ymax=1
         
         path.lineTo(x0+w*(hist[1][0]-1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
         
         for i in range(len(hist[1])-1):
             x=hist[1][i]
-            y=hist[0][i]
-        
+            if logY:
+                y=numpy.emath.logn(10,hist[0][i]+1)
+            else:
+                y=hist[0][i]
+                
             path.lineTo(x0+w*(x-xmin)*(gm2-gm1)/(xmax-xmin),y0-(h*(gm2-gm1))*y/ymax)
 
         path.lineTo(x0+w*(hist[1][-1]+1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
@@ -2040,16 +2313,22 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None):
         painter.drawPath(path)
     
         if draw_axes:
+            painter.setCompositionMode(0)
             painter.setPen(QtCore.Qt.black)
             painter.drawLine(x0,y0+2,x1,y0+2)
             painter.drawLine(x0-2,y0,x0-2,y1)
         
             painter.setPen(QtCore.Qt.DotLine)
-        
+            
+            ly=numpy.emath.logn(10,y0/y1+1)
+                        
             for yy in numpy.arange(y1,y0,(y0-y1)/10.0):
-                painter.ne(x0,yy,x1,yy)
-                painter.drawText(x0,yy,str(ymax-ymax*(yy-y1)/(y0-y1)))
-        
+                
+                if logY:
+                    yy=y0+(y1-y0)*numpy.emath.logn(10,yy/y1+1)/ly
+                painter.drawLine(x0,yy,x1,yy)
+                
+                
             painter.setPen(QtCore.Qt.DashLine)
             painter.drawLine(x0,y1,x1,y1)
         
@@ -2057,7 +2336,10 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None):
             for xx in numpy.arange(x1,x0,-(x1-x0)/5.0):
                 painter.drawLine(xx,y0,xx,y1)
                 painter.drawText(xx-15,y0+15,str(xmax*(xx-x0)/(x1-x0)))
-
+                
+        if num_of_components==2:
+                break
+            
 # Light curves generation functions
 def getStarMagnitudeADU(ndimg, star_x, star_y, inner_radius, middle_radius, outer_radius):
 
