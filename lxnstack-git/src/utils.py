@@ -103,22 +103,31 @@ except ImportError:
     msgBox.exec_()
     sys.exit(1)
 
+
 try:
-    import pyfits
+    import astropy.io.fits as pyfits
     FITS_SUPPORT=True
     std_fits_header=[('SWCREATE',str(paths.PROGRAM_NAME))]
     trace("FITS support enabled", verbose=True)
     
     def getFitsStdHeader():
         return pyfits.header.Header(std_fits_header)
-        
-    
+
 except ImportError:
+    #if you have pyfits
+    try:
+        import pyfits
+        FITS_SUPPORT=True
+        std_fits_header=[('SWCREATE',str(paths.PROGRAM_NAME))]
+        trace("FITS support enabled", verbose=True)
+        trace("The pyFITS package will be soon fully replaced by 'astropy'!\nYou can find it at http://www.astropy.org/", verbose=True)
+        def getFitsStdHeader():
+            return pyfits.header.Header(std_fits_header)                
+    except ImportError:
+        trace("FITS support not enabled:\nto enable FITS support please install the 'astropy' python package!", verbose=True)
 
-    trace("FITS support not enabled:\nto enable FITS support please install the \'pyfits\' python package!", verbose=True)
-
-    FITS_SUPPORT=False
-    FORMAT_BLACKLIST.append('FITS')   
+        FITS_SUPPORT=False
+        FORMAT_BLACKLIST.append('FITS')   
 
 try:
     import cr2plugin
@@ -600,6 +609,9 @@ class Frame(object):
             ctime=getCreationTime(file_name)
             img = numpy.load(file_name)
             
+            if len(img.shape) < 2:
+                return None
+            
             self._setSize(img)
                     
             if only_sizes:
@@ -621,6 +633,9 @@ class Frame(object):
             if page < len(npzarch):
                 img = npzarch.values()[page]
             else:
+                return None
+            
+            if len(img.shape) < 2:
                 return None
             
             self._setSize(img)
@@ -659,7 +674,7 @@ class Frame(object):
             cr2file.decodingProgressChanged.connect(self.pb.setValue)
             cr2file.decodingStarted.connect(self.pb.show)
             cr2file.decodingEnded.connect(self.pb.hide)
-                               
+                    
             if FITS_SUPPORT:
                 fits_header=[]
                 if ctime!=None:
@@ -707,9 +722,12 @@ class Frame(object):
                 else:
                     trace(tr(' loading raw data'))
                     self.pb.setLabelText(tr('decoding image ')+self.name+', '+tr('please wait...'))
-                    image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
+                    try:
+                        image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
+                    except:
+                        image=None
                     
-                    if (cr2file.size[0] != self.width) or (cr2file.size[1] != self.height):
+                    if (image==None) or (cr2file.size[0] != self.width) or (cr2file.size[1] != self.height):
                         self.open(file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,force_update=True,**args)
             else:
                 if (('convert_cr2' in args) and args['convert_cr2']==True):
@@ -733,11 +751,11 @@ class Frame(object):
                             self._imwrite_fits_(img, override_name=os.path.splitext(data_file_name)[0],
                                                 header=fits_header, force_overwrite=True, compressed=True)
                         else:
-                            numpy.save(data_file_name,image)
+                            numpy.save(data_file_name,img)
 
                 self.exportProperties(exif_file_path)
                 image = cr2file
-        
+            
             cr2file.decodingProgressChanged.disconnect()
             cr2file.decodingStarted.disconnect(self.pb.show)
             cr2file.decodingEnded.disconnect(self.pb.hide)

@@ -3004,7 +3004,7 @@ class theApp(Qt.QObject):
         
         self.progress.setMaximum(len(newlist))
         self.lock()
-        self.statusBar.showMessage(tr('Analizing images, please wait...'))
+        self.statusBar.showMessage(tr('Analyzing images, please wait...'))
         count=0
         warnings=False
         listitemslist=[]

@@ -155,11 +155,6 @@
         <translation>Seleziona uno o più file</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3007"/>
-        <source>Analizing images, please wait...</source>
-        <translation>Analisi immagine in corso, attendere prego...</translation>
-    </message>
-    <message>
         <location filename="main_app.py" line="3026"/>
         <source> --&gt; size does not match:</source>
         <translation> --&gt; le dimensioni non corrispondono:</translation>
@@ -350,22 +345,22 @@ align point </source>
         <translation>per</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1057"/>
+        <location filename="utils.py" line="1075"/>
         <source>A file named</source>
         <translation>Un file chiamato</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1057"/>
+        <location filename="utils.py" line="1075"/>
         <source>already exists.</source>
         <translation>esiste già.</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1060"/>
+        <location filename="utils.py" line="1078"/>
         <source>Do you want to overwite it?</source>
         <translation>Lo vuoi sovrascrivere?</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1077"/>
+        <location filename="utils.py" line="1095"/>
         <source>Cannot save image due to cv2 exception:</source>
         <translation>Impossibile salvare l&apos;immagine a causa di un&apos;eccezione di cv2:</translation>
     </message>
@@ -462,7 +457,7 @@ non esiste!</translation>
         <translation>Calcolo</translation>
     </message>
     <message>
-        <location filename="utils.py" line="716"/>
+        <location filename="utils.py" line="734"/>
         <source>please wait...</source>
         <translation>attendere prego...</translation>
     </message>
@@ -662,42 +657,42 @@ per scrivere il file.</translation>
         <translation>Scrittura video in corso, attendere prego...</translation>
     </message>
     <message>
-        <location filename="utils.py" line="709"/>
+        <location filename="utils.py" line="724"/>
         <source>decoding image </source>
         <translation>decodifica immagine</translation>
     </message>
     <message>
-        <location filename="utils.py" line="720"/>
+        <location filename="utils.py" line="738"/>
         <source>decoding raw data to file</source>
         <translation>Decodifica dati RAW e salvataggio nel file</translation>
     </message>
     <message>
-        <location filename="utils.py" line="708"/>
+        <location filename="utils.py" line="723"/>
         <source> loading raw data</source>
         <translation> caricamento dati RAW</translation>
     </message>
     <message>
-        <location filename="utils.py" line="716"/>
+        <location filename="utils.py" line="734"/>
         <source>decoding image</source>
         <translation>decodifica immagine</translation>
     </message>
     <message>
-        <location filename="utils.py" line="759"/>
+        <location filename="utils.py" line="777"/>
         <source>loading frame</source>
         <translation>caricamento fotogramma</translation>
     </message>
     <message>
-        <location filename="utils.py" line="759"/>
+        <location filename="utils.py" line="777"/>
         <source>of video</source>
         <translation>del video</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1864"/>
+        <location filename="utils.py" line="1882"/>
         <source>Cannot create the data file: </source>
         <translation>Impossibile creare il file di dati: </translation>
     </message>
     <message>
-        <location filename="utils.py" line="1865"/>
+        <location filename="utils.py" line="1883"/>
         <source>Assure you have the authorization to write the file.</source>
         <translation>Assicurarsi di avere i permessi per scrivere il file.</translation>
     </message>
@@ -722,9 +717,14 @@ per scrivere il file.</translation>
         <translation>Generazione anteprima...</translation>
     </message>
     <message>
-        <location filename="utils.py" line="726"/>
+        <location filename="utils.py" line="744"/>
         <source>Corrupted CR2 data!</source>
         <translation>Dati CR2 corrotti!</translation>
+    </message>
+    <message>
+        <location filename="main_app.py" line="3007"/>
+        <source>Analyzing images, please wait...</source>
+        <translation>Analisi immagine, attendere prego...</translation>
     </message>
 </context>
 <context>

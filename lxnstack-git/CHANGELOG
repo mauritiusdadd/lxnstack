@@ -60,4 +60,9 @@ version 1.4.2:
   * Fixed a bug in hot-pixels detection
   * Fixed other minor bugs
   * added more command line options
+
+version 1.4.3:
+  * Fixed a CR2 decoder
+  * Added astropy support
+
   

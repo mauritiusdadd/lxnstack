@@ -46,9 +46,11 @@ libraries and programs must be installed on your pc:
   * The python2 package 'PyQt4' version 4.9
     (http://www.riverbankcomputing.co.uk/software/pyqt/intro)
 
-  * [optional] The python2 package 'pyfits' (to enable FITS
-    files support).
-    (http://www.stsci.edu/institute/software_hardware/pyfits)
+  * [optional, to enable FITS files support] 
+    The python2 package'pyfits'
+       (http://www.stsci.edu/institute/software_hardware/pyfits)
+    or the package 'astropy' 
+       (http://www.astropy.org/)
 
 The above packages are present in the repositories
 of almost all linux distributions.
