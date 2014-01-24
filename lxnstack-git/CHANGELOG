@@ -55,4 +55,9 @@ version 1.4.1:
   * Added the Bias-frame section
   * Added hot-pixels automatic correction routines
   * Added white balance.
+
+version 1.4.2:
+  * Fixed a bug in hot-pixels detection
+  * Fixed other minor bugs
+  * added more command line options
   

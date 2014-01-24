@@ -22,7 +22,7 @@ python2.7.
   [2]  DEPENDENCIES
 In order to execute this program, the following
 libraries and programs must be installed on your pc:
-
+    
   * Python 2.7 (see above)
 
   * The python2 package 'numpy' version 1.7
@@ -54,6 +54,13 @@ The above packages are present in the repositories
 of almost all linux distributions.
  
   [3]  INSTALLATION
+
+NOTE: the package xdg-utils must be installed in order
+      to update the MIME types database! It is available
+      on most linux distributions, however following there
+      is the link to the project home-page:
+      http://portland.freedesktop.org/xdg-utils-1.0/
+
 To install the program, open a terminal window and 
 cd into the directory containing this file, type then
 the following command (without quotes) and press ENTER:
@@ -71,6 +78,10 @@ you have to manually edit the file paths.py located in then
 'src' directory or use the '--prefix="DESTINATION-DIRECTORY"'.
 For more information type "python2 ./install.py --help".
 
+Finally, you can use the following command (without quotes)
+to associate the lxnstack project (*.lxn) with lxnstack:
+
+"xdg-mime default /usr/share/applications/lxnstack.desktop text/lxnproject"
 
   [4]  EXECUTION
 To run the program open a terminal window, type the
@@ -79,3 +90,11 @@ following command (without quotes) and press ENTER:
  "lxnstack"
  
 and then the program main window will be shown.
+
+  [5]  UNINSTALLATION
+
+Unfortunatly there is no automatic method to uninstall the 
+program yet. If you want to remove lxnstack, you must delete
+the folder PREFIX/share/lxnstack and its containing and the 
+file PREFIX/bin/lxnstack, where PREFIX is the base installation
+directory (wich is by default PREFIX=/usr)

@@ -1061,7 +1061,7 @@ on all used images.</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>198</width>
+         <width>151</width>
          <height>301</height>
         </rect>
        </property>
@@ -2641,17 +2641,22 @@ under the mous pointer.</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>cross</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
                         <string>dots</string>
                        </property>
                       </item>
                       <item>
                        <property name="text">
                         <string>diamond</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>square</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>cross</string>
                        </property>
                       </item>
                       <item>
@@ -2747,21 +2752,6 @@ under the mous pointer.</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <item>
-                       <property name="text">
-                        <string>red</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>green</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>blue</string>
-                       </property>
-                      </item>
                      </widget>
                     </item>
                     <item row="0" column="0">
@@ -3019,17 +3009,22 @@ under the mous pointer.</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>cross</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
                         <string>dots</string>
                        </property>
                       </item>
                       <item>
                        <property name="text">
                         <string>diamond</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>square</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>cross</string>
                        </property>
                       </item>
                       <item>
@@ -3125,21 +3120,6 @@ under the mous pointer.</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <item>
-                       <property name="text">
-                        <string>red</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>green</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>blue</string>
-                       </property>
-                      </item>
                      </widget>
                     </item>
                     <item row="0" column="0">

@@ -106,6 +106,7 @@ def doInstallation():
         #shutil.copy('./src/paths.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/splashscreen.jpg', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/lxnstack-project.xml', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', icons_path)
         shutil.copy('./src/lxnstack.desktop',apps_path)
         shutil.copy('./src/doc/gpl-3.0.txt',license_path)
@@ -143,9 +144,31 @@ def doInstallation():
         #TODO:make relative symbolic link instead of hard link
         if os.path.exists(ln_bin_dst) and not os.path.isdir(ln_bin_dst):
             os.remove(ln_bin_dst)
-        os.system('ln -f -s -r -T '+ln_bin_src+' '+ln_bin_dst)
+            
+        if os.system('ln -f -s -r -T '+ln_bin_src+' '+ln_bin_dst)!=0:
+            print "\nMaybe you have an old version of ln\nUsing python natives funtions...\n"
+            relpath = os.path.relpath(getPath(paths.RESOURCES_PATH),getPath(paths.BIN_PATH))
+            if os.path.exists(ln_bin_dst):
+                os.remove(ln_bin_dst)
+            os.symlink(os.path.join(relpath,'lxnstack.py'),ln_bin_dst)
+            print "DONE"
+            
         os.system('chmod +x '+ln_bin_dst)
-                
+        
+        if not IGNORE_PREFIX:
+            icon=os.path.join(icons_path,'lxnstack.png')
+            if (os.system('xdg-icon-resource install --context mimetypes --size 64 '+icon+' application-lxnstack-project')!=0):
+                print('\nCannot registe MIME type icon.')
+                print('Assure xdg-utils is installed correclty!')
+            elif (os.system('xdg-mime install ./src/lxnstack-project.xml')!=0):
+                print('\nCannot update MIME database.')
+                print('Assure xdg-utils is installed correclty!')
+            elif (os.system('update-desktop-database -q')!=0):
+                print('\nCannot update *.desktop database.')
+                print('Please, restart the computer to apply the changes')
+            else:
+                print('installation completed.')
+            
     except Exception as exc:
         print('\nCannot continue the installation process:')
         print(str(exc)+'\n')

@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>352</width>
-    <height>288</height>
+    <width>400</width>
+    <height>350</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -79,7 +79,8 @@
        <item>
         <widget class="QLabel" name="label_3">
          <property name="text">
-          <string>lxnstack  Copyright (C) 2013  Maurizio D'Addona</string>
+          <string>lxnstack  Copyright (C) 2013-2014 
+ Maurizio D'Addona &lt;mauritiusdadd@gmail.com&gt;</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -100,7 +101,9 @@
          <property name="text">
           <string>This program comes with ABSOLUTELY NO WARRANTY.
 
-This is free software, and you are welcome to redistribute it under certain conditions.</string>
+This is free software, and you are welcome to redistribute it under certain conditions. 
+
+If you find a bug in this program, please send me an e-mail and i will try to resolve it :)</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -136,7 +139,7 @@ This is free software, and you are welcome to redistribute it under certain cond
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>94</width>
+            <width>370</width>
             <height>200</height>
            </rect>
           </property>
@@ -190,8 +193,8 @@ English:
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>195</width>
-            <height>396</height>
+            <width>355</width>
+            <height>228</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">

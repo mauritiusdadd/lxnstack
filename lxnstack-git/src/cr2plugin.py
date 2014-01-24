@@ -1,11 +1,26 @@
-#!/usr/bin/env python
+#lxnstack is a program to align and stack atronomical images
+#Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
+
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 """
  The informations to wirte this code were taken form:
  (1) http://lclevy.free.fr/cr2/ => Canon (TM) CR2 specifications
  (2) http://www.impulseadventure.com/photo/jpeg-huffman-coding.html => Lossless Jpeg and Huffman decoding
  (3) http://www.digitalpreservation.gov/formats/fdd/fdd000334.shtml => Lossless Jpeg information
- (4) => Dave Coffin's raw photo decoder
+ (4) http://www.cybercom.net/~dcoffin/dcraw/ => Dave Coffin's raw photo decoder
 """
 
 from PyQt4 import Qt, QtCore

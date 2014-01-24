@@ -1,5 +1,5 @@
 #lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013  Maurizio D'Addona 
+#Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -27,19 +27,12 @@ import paths
 from PyQt4 import uic, Qt, QtCore, QtGui
 
 def tr(s):
-    news=QtCore.QCoreApplication.translate('@default',s)
-    #python3 return str...
-    if type(news) == str:
-        return news
-    else:
-        #... while python2 return QString 
-        # that must be converted to str
-        return str(news.toAscii())
+    return utils.tr(s)
 
 try:
     import numpy
 except ImportError:
-    utils.trace('ERROR: \'numpy\' python module not found! exiting program.')
+    utils.trace('ERROR: \'numpy\' python module not found! exiting program.',verbose=True)
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'numpy\' python module not found!"))
     msgBox.setInformativeText(tr("Please install numpy."))
@@ -50,7 +43,7 @@ except ImportError:
 try:
     import scipy
 except ImportError:
-    utils.trace('ERROR: \'scipy\' python module not found! exiting program.')
+    utils.trace('ERROR: \'scipy\' python module not found! exiting program.',verbose=True)
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'scipy\' python module not found!"))
     msgBox.setInformativeText(tr("Please install scipy."))
@@ -61,7 +54,7 @@ except ImportError:
 try:
     import cv2
 except ImportError:
-    utils.trace('ERROR: \'opencv (cv2)\' python module not found! exiting program.')
+    utils.trace('ERROR: \'opencv (cv2)\' python module not found! exiting program.',verbose=True)
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'opencv2\' python module found!"))
     msgBox.setInformativeText(tr("Please install opencv2."))
@@ -84,11 +77,15 @@ def dist(x1,y1,x2,y2):
 
 class theApp(Qt.QObject):
 
-    def __init__(self,qapp,lang=''):
-        
-        utils.trace('Starting lxnstack...',reset=True)
+    def __init__(self,qapp,lang='',args=[]):
         
         Qt.QObject.__init__(self)
+        self._fully_loaded=False
+        self.verbose=False
+        
+        self.parseArguments(args)
+
+        self.resetLog('Starting lxnstack...')
         
         self._old_tab_idx=0
         self.__operating=False
@@ -403,7 +400,7 @@ class theApp(Qt.QObject):
         self.wnd.starsListWidget.itemChanged.connect(self.starsListItemChanged)
         self.wnd.alignPointsListWidget.currentRowChanged.connect(self.alignListItemChanged)
         self.wnd.starsListWidget.currentRowChanged.connect(self.currentStarsListItemChanged)
-        self.wnd.avrPushButton.clicked.connect(self.stack)
+        self.wnd.avrPushButton.clicked.connect(self.doStack)
         self.wnd.saveVideoPushButton.clicked.connect(self.doSaveVideo)
         self.wnd.levelsPushButton.clicked.connect(self.editLevels)
         self.wnd.toolBox.currentChanged.connect(self.updateToolBox)
@@ -422,7 +419,7 @@ class theApp(Qt.QObject):
         self.wnd.removePointPushButton.clicked.connect(self.removeAlignPoint)
         self.wnd.addStarPushButton.clicked.connect(self.addStar)
         self.wnd.removeStarPushButton.clicked.connect(self.removeStar)
-        self.wnd.alignPushButton.clicked.connect(self.align)
+        self.wnd.alignPushButton.clicked.connect(self.doAlign)
         self.wnd.saveResultPushButton.clicked.connect(self.saveResult)
         self.wnd.autoSetPushButton.clicked.connect(self.autoSetAlignPoint)
         self.wnd.autoDetectPushButton.clicked.connect(self.autoDetectAlignPoints)
@@ -488,7 +485,7 @@ class theApp(Qt.QObject):
         self.levels_dlg.buttonBox.clicked.connect(self.levelsDialogButtonBoxClickedEvent)
         self.levels_dlg.histoTabWidget.currentChanged.connect(self.updateHistograhm2)
         
-        self.wnd.genADUPushButton.clicked.connect(self.generateLightCurves)
+        self.wnd.genADUPushButton.clicked.connect(self.deGenerateLightCurves)
         self.wnd.aduListWidget.currentRowChanged.connect(self.updateADUlistItemChanged)
         self.wnd.aduListWidget.itemChanged.connect(self.wnd.aduLabel.repaint)
         self.wnd.colorADUComboBox.currentIndexChanged.connect(self.setCurrentADUCurveColor)
@@ -537,7 +534,198 @@ class theApp(Qt.QObject):
         
         self.newProject()
         
-        utils.trace('Program started')
+        self.trace('Program started')
+    
+    def setFullyLoaded(self):
+        self._fully_loaded=True
+    
+    def fullyLoaded(self):
+        return self._fully_loaded
+    
+    #TODO: switch to argparse module
+    def parseArguments(self,args):
+
+        lproject=[None,'']
+        sproject=[None,'']
+        stacking=[None,'']
+        align=[None,[False,False,False]]
+        images=[None,[]]
+        light=False
+        
+        for arg in args:
+            
+            if arg[0]=='-':
+                if (images[0]==False) and len(images[1])>0:
+                    images[0]=True
+                
+                if (align[0]==False):
+                    align=[True,[False,True,True]]
+            
+            if (arg=="--lightcurve"):
+                light=True
+            elif ('--align' in arg):
+                if '=' in arg:
+                    val=arg.split('=')[1]
+                    if val=='align-derotate':
+                        align[1]==[False,True,True]
+                    elif val=='align-only':
+                        align[1]==[False,True,False]
+                    elif val=='derotate-only':
+                        align[1]==[False,False,True]
+                    elif val=='reset':
+                        align[1]==[True,False,False]
+                    else:
+                        self.criticalError('\n\''+val+'\' is not a recognized mode for --align.\nPlease use --help for more informations\n',False)
+                else:
+                    align[0]=False
+            elif (arg=='-a'):
+                align[0]=False
+            elif ('--load-project' in arg):
+                if '=' in arg:
+                    val=arg.split('=')[1]
+                    if val!='':
+                        lproject=[True,val]
+                    else:
+                        self.criticalError('\nNo file specified for --load-project=FILE.\nPlease use --help for more informations\n',False)
+                else:
+                    lproject[0]=False
+            elif (arg=='-l'):
+                lproject[0]=False
+            elif ('--save-project' in arg):
+                if '=' in arg:
+                    val=arg.split('=')[1]
+                    if val!='':
+                        sproject=[True,val]
+                    else:
+                        self.criticalError('\nInvalid syntax for --save-project[=FILE].\nPlease use --help for more informations\n',False)
+                else:
+                    sproject[0]=False
+            elif(arg=='-s'):
+                sproject[0]=False
+            elif ('--stack' in arg):
+                if '=' in arg:
+                    val=arg.split('=')[1]
+                    if val=='average':
+                        stacking=[True,0]
+                    elif val=='median':
+                        stacking=[True,1]
+                    elif val=='sigma-clipping':
+                        stacking=[True,2]
+                    elif val=='stddev':
+                        stacking=[True,3]
+                    elif val=='variance':
+                        stacking=[True,4]
+                    elif val=='maximum':
+                        stacking=[True,5]
+                    elif val=='minimum':
+                        stacking=[True,6]
+                    elif val=='maximum':
+                        stacking=[True,7]
+                    else:
+                        self.criticalError('\n\''+val+'\' is not a recognized mode for --align.\nPlease use --help for more informations\n',False)
+                else:
+                    stacking[0]=False
+            elif (arg=='-S'):
+                stacking[0]=False
+            elif (arg=='--add-images') or (arg=='-i'):
+                images[0]=False
+            elif (arg=='--verbose'):
+                self.verbose=True
+            else:
+                if arg[0]=='-':
+                    self.criticalError('\n\''+arg+'\' is not a recognized command.\nPlease use --help for more informations\n',False)
+                elif align[0]==False:
+                    if arg=='align-derotate':
+                        align[1]=[False,True,True]
+                    elif arg=='align-only':
+                        align[1]=[False,True,False]
+                    elif arg=='derotate-only':
+                        align[1]=[False,False,True]
+                    elif arg=='reset':
+                        align[1]=[True,False,False]
+                    else:
+                        align[1]=[False,True,True]
+                    align[0]=True
+                elif lproject[0]==False:
+                    lproject[0]=True
+                    lproject[1]=arg
+                elif sproject[0]==False:
+                    sproject[0]=True
+                    sproject[1]=arg
+                elif stacking[0]==False:
+                    stacking[0]=True
+                    if arg=='average':
+                        stacking=[True,0]
+                    elif arg=='median':
+                        stacking=[True,1]
+                    elif arg=='sigma-clipping':
+                        stacking=[True,2]
+                    elif arg=='stddev':
+                        stacking=[True,3]
+                    elif arg=='variance':
+                        stacking=[True,4]
+                    elif arg=='maximum':
+                        stacking=[True,5]
+                    elif arg=='minimum':
+                        stacking=[True,6]
+                    elif arg=='product':
+                        stacking=[True,7]
+                    else:
+                        self.criticalError('\n\''+val+'\' is not a recognized mode for --stack.\nPlease use --help for more informations\n',False)
+                elif images[0]==False:
+                    images[1].append(arg)
+                else:
+                    lproject[0]=True
+                    lproject[1]=arg
+                    
+        if (images[0]==False) and len(images[1])>0:
+            images[0]=True
+        
+        #default values
+        if sproject[0]==False:
+            if lproject[0]==True:
+                sproject=[True,lproject[1]]
+            else:
+                self.criticalError('No project name specified!\nPlease use --help for more informations\n',False)
+         
+        if align[0]==False:
+            align=[True,[False,True,True]]
+         
+        if stacking[0]==False:
+            stacking=[True,0]
+        
+        self.args=(lproject,images,align,sproject,stacking,light)
+        
+    def executeCommads(self):
+        if self.args[0][0]==True:
+            self.loadProject(self.args[0][1])
+        if self.args[1][0]==True:
+            self.loadFiles(self.args[1][1])
+        if self.args[2][0]==True:
+            self.wnd.toolBox.setCurrentIndex(1)
+            self.align(self.args[2][1][0], self.args[2][1][1], self.args[2][1][2])
+        if self.args[3][0]==True:
+            self.current_project_fname=self.args[3][1]
+            self._save_project()
+        if self.args[4][0]==True:
+            self.wnd.toolBox.setCurrentIndex(7)
+            self.stack(self.args[4][1])
+        if self.args[5]==True:
+            self.wnd.toolBox.setCurrentIndex(6)
+            self.generateLightCurves(0)
+        
+        self.setFullyLoaded()
+    
+    def criticalError(self,msg,msgbox=True):
+        utils.trace(msg,verbose=True)
+        sys.exit(1)
+        #TODO: add msgbox
+        
+    def resetLog(self,msg):
+        utils.trace(msg,reset=True,verbose=self.verbose)
+        
+    def trace(self,msg):
+        utils.trace(msg,verbose=self.verbose)
     
     def clearResult(self):
         
@@ -598,7 +786,7 @@ class theApp(Qt.QObject):
         self.clearResult()
         self.deactivateResultControls()
         
-        utils.trace("adding component "+str(name)) 
+        self.trace("adding component "+str(name)) 
         
         if index==None:
             index=len(self.component_table)
@@ -790,7 +978,7 @@ class theApp(Qt.QObject):
             
             self.component_ctrl_table[name]=(c_l_sld,c_l_dsb,c_m_sld,c_m_dsb,c_h_sld,c_h_dsb)
             
-            utils.trace("building controls for component "+str(name)) 
+            self.trace("building controls for component "+str(name)) 
             
             self.levels_dlg.MWBScrollArea.layout().addWidget(c_lbl,idx,0)
             self.levels_dlg.MWBScrollArea.layout().addWidget(c_l_sld,idx,1)
@@ -808,10 +996,10 @@ class theApp(Qt.QObject):
             c_h_sld.show()
             c_h_dsb.show()
                                     
-        utils.trace("DONE\n")
+        self.trace("DONE\n")
     
     def clearMWBControls(self):
-        utils.trace("\nclearing MWB controls...\n")
+        self.trace("\nclearing MWB controls...\n")
         try:
             del self.component_ctrl_table
         except:
@@ -980,7 +1168,7 @@ class theApp(Qt.QObject):
         elif idx==1:
             self.ftype=numpy.float64
         
-        utils.trace("setting float precision to " + str(self.ftype))
+        self.trace("setting float precision to " + str(self.ftype))
         
     def setJetmapMode(self,val):
         if val==0:
@@ -1209,8 +1397,8 @@ class theApp(Qt.QObject):
             msgBox.setText(tr("Warning")+": "+tr("The selected device seems to be broken\n and may not fully work!"))
             msgBox.setIcon(Qt.QMessageBox.Warning)
             msgBox.exec_()
-            utils.trace("The selected capture device seems to be broken and may not fully work!")
-            utils.trace(str(exc))
+            self.trace("The selected capture device seems to be broken and may not fully work!")
+            self.trace(str(exc))
 
     def _setParamLimits(self, slider, spin, key):
         if key not in self.device_propetyes:
@@ -1485,7 +1673,7 @@ class theApp(Qt.QObject):
                         frm.width=img.shape[1]
                         frm.height=img.shape[0]
                     except Exception:
-                        utils.trace( "Cannot retrieve image size!")
+                        self.trace( "Cannot retrieve image size!")
                         frm.width=0
                         frm.height=0
                         
@@ -1497,7 +1685,7 @@ class theApp(Qt.QObject):
                         frm.mode='L'
                     else:
                         frm.mode='???'
-                        utils.trace("Warning: unknown image format")
+                        self.trace("Warning: unknown image format")
                         
                     self.framelist.append(frm)
                     
@@ -1589,7 +1777,7 @@ class theApp(Qt.QObject):
                msgBox.setInformativeText(str(exc))
                msgBox.setIcon(Qt.QMessageBox.Critical)
                msgBox.exec_()
-               utils.trace(str(exc))
+               self.trace(str(exc))
 
     def useMasterDark(self,state):        
         if state == 2:
@@ -1649,7 +1837,7 @@ class theApp(Qt.QObject):
                msgBox.setInformativeText(str(exc))
                msgBox.setIcon(Qt.QMessageBox.Critical)
                msgBox.exec_()
-               utils.trace(str(exc))
+               self.trace(str(exc))
             
     def useMasterFlat(self,state):        
         if state == 2:
@@ -1705,7 +1893,7 @@ class theApp(Qt.QObject):
                    msgBox.exec_()
                del i
            except Exception as exc:
-               utils.trace(str(exc))
+               self.trace(str(exc))
                msgBox = Qt.QMessageBox(self.wnd)
                msgBox.setText(tr("Error:"))
                msgBox.setInformativeText(tr(str(exc)))
@@ -1714,23 +1902,26 @@ class theApp(Qt.QObject):
         
     #closeEvent callback
     def mainWindowCloseEvent(self, event):
-        msgBox = Qt.QMessageBox(self.wnd)
-        msgBox.setText(tr("Do you really want to quit?"))
-        msgBox.setInformativeText(tr("All unsaved changes will be lost!"))
-        msgBox.setIcon(Qt.QMessageBox.Question)
-        msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
-        val = msgBox.exec_()
-        if val == Qt.QMessageBox.Yes:
-            self.stopped()
-            self.canceled()
-            self.saveSettings()
-            if os.path.exists(paths.TEMP_PATH):
-                shutil.rmtree(paths.TEMP_PATH)
-            return self.wnd.__closeEvent__(event)
-        elif val == Qt.QMessageBox.No:
-            event.ignore()
+        if self._fully_loaded:
+            msgBox = Qt.QMessageBox(self.wnd)
+            msgBox.setText(tr("Do you really want to quit?"))
+            msgBox.setInformativeText(tr("All unsaved changes will be lost!"))
+            msgBox.setIcon(Qt.QMessageBox.Question)
+            msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+            val = msgBox.exec_()
+            if val == Qt.QMessageBox.Yes:
+                self.stopped()
+                self.canceled()
+                self.saveSettings()
+                if os.path.exists(paths.TEMP_PATH):
+                    shutil.rmtree(paths.TEMP_PATH)
+                return self.wnd.__closeEvent__(event)
+            elif val == Qt.QMessageBox.No:
+                event.ignore()
+            else:
+                return self.wnd.__closeEvent__(event)
         else:
-            return self.wnd.__closeEvent__(event)
+            event.ignore()
     
     def saveSettings(self):
         settings = Qt.QSettings()
@@ -2075,7 +2266,7 @@ class theApp(Qt.QObject):
         painter.setBrush(QtCore.Qt.NoBrush)
         
         x_off=60
-        y_off=40
+        y_off=50
         
         if ('time' in self.lightcurve) and (False in self.lightcurve):
              
@@ -2088,13 +2279,16 @@ class theApp(Qt.QObject):
             ymax=None
             
             there_is_at_least_one_chart=False
-            for i in range(len(self.starslist)):
+            for i in range(listWidget.count()):
                 q = listWidget.item(i)
                 if q==None:
                     continue
                 if q.checkState()==2:
                     there_is_at_least_one_chart=True
                     data_y=numpy.array(self.lightcurve[q.listindex[0]][q.listindex[1]]['data'])
+                    errors_y=numpy.array(self.lightcurve[q.listindex[0]][q.listindex[1]]['error'])
+                    
+                    emax=2.0*errors_y.max()
                     
                     if data_y.shape[0]==0:
                         continue
@@ -2103,14 +2297,15 @@ class theApp(Qt.QObject):
                         data_y=data_y[:,q.listindex[2]]
                 
                     if ymin==None:
-                        ymin=data_y.min()
+                        ymin=data_y.min()-emax
                     else:
-                        ymin=min(ymin,data_y.min())
+                        ymin=min(ymin,data_y.min()-emax)
                 
                     if ymax==None:
-                        ymax=data_y.max()
+                        ymax=data_y.max()+emax
                     else:
-                        ymax=max(ymax,data_y.max())
+                        ymax=max(ymax,data_y.max()+emax)
+            
             
             if there_is_at_least_one_chart:
                 utils.drawAxis(painter, (data_x.min(),data_x.max()), (ymin,ymax), x_offset=x_off, y_offset=y_off, axis_name=aname,
@@ -2121,7 +2316,7 @@ class theApp(Qt.QObject):
             
             count = 0;
             
-            for i in range(len(self.starslist)):
+            for i in range(listWidget.count()):
                 q = listWidget.item(i)
                 if q==None:
                     continue
@@ -2152,9 +2347,8 @@ class theApp(Qt.QObject):
                                x_str_func=xStrFunc, y_str_func=yStrFunc, inverted_y=inverted)
             
     def getChartPoint(self,index):
-        return utils.POINTS_TYPE[index%len(utils.POINTS_TYPE)]
-        
-        
+        return utils.POINTS_TYPE[1+index%(len(utils.POINTS_TYPE)-1)]
+            
     def getChartColor(self,index):
         try:
             return self.colors[index%len(self.colors)][0]
@@ -2200,18 +2394,10 @@ class theApp(Qt.QObject):
         if q==None:
             return
         
-        if idx==0:
-            linetype=False
-        elif idx==1:
-            linetype='-'
-        elif idx==2:
-            linetype='--'
-        elif idx==3:
-            linetype='..'
-        elif idx==4:
-            linetype='-.'
-        elif idx==5:
-            linetype='-..'
+        try:
+            linetype=utils.LINES_TYPE[idx]
+        except:
+            linetype=utils.LINES_TYPE[0]
             
         q.chart_properties['line']=linetype
         surface.repaint()
@@ -2228,17 +2414,11 @@ class theApp(Qt.QObject):
 
         if q==None:
             return
-                    
-        if idx==0:
-            pointstype=False
-        elif idx==1:
-            pointstype='+'
-        elif idx==2:
-            pointstype='o'
-        elif idx==3:
-            pointstype='d'
-        elif idx==4:
-            pointstype='*'
+        try:
+            pointstype=utils.POINTS_TYPE[idx]
+        except:
+            pointstype=utils.POINTS_TYPE[0]
+            
         q.chart_properties['points']=pointstype
         surface.repaint()
 
@@ -2254,12 +2434,14 @@ class theApp(Qt.QObject):
         if q==None:
             return
         
-        if idx==0:
-            barstype=False
-        elif idx==1:
-            barstype='|'
+        try:
+            barstype=utils.BARS_TYPE[idx]
+        except:
+            barstype=utils.BARS_TYPE[0]          
+            
         q.chart_properties['bars']=barstype
         surface.repaint()
+        
 
     def setCurrentADUCurveSmooting(self, idx):
         return self.setCurrentCurveSmooting(idx, self.wnd.aduListWidget, self.wnd.aduLabel) 
@@ -2771,12 +2953,15 @@ class theApp(Qt.QObject):
                         )
 
         self.statusBar.showMessage(tr('Loading files, please wait...'))
-
+        
+        if len(newlist) == 0:
+            return
+        
         if len(self.framelist) > 0:
             imw = self.currentWidth
             imh = self.currentHeight
             dep = self.currentDepht[0:3]
-        elif len(newlist) > 0:
+        else:
             ref = utils.Frame(str(newlist[0]), **self.frame_open_args)
             if not ref.is_good:
                 msgBox = Qt.QMessageBox(self.wnd)
@@ -2812,10 +2997,7 @@ class theApp(Qt.QObject):
                 self.wnd.colorBar.current_val=0.0
                 
             self.wnd.colorBar.max_val=1.0
-            self.wnd.colorBar.min_val=0.0
-        else:
-            return
-        
+            self.wnd.colorBar.min_val=0.0        
         
         self.current_dir=os.path.dirname(str(newlist[0]))
         rejected=''
@@ -3183,32 +3365,24 @@ class theApp(Qt.QObject):
         pointsize=q.chart_properties['point_size']
         linewidth=q.chart_properties['line_width']
         
-        if pointstype==False:
-            self.wnd.pointsADUComboBox.setCurrentIndex(0)
-        elif pointstype=='+':
+        try:
+            pnt_index=utils.POINTS_TYPE.index(pointstype)
+            self.wnd.pointsADUComboBox.setCurrentIndex(pnt_index)
+        except:
             self.wnd.pointsADUComboBox.setCurrentIndex(1)
-        elif pointstype=='o':
-            self.wnd.pointsADUComboBox.setCurrentIndex(2)
-        elif pointstype=='d':
-            self.wnd.pointsADUComboBox.setCurrentIndex(3)
-        elif pointstype=='*':
-            self.wnd.pointsADUComboBox.setCurrentIndex(4)
-        
-        if linetype==False:
+            
+        try:
+            ln_index=utils.LINES_TYPE.index(linetype)
+            self.wnd.lineADUComboBox.setCurrentIndex(ln_index)
+        except:
             self.wnd.lineADUComboBox.setCurrentIndex(0)
-        elif linetype=='-':
-            self.wnd.lineADUComboBox.setCurrentIndex(1)
-        elif linetype=='--':
-            self.wnd.lineADUComboBox.setCurrentIndex(2)
-        elif linetype=='..':
-            self.wnd.lineADUComboBox.setCurrentIndex(3)
-        elif linetype=='-.':
-            self.wnd.lineADUComboBox.setCurrentIndex(4)
-    
-        if barstype==False:
-            self.wnd.barsADUComboBox.setCurrentIndex(0)
-        elif barstype=='|':
+
+        try:
+            bar_index=utils.BARS_TYPE.index(barstype)
+            self.wnd.barsADUComboBox.setCurrentIndex(bar_index)
+        except:
             self.wnd.barsADUComboBox.setCurrentIndex(1)
+        
     
         self.wnd.smoothingADUDoubleSpinBox.setValue(smoothing)
         self.wnd.pointSizeADUDoubleSpinBox.setValue(pointsize)
@@ -3235,7 +3409,7 @@ class theApp(Qt.QObject):
             self.wnd.pointSizeMagDoubleSpinBox.setEnabled(True)
             self.wnd.lineWidthMagDoubleSpinBox.setEnabled(True)
         
-        q = self.wnd.aduListWidget.item(idx)
+        q = self.wnd.magListWidget.item(idx)
         self.wnd.colorMagComboBox.setCurrentIndex(self.getChartColorIndex(q.chart_properties['color'])) 
         
         pointstype=q.chart_properties['points']
@@ -3244,32 +3418,23 @@ class theApp(Qt.QObject):
         smoothing=q.chart_properties['smoothing']
         pointsize=q.chart_properties['point_size']
         linewidth=q.chart_properties['line_width']
-        
-        if pointstype==False:
-            self.wnd.pointsMagComboBox.setCurrentIndex(0)
-        elif pointstype=='+':
+                
+        try:
+            pnt_index=utils.POINTS_TYPE.index(pointstype)
+            self.wnd.pointsMagComboBox.setCurrentIndex(pnt_index)
+        except:
             self.wnd.pointsMagComboBox.setCurrentIndex(1)
-        elif pointstype=='o':
-            self.wnd.pointsMagComboBox.setCurrentIndex(2)
-        elif pointstype=='d':
-            self.wnd.pointsMagComboBox.setCurrentIndex(3)
-        elif pointstype=='*':
-            self.wnd.pointsMagComboBox.setCurrentIndex(4)
-        
-        if linetype==False:
+            
+        try:
+            ln_index=utils.LINES_TYPE.index(linetype)
+            self.wnd.lineMagComboBox.setCurrentIndex(ln_index)
+        except:
             self.wnd.lineMagComboBox.setCurrentIndex(0)
-        elif linetype=='-':
-            self.wnd.lineMagComboBox.setCurrentIndex(1)
-        elif linetype=='--':
-            self.wnd.lineMagComboBox.setCurrentIndex(2)
-        elif linetype=='..':
-            self.wnd.lineMagComboBox.setCurrentIndex(3)
-        elif linetype=='-.':
-            self.wnd.lineMagComboBox.setCurrentIndex(4)
-    
-        if barstype==False:
-            self.wnd.barsMagComboBox.setCurrentIndex(0)
-        elif barstype=='|':
+
+        try:
+            bar_index=utils.BARS_TYPE.index(barstype)
+            self.wnd.barsMagComboBox.setCurrentIndex(bar_index)
+        except:
             self.wnd.barsMagComboBox.setCurrentIndex(1)
     
         self.wnd.smoothingMagDoubleSpinBox.setValue(smoothing)
@@ -3656,18 +3821,18 @@ class theApp(Qt.QObject):
             self.showAlignPoints=True
                     
         if idx==2:
-            utils.trace("Setting up manual alignment controls")
+            self.trace("Setting up manual alignment controls")
             self.manual_align=True
-            utils.trace("Updating list of available images")
+            self.trace("Updating list of available images")
             self.updateAlignList()
             if self.wnd.listWidgetManualAlign.count()>0:
                 img=self.framelist[self.wnd.listWidgetManualAlign.item(0).original_id]
-                utils.trace("Loading reference image")
+                self.trace("Loading reference image")
                 self.ref_image = utils.arrayToQImage(img.getData(asarray=True),
                                                      bw_jet=self.use_colormap_jet,
                                                      fit_levels=self.fit_levels,
                                                      levels_range=self.levels_range)
-                utils.trace("Selecting reference image")
+                self.trace("Selecting reference image")
                 self.wnd.listWidgetManualAlign.setCurrentRow(0)
                 self.updateImage()
         else:
@@ -3814,8 +3979,8 @@ class theApp(Qt.QObject):
         
     def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
-                                         os.path.join(self.current_dir,'Untitled.prj'),
-                                         "Project (*.prj);;All files (*.*)",None,
+                                         os.path.join(self.current_dir,'Untitled.lxn'),
+                                         "Project (*.lxn);;All files (*.*)", None,
                                          self._dialog_options))
         if self.current_project_fname == '':
             self.current_project_fname=None
@@ -4049,7 +4214,7 @@ class theApp(Qt.QObject):
             f.write(doc.toprettyxml(' ','\n'))
             f.close()
         except IOError as err:
-            utils.trace("Cannot save the project: " + str(err))
+            self.trace("Cannot save the project: " + str(err))
             msgBox = Qt.QMessageBox(self.wnd)
             msgBox.setText(tr("Cannot save the project: ")+ str(err))
             msgBox.setInformativeText(tr("Assure you have the permissions to write the file."))
@@ -4062,27 +4227,31 @@ class theApp(Qt.QObject):
         self.wnd.setWindowTitle(str(paths.PROGRAM_NAME)+' ['+self.current_project_fname+']')
         self.unlock()
 
-    def loadProject(self):
+    def loadProject(self,pname=None):
         
-        utils.trace('\nloading project, please wait...\n')
+        self.trace('\nloading project, please wait...\n')
         old_fname = self.current_project_fname
-        project_fname = str(Qt.QFileDialog.getOpenFileName(self.wnd,
-                                                           tr("Open a project"),
-                                                           os.path.join(self.current_dir,'Untitled.prj'),
-                                                           "Project (*.prj);;All files (*.*)", None,
-                                                           self._dialog_options)
-                           )
-
+        
+        if pname is None:
+            project_fname = str(Qt.QFileDialog.getOpenFileName(self.wnd,
+                                                            tr("Open a project"),
+                                                            os.path.join(self.current_dir,'Untitled.lxn'),
+                                                            "Project (*.lxn *.prj);;All files (*.*)", None,
+                                                            self._dialog_options)
+                            )
+        else:
+            project_fname=pname
+            
         if project_fname.replace(' ','') == '':
-            utils.trace(' no project selected, retvert to previous state\n') 
+            self.trace(' no project selected, retvert to previous state\n') 
             return False
         else:
-            utils.trace(' project name: \''+str(project_fname)+'\'') 
+            self.trace(' project name: \''+str(project_fname)+'\'') 
             
         try:
             dom = minidom.parse(project_fname)
         except Exception as err:
-            utils.trace('failed to parse project, xml formatting error') 
+            self.trace('failed to parse project, xml formatting error') 
             return self.corruptedMsgBox(err)       
 
         self.statusBar.showMessage(tr('loading project, please wait...'))
@@ -4104,7 +4273,7 @@ class theApp(Qt.QObject):
                 master_bias_mul_factor=float(master_bias_node.getAttribute('mul'))
                 _bias_section=True
             except Exception as exc:
-                utils.trace('no bias section')
+                self.trace('no bias section')
                 total_bias=0
                 master_bias_node=None
                 _bias_section=False
@@ -4113,7 +4282,7 @@ class theApp(Qt.QObject):
                 photometry_node = root.getElementsByTagName('photometry')[0]
                 _fotometric_section=True
             except Exception as exc:
-                utils.trace('no fotometric section, skipping star loading')
+                self.trace('no fotometric section, skipping star loading')
                 _fotometric_section=False
                                 
             total_dark = len(dark_frames_node.getElementsByTagName('image'))
@@ -4124,7 +4293,7 @@ class theApp(Qt.QObject):
             self.progress.setMaximum(total_bias+total_dark+total_flat+total_imgs-1)
             count=0
             
-            utils.trace('\nloading project information')
+            self.trace('\nloading project information')
             
             current_dir_node = information_node.getElementsByTagName('current-dir')[0]
             current_row_node = information_node.getElementsByTagName('current-row')[0]
@@ -4174,7 +4343,7 @@ class theApp(Qt.QObject):
             biasframelist=[]
             biasListWidgetElements = []    
             if _bias_section:
-                utils.trace('reading bias-frames section')
+                self.trace('reading bias-frames section')
                 for node in bias_frames_node.getElementsByTagName('image'):
                     self.progress.setValue(count)
                     count+=1
@@ -4195,7 +4364,7 @@ class theApp(Qt.QObject):
                     q.setToolTip(biasfrm.long_tool_name)
                     biasListWidgetElements.append(q)
             
-            utils.trace('reading dark-frames section')
+            self.trace('reading dark-frames section')
             
             darkframelist=[]
             darkListWidgetElements = []    
@@ -4219,7 +4388,7 @@ class theApp(Qt.QObject):
                 q.setToolTip(darkfrm.long_tool_name)
                 darkListWidgetElements.append(q)
             
-            utils.trace('reading flatfield-frames section')
+            self.trace('reading flatfield-frames section')
             
             flatframelist=[]
             flatListWidgetElements = []    
@@ -4243,7 +4412,7 @@ class theApp(Qt.QObject):
                 q.setToolTip(flatfrm.long_tool_name)
                 flatListWidgetElements.append(q)
                 
-            utils.trace('reading light-frames section')
+            self.trace('reading light-frames section')
             
             framelist=[]  
             listWidgetElements=[]
@@ -4305,7 +4474,7 @@ class theApp(Qt.QObject):
             starslist=[]
             starsListWidgetElements=[]
             if _fotometric_section:
-                utils.trace('reading stars section')
+                self.trace('reading stars section')
                 use_image_time=bool(int(photometry_node.getAttribute('time_type')))
                 #photometry section
                 for star_node in photometry_node.getElementsByTagName('star'):
@@ -4331,14 +4500,14 @@ class theApp(Qt.QObject):
         except Exception as exc:
             self.current_project_fname=old_fname
             self.unlock()
-            utils.trace('An error has occurred while reading the project:\n\"'+str(exc)+'\"')
+            self.trace('An error has occurred while reading the project:\n\"'+str(exc)+'\"')
             return self.corruptedMsgBox(str(exc))
        
         self.newProject()
         
         self.current_project_fname=project_fname
                 
-        utils.trace('setting up project environment')
+        self.trace('setting up project environment')
         
         for item in starsListWidgetElements:
             self.wnd.starsListWidget.addItem(item)
@@ -4412,7 +4581,7 @@ class theApp(Qt.QObject):
         self.wnd.flatMulDoubleSpinBox.setValue(master_flat_mul_factor)
         if (len(self.flatframelist)>0):
             self.wnd.flatClearPushButton.setEnabled(True)
-        utils.trace('project fully loaded\n')
+        self.trace('project fully loaded\n')
         self.wnd.setWindowTitle(str(paths.PROGRAM_NAME)+' ['+self.current_project_fname+']')
         
     def autoDetectAlignPoints(self):
@@ -4554,11 +4723,18 @@ class theApp(Qt.QObject):
         
         return True
     
-    def align(self):
+    def doAlign(self, *arg, **args):
+        return self.align()
+        
+    def align(self,do_reset=None,do_align=None,do_derot=None):
         
         result=None
         
-        if self.align_dlg.exec_():
+        if (do_reset!=None) or (do_align!=None) or (do_derot!=None):
+            align=(do_align==True)
+            derotate=(do_derot==True)
+            reset=(do_reset==True)
+        elif self.align_dlg.exec_():
             align_derot = self.align_dlg.alignDerotateRadioButton.isChecked()
             align = align_derot or self.align_dlg.alignOnlyRadioButton.isChecked()
             derotate = align_derot or self.align_dlg.derotateOnlyRadioButton.isChecked()
@@ -4567,7 +4743,7 @@ class theApp(Qt.QObject):
             return False
         
         if reset:
-            utils.trace('Resetting alignment...')
+            self.trace('Resetting alignment...')
             self.progress.setMaximum(len(self.framelist))
             self.lock()
             count=0
@@ -4575,12 +4751,12 @@ class theApp(Qt.QObject):
                 count+=1
                 self.progress.setValue(count)
                 if i.isUsed():
-                    utils.trace(' Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0')
+                    self.trace(' Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0')
                     self.statusBar.showMessage(tr('Resetting alignment for image')+' '+i.name)
                     i.angle=0
                     i.offset=(0,0)
                 else:
-                    utils.trace(' Skipping image ' + i.name)
+                    self.trace(' Skipping image ' + i.name)
             self.unlock()
         else:
             self.is_aligning = True
@@ -4817,14 +4993,14 @@ class theApp(Qt.QObject):
                 self.qapp.processEvents()
                 if ref == None:
                     ref = img
-                    utils.trace('\n using image '+img.name+' as reference')
+                    self.trace('\n using image '+img.name+' as reference')
                     ref_data = ref.getData(asarray=True)
                     if len(ref_data.shape)==3:
                         ref_data=ref_data.sum(2)
                     ref_data*=mask
                     ref.setOffset([0,0])
                 else:
-                    utils.trace('\n registering image '+img.name)
+                    self.trace('\n registering image '+img.name)
                     img_data=img.getData(asarray=True)
                     if len(img_data.shape)==3:
                         img_data=img_data.sum(2)
@@ -4838,6 +5014,7 @@ class theApp(Qt.QObject):
                         self.showImage(utils.arrayToQImage(data[0]))
                     img.setOffset(data[1])
                     img.setAngle(data[2])
+                    
         del mask
         self._phase_align_data=None
         self.wnd.colorBar._is_rgb=old_rgb_mode
@@ -4890,15 +5067,17 @@ class theApp(Qt.QObject):
             return self.product(framelist, bias_image, dark_image, flat_image, **args)
         else:
             #this should never happen
-            utils.trace("Something that sould never happen has just happened!")
-            utils.trace("An unknonw stacking method has been selected")
+            self.trace("Something that sould never happen has just happened!")
+            self.trace("An unknonw stacking method has been selected")
             return None
             
     
-    def stack(self):
+    def doStack(self,*arg,**args):
+        return self.stack()
+        
+    def stack(self,method=None):
         
         self.clearResult()
-        
         """
         selecting method and setting options
         before stacking
@@ -4919,8 +5098,33 @@ class theApp(Qt.QObject):
         else:
             self.stack_dlg.tabWidget.setTabEnabled(3,True)
         
-        
-        if self.stack_dlg.exec_():
+        if method!=None:
+            bias_method=method
+            dark_method=method
+            flat_method=method
+            lght_method=method
+            
+            bias_args={'lk':self.stack_dlg.biasLKappa.value(),
+                        'hk':self.stack_dlg.biasHKappa.value(),
+                        'iterations':self.stack_dlg.biasKIters.value(),
+                        'debayerize_result':False}
+            
+            dark_args={'lk':self.stack_dlg.darkLKappa.value(),
+                       'hk':self.stack_dlg.darkHKappa.value(),
+                       'iterations':self.stack_dlg.darkKIters.value(),
+                       'debayerize_result':False}
+            
+            flat_args={'lk':self.stack_dlg.flatLKappa.value(),
+                       'hk':self.stack_dlg.flatHKappa.value(),
+                       'iterations':self.stack_dlg.flatKIters.value(),
+                       'debayerize_result':False}
+                       
+            lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
+                       'hk':self.stack_dlg.ligthHKappa.value(),
+                       'iterations':self.stack_dlg.ligthKIters.value(),
+                       'debayerize_result':True}
+            
+        elif self.stack_dlg.exec_():
             bias_method=self.stack_dlg.biasStackingMethodComboBox.currentIndex()
             dark_method=self.stack_dlg.darkStackingMethodComboBox.currentIndex()
             flat_method=self.stack_dlg.flatStackingMethodComboBox.currentIndex()
@@ -5011,7 +5215,7 @@ class theApp(Qt.QObject):
                 return False
         elif (len(self.flatframelist)>0):
             self.statusBar.showMessage(tr('Creating master-flat, please wait...'))
-            _flt=self.getStackingMethod(flat_method,self.flatframelist, None, self._drk, None,**flat_args)
+            _flt=self.getStackingMethod(flat_method,self.flatframelist, None, None, None,**flat_args)
             if _flt==None:
                 return False
             else:
@@ -5025,9 +5229,9 @@ class theApp(Qt.QObject):
             self.unlock()
             return False
         else:
-            self._stk=_stk
+            self._stk=_stk-_stk.min()
             self.statusBar.showMessage(tr('Generating histograhms...'))
-            self._hst=utils.generateHistograhms(_stk,256) #TODO:make a user's control
+            self._hst=utils.generateHistograhms(self._stk,256) #TODO:make a user's control?
             self.qapp.processEvents()
             self.statusBar.showMessage(tr('Generating preview...'))
             self.qapp.processEvents()
@@ -5040,7 +5244,7 @@ class theApp(Qt.QObject):
         self.unlock()
         
     def generateMasters(self, bias_image=None, dark_image=None, flat_image=None):
-        utils.trace("generating master frames")
+        self.trace("generating master frames")
         
         if (bias_image != None):
             master_bias=(bias_image*self.master_bias_mul_factor)
@@ -5054,18 +5258,27 @@ class theApp(Qt.QObject):
                 master_dark=dark_image*self.master_dark_mul_factor
             
             mean_dark=master_dark.mean()
-            ddev_dark=master_dark.std()
-                                    
+            ddev_dark=master_dark.var()
+            dmax=master_dark.max()
+            dmin=master_dark.min()
+            delta=dmax-dmin
             hot_pixels=[]
             
-            # 5.0 is to be SURE the pixel is hot
+            if ddev_dark>0:
+                fac=(ddev_dark)/(1-(mean_dark-dmin)/delta)
+                
+                max_number=int(0.005*numpy.array(master_dark.shape[0:2]).prod())
+                
+                mm=master_dark.max(0)
+                
+                n=3
+                hot_pixels=numpy.argwhere((master_dark-dmin)>n*fac)
+                
+                while len(hot_pixels) > max_number:
+                    n+=1
+                    hot_pixels=numpy.argwhere((master_dark-dmin)>n*fac)            
             
-            for p in numpy.argwhere((master_dark-mean_dark)>5.0*ddev_dark):
-                hp=(p[0],p[1])
-                if not hp in hot_pixels:
-                    hot_pixels.append(hp)
-            
-            utils.trace("Found "+str(len(hot_pixels))+" hot pixels")
+            self.trace("Found "+str(len(hot_pixels))+" hot pixels")
             
         else:
             master_dark=None
@@ -5087,19 +5300,19 @@ class theApp(Qt.QObject):
     def calibrate(self, image, master_bias=None, master_dark=None, master_flat=None, hot_pixels=None, debayerize_result=False, **args):
                 
         if (master_bias == None) and (master_dark == None) and (master_flat == None):
-            utils.trace("skipping image calibration")
+            self.trace("skipping image calibration")
         else:
-            utils.trace("calibrating image...")
+            self.trace("calibrating image...")
             if master_bias!=None:
-                utils.trace("calibrating image: subtracting bias")
+                self.trace("calibrating image: subtracting bias")
                 image -=  master_bias
                                     
             if master_dark!=None:
-                utils.trace("calibrating image: subtracting master dark")
+                self.trace("calibrating image: subtracting master dark")
                 image -=  master_dark
             
             if hot_pixels!=None:
-                utils.trace("calibrating image: correcting for hot pixels")
+                self.trace("calibrating image: correcting for hot pixels")
                 
             
                 """
@@ -5136,15 +5349,15 @@ class theApp(Qt.QObject):
                 
                 """
                 
-                #utils.traceTimeStart("Removing "+str(len(hot_pixels))+" hot pixels...")
+                #self.traceTimeStart("Removing "+str(len(hot_pixels))+" hot pixels...")
                 for hotp in hot_pixels:
                     hotp_x=hotp[1]
                     hotp_y=hotp[0]
                     image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.wnd.rawGroupBox.isChecked()==2)
-                #utils.traceTimeStop()    
+                #self.traceTimeStop()    
                 
             if master_flat!=None:
-                utils.trace("calibrating image: dividing by master flat")
+                self.trace("calibrating image: dividing by master flat")
                 image /= master_flat  
         
         if debayerize_result:
@@ -5157,17 +5370,17 @@ class theApp(Qt.QObject):
         if img.angle!=0:
             img_data = scipy.ndimage.interpolation.rotate(img_data,img.angle,order=self.interpolation_order,reshape=False,mode='constant',cval=0.0)
         else:
-            utils.trace("skipping rotation")
+            self.trace("skipping rotation")
         
         shift=numpy.zeros([len(img_data.shape)])
         shift[0]=-img.offset[1]
         shift[1]=-img.offset[0]
         
         if (shift[0]!=0) or (shift[1]!=0):
-            utils.trace("shifting of "+str(shift[0:2]))
+            self.trace("shifting of "+str(shift[0:2]))
             img_data = scipy.ndimage.interpolation.shift(img_data,shift,order=self.interpolation_order,mode='constant',cval=0.0)
         else:
-            utils.trace("skipping shift")
+            self.trace("skipping shift")
         del shift
 
         return img_data
@@ -5182,7 +5395,7 @@ class theApp(Qt.QObject):
             
         total = len(framelist)
         
-        utils.trace('Computing ' + str(name) + ', please wait...')
+        self.trace('Computing ' + str(name) + ', please wait...')
         self.statusBar.showMessage(tr('Computing') +' '+ str(name) + ', ' + tr('please wait')+'...')
         
         self.progress.reset()
@@ -5207,10 +5420,10 @@ class theApp(Qt.QObject):
             
             if img.isUsed():
                 count+=1
-                utils.trace('\nUsing image '+img.name)
+                self.trace('\nUsing image '+img.name)
             else:
                 progress_count+=3
-                utils.trace('\nSkipping image '+img.name)
+                self.trace('\nSkipping image '+img.name)
                 continue
             
             r=img.getData(asarray=True, ftype=self.ftype)
@@ -5288,7 +5501,7 @@ class theApp(Qt.QObject):
         
         total_subs=(n_x_subs+1)*(n_y_subs+1)
         
-        utils.trace("Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions")
+        self.trace("Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions")
         self.statusBar.showMessage(tr('Computing') +' '+ str(title) + ', ' + tr('please wait...'))
         self.progress.reset
         self.progress.setMaximum(total_subs*(len(filelist)+1))
@@ -5340,12 +5553,15 @@ class theApp(Qt.QObject):
                         lst.append(sub)
                 count+=1
                 msg = tr('Computing ')+str(title)+tr(' on subregion ')+str(count)+tr(' of ')+str(total_subs)
-                utils.trace(msg)
+                self.trace(msg)
                 self.statusBar.showMessage(msg)
                 self.qapp.processEvents()
                 
                 if len(args)>0:
-                    operation(lst, axis=0, out=result[yst:ynd,xst:xnd],**args)
+                    try:
+                        operation(lst, axis=0, out=result[yst:ynd,xst:xnd],**args)
+                    except:
+                        operation(lst, axis=0, out=result[yst:ynd,xst:xnd])
                 else:
                     operation(lst, axis=0, out=result[yst:ynd,xst:xnd])
                 del lst
@@ -5411,15 +5627,14 @@ class theApp(Qt.QObject):
             return numpy.ma.median(clipped, axis=axis)
         else:
             out[...] = numpy.ma.median(clipped, axis=axis)
-    
-    
+            
+        
     def average(self,framelist , bias_image=None, dark_image=None, flat_image=None, **args):
         return self.nativeOperationOnImages(numpy.add,tr('average'),framelist,
                                             bias_image, dark_image, flat_image,
                                             post_operation = numpy.divide, **args)
     
     def stddev(self,framelist, bias_image=None, dark_image=None, flat_image=None, **args):
-        #return self.operationOnImages(numpy.std,tr('standard deviation'),framelist, dark_image, flat_image)
         avg=self.average(framelist,  bias_image, dark_image, flat_image)
         return self.nativeOperationOnImages(lambda a1,a2: (a2-avg)**2,tr('standard deviation'),framelist,
                                             dark_image, flat_image, post_operation=lambda x,n: numpy.sqrt(x/(n-1)), **args)
@@ -5434,10 +5649,10 @@ class theApp(Qt.QObject):
     def sigmaclip(self,framelist, bias_image=None, dark_image=None, flat_image=None, **args):
         return self.operationOnImages(self.sigmaClipping,tr('sigma clipping'),framelist,  bias_image, dark_image, flat_image, **args)
     
-    #TODO: try to make a native function
+    #TODO: try to make a native function 
     def median(self,framelist, bias_image=None, dark_image=None, flat_image=None, **args):
         return self.operationOnImages(numpy.median,tr('median'),framelist,  bias_image, dark_image, flat_image, **args)
-
+            
     def maximum(self,framelist, bias_image=None, dark_image=None, flat_image=None, **args):
         #return self.operationOnImages(numpy.max,tr('maximum'),framelist, dark_image, flat_image)
         return self.nativeOperationOnImages(numpy.max,tr('maximum'),framelist,  bias_image, dark_image, flat_image,
@@ -5524,7 +5739,10 @@ class theApp(Qt.QObject):
 
         return mdn
     
-    def generateLightCurves(self):
+    def deGenerateLightCurves(self):
+        return self.generateLightCurves()
+    
+    def generateLightCurves(self,method=None):
         
         del self._bas
         del self._drk
@@ -5534,7 +5752,7 @@ class theApp(Qt.QObject):
         self._flt=None
         self._bas=None
         
-        utils.trace('generating light curves, please wait...')
+        self.trace('generating light curves, please wait...')
         
         """
         selecting method and setting options
@@ -5564,7 +5782,33 @@ class theApp(Qt.QObject):
         
         if (show1 or show2 or show3):
             self.stack_dlg.tabWidget.setTabEnabled(0,False)
-            if self.stack_dlg.exec_():
+            if method!=None:
+                bias_method=method
+                dark_method=method
+                flat_method=method
+                lght_method=method
+            
+                    
+                bias_args={'lk':self.stack_dlg.biasLKappa.value(),
+                            'hk':self.stack_dlg.biasHKappa.value(),
+                            'iterations':self.stack_dlg.biasKIters.value(),
+                            'debayerize_result':False}
+                
+                dark_args={'lk':self.stack_dlg.darkLKappa.value(),
+                        'hk':self.stack_dlg.darkHKappa.value(),
+                        'iterations':self.stack_dlg.darkKIters.value(),
+                        'debayerize_result':False}
+                
+                flat_args={'lk':self.stack_dlg.flatLKappa.value(),
+                        'hk':self.stack_dlg.flatHKappa.value(),
+                        'iterations':self.stack_dlg.flatKIters.value(),
+                        'debayerize_result':False}
+                        
+                lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
+                        'hk':self.stack_dlg.ligthHKappa.value(),
+                        'iterations':self.stack_dlg.ligthKIters.value(),
+                        'debayerize_result':True}
+            elif self.stack_dlg.exec_():
                 bias_method=self.stack_dlg.biasStackingMethodComboBox.currentIndex()
                 dark_method=self.stack_dlg.darkStackingMethodComboBox.currentIndex()
                 flat_method=self.stack_dlg.flatStackingMethodComboBox.currentIndex()
@@ -5616,7 +5860,7 @@ class theApp(Qt.QObject):
                 bsa=utils.Frame(self.master_bias_file, **self.frame_open_args)
                 self._bas=bas.getData(asarray=True, ftype=self.ftype)
             elif self.master_bias_file.replace(' ','').replace('\t','') == '':
-                utils.trace('skipping bias-frame calibration')
+                self.trace('skipping bias-frame calibration')
             else:
                 msgBox = Qt.QMessageBox()
                 msgBox.setText(tr("Cannot open \'"+self.master_bias_file+"\':"))
@@ -5632,14 +5876,14 @@ class theApp(Qt.QObject):
             else:
                 self._bas=_bas
         else:
-            utils.trace('skipping bias-frame calibration')
+            self.trace('skipping bias-frame calibration')
             
         if (self.wnd.masterDarkCheckBox.checkState() == 2):
             if os.path.isfile(self.master_dark_file):
                 drk=utils.Frame(self.master_dark_file, **self.frame_open_args)
                 self._drk=drk.getData(asarray=True, ftype=self.ftype)
             elif self.master_dark_file.replace(' ','').replace('\t','') == '':
-                utils.trace('skipping dark-frame calibration')
+                self.trace('skipping dark-frame calibration')
             else:
                 msgBox = Qt.QMessageBox()
                 msgBox.setText(tr("Cannot open \'"+self.master_dark_file+"\':"))
@@ -5655,14 +5899,14 @@ class theApp(Qt.QObject):
             else:
                 self._drk=_drk
         else:
-            utils.trace('skipping dark-frame calibration')
+            self.trace('skipping dark-frame calibration')
             
         if (self.wnd.masterFlatCheckBox.checkState() == 2):
             if os.path.isfile(self.master_flat_file):
                 flt=utils.Frame(self.master_flat_file, **self.frame_open_args)
                 self._flt=flt.getData(asarray=True, ftype=self.ftype)
             elif self.master_flat_file.replace(' ','').replace('\t','') == '':
-                utils.trace('skipping flatfield calibration')
+                self.trace('skipping flatfield calibration')
             else:
                 msgBox = Qt.QMessageBox()
                 msgBox.setText(tr("Cannot open \'"+self.master_dark_file+"\':"))
@@ -5679,7 +5923,7 @@ class theApp(Qt.QObject):
             else:
                 self._flt=_flt
         else:
-            utils.trace('skipping flatfield calibration')
+            self.trace('skipping flatfield calibration')
  
         
         #create empty lightcurve dict
@@ -5717,10 +5961,10 @@ class theApp(Qt.QObject):
         for img in self.framelist:
             count+=1
             if not (img.isUsed()):
-                utils.trace('\nskipping image '+str(img.name))
+                self.trace('\nskipping image '+str(img.name))
                 continue
             else:
-                utils.trace('\nusing image '+str(img.name))
+                self.trace('\nusing image '+str(img.name))
                 
             self.progress.setValue(count)
             r = img.getData(asarray=True, ftype=self.ftype)
@@ -5732,7 +5976,7 @@ class theApp(Qt.QObject):
                 self.lightcurve['time'].append(count)
             
             for i in self.starslist:
-                utils.trace('computing adu value for star '+str(i[2]))
+                self.trace('computing adu value for star '+str(i[2]))
                
                 di = dist(cx,cy,i[0],i[1])
                 an = math.atan2((cy-i[1]),(cx-i[0]))
@@ -5752,6 +5996,7 @@ class theApp(Qt.QObject):
                     msgBox.setText(tr("Error")+": "+str(exc))
                     msgBox.setIcon(Qt.QMessageBox.Critical)
                     msgBox.exec_()
+                    self.unlock()
                     return False
                    
                
@@ -5769,8 +6014,7 @@ class theApp(Qt.QObject):
         for i in  self.lightcurve[True]:
             self.lightcurve[True][i]['data']=numpy.array(self.lightcurve[True][i]['data'],dtype=self.ftype)
             self.lightcurve[True][i]['error']=numpy.array(self.lightcurve[True][i]['error'],dtype=self.ftype)
-
-
+        
         self.wnd.saveADUChartPushButton.setEnabled(True)
 
         self.progress.setMaximum(len(self.lightcurve))
@@ -6101,7 +6345,7 @@ class theApp(Qt.QObject):
         scenablied = self.levels_dlg.dataClippingGroupBox.isChecked()
         clipping   = scenablied and self.levels_dlg.dataClippingClipDataRadioButton.isChecked()
         streching  = scenablied and self.levels_dlg.dataClippingFitDataRadioButton.isChecked()
-        
+                
         A = float(self.levels_dlg.aDoubleSpinBox.value())
         B = float(self.levels_dlg.bDoubleSpinBox.value())
         o = float(self.levels_dlg.oDoubleSpinBox.value())
@@ -6217,7 +6461,7 @@ class theApp(Qt.QObject):
                                                        self._dialog_options))
         
         if file_name.replace(' ','') == '':
-            utils.trace('no video file selected for output') 
+            self.trace('no video file selected for output') 
             return False
         
         
@@ -6253,8 +6497,8 @@ class theApp(Qt.QObject):
         except Exception as exc:
             estr=str(exc)
             if ('doesn\'t support this codec' in estr):
-                utils.trace('\n It seems that opencv cannot handle this format.')
-                utils.trace(' Try to use a lower resolution and assure you\nhave the permissions to write the file.')
+                self.trace('\n It seems that opencv cannot handle this format.')
+                self.trace(' Try to use a lower resolution and assure you\nhave the permissions to write the file.')
                 
                 msgBox = Qt.QMessageBox()
                 msgBox.setText(tr("Cannot create the video file."))
@@ -6263,10 +6507,10 @@ class theApp(Qt.QObject):
                 msgBox.exec_()
                 
         
-        utils.trace('writing video to: \"'+file_name+'\"')
-        utils.trace(' FPS : ' + str(fps))
-        utils.trace(' FOURCC : ' + fcc_str)
-        utils.trace(' FRAME SIZE : ' + str(size))
+        self.trace('writing video to: \"'+file_name+'\"')
+        self.trace(' FPS : ' + str(fps))
+        self.trace(' FOURCC : ' + fcc_str)
+        self.trace(' FRAME SIZE : ' + str(size))
         
         
         
@@ -6283,8 +6527,8 @@ class theApp(Qt.QObject):
                 self.progress.setValue(count)
                 if frm.isUsed():
                     
-                    utils.trace('\nusing frame '+str(frm.name))
-                    utils.trace(' loading data...')
+                    self.trace('\nusing frame '+str(frm.name))
+                    self.trace(' loading data...')
                     
                     img = self.debayerize(frm.getData(asarray=True, asuint8=True, fit_levels=fitlvl)).astype(numpy.uint8)
                     
@@ -6294,7 +6538,7 @@ class theApp(Qt.QObject):
                         img = self.registerImages(frm,img)
                     
                     if custom_size:
-                        utils.trace('resizing image to ' + str(size))
+                        self.trace('resizing image to ' + str(size))
                         if _rgb:
                             img = scipy.ndimage.interpolation.zoom(img,(fzoom,fzoom,1),order=self.interpolation_order)
                         else:
@@ -6302,12 +6546,12 @@ class theApp(Qt.QObject):
                     
                     if _rgb:
                         cv2img = numpy.empty_like(img)
-                        utils.trace(' converting to BRG format...')
+                        self.trace(' converting to BRG format...')
                         cv2img[...,0]=img[...,2]
                         cv2img[...,1]=img[...,1]
                         cv2img[...,2]=img[...,0]
                     else:
-                        utils.trace(' converting to BRG format...')
+                        self.trace(' converting to BRG format...')
                         if self.use_colormap_jet:
                             img = utils.getJetColor(img,fitlvl)
                             cv2img = numpy.empty((size[1],size[0],3),dtype=numpy.uint8)
@@ -6320,22 +6564,22 @@ class theApp(Qt.QObject):
                             cv2img[...,1]=img[...]
                             cv2img[...,2]=img[...]
                             
-                    utils.trace(' pushing frame...')
+                    self.trace(' pushing frame...')
                     
                     vw.write(cv2img)
                     
                     del cv2img
                     
                 else:
-                    utils.trace('\nskipping frame '+str(frm.name))
+                    self.trace('\nskipping frame '+str(frm.name))
                     
             vw.release()
             self.unlock()
             self.statusBar.showMessage(tr('DONE'))
-            utils.trace('\nDONE')
+            self.trace('\nDONE')
             
         else:
-            utils.trace('\nCannot open destination file')
+            self.trace('\nCannot open destination file')
         
     def saveResult(self):
         
@@ -6496,3 +6740,5 @@ class theApp(Qt.QObject):
                 frm._imwrite_cv2_(rawflt,flags)
 
         del frm
+
+        

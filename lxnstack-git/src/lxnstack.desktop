@@ -2,7 +2,8 @@
 Categories=Education;Graphics;KDE;Qt;
 Comment[it]=Un programma per allineare e sommare le immagini astronomiche
 Comment=Un programma per allineare e sommare le immagini astronomiche
-Exec=lxnstack
+Exec=lxnstack -l %f
+MimeType=application/lxnstack-project;
 GenericName[it]=
 GenericName=
 Icon=lxnstack

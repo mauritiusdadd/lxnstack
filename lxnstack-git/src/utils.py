@@ -1,5 +1,5 @@
 #lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013  Maurizio D'Addona
+#Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -13,8 +13,6 @@
 
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-_VERBOSE=False
 
 from PyQt4 import Qt, QtCore
 import sys
@@ -41,7 +39,9 @@ CUSTOM_EXTENSIONS = {'.npy':'NPY',
 
 _LOG_FILE = os.path.join(paths.HOME_PATH,'lxnstack.log')
 
-POINTS_TYPE=['o','d','s','+','*']
+POINTS_TYPE=['','o','d','s','+','*']
+LINES_TYPE=['','-','--','..','-.','-..']
+BARS_TYPE=['','|']
 
 __var_trace_time=0
 __var_trace_time_msg=""
@@ -76,8 +76,7 @@ def traceTimeStop():
               __var_trace_time_reset)
     
 
-def trace(msg,log=True,reset=False):
-    global _VERBOSE
+def trace(msg,log=True,reset=False,verbose=True, **args):
     if log:
         try:
             if reset:
@@ -89,14 +88,14 @@ def trace(msg,log=True,reset=False):
         except:
             pass #nothing to do
     
-    if _VERBOSE:
+    if verbose==True:
         print(msg)
 
 try:
     from PIL import Image, ExifTags
     Image.init()
 except ImportError:
-    trace('ERROR: \'PIL\' python module not found! exiting program.')
+    trace('ERROR: \'PIL\' python module not found! exiting program.',verbose=True)
     msgBox = Qt.QMessageBox()
     msgBox.setText(tr("\'PIL\' python module not found!"))
     msgBox.setInformativeText(tr("Please install the python imaging library (PIL)."))
@@ -108,7 +107,7 @@ try:
     import pyfits
     FITS_SUPPORT=True
     std_fits_header=[('SWCREATE',str(paths.PROGRAM_NAME))]
-    trace("FITS support enabled")
+    trace("FITS support enabled", verbose=True)
     
     def getFitsStdHeader():
         return pyfits.header.Header(std_fits_header)
@@ -116,7 +115,7 @@ try:
     
 except ImportError:
 
-    trace("FITS support not enabled:\nto enable FITS support please install the \'pyfits\' python package!")
+    trace("FITS support not enabled:\nto enable FITS support please install the \'pyfits\' python package!", verbose=True)
 
     FITS_SUPPORT=False
     FORMAT_BLACKLIST.append('FITS')   
@@ -127,7 +126,9 @@ try:
     trace("CR2 support enabled")
     for ext in cr2plugin.EXTENSION.keys():
         CUSTOM_EXTENSIONS[ext]=cr2plugin.EXTENSION[ext]
-except:
+except Exception as exc:
+    print "-----------------------___"
+    print exc
     FORMAT_BLACKLIST.append('CR2')
 
 
@@ -188,7 +189,7 @@ def _getCTime(v, sep=' '):
     tm_struct[2]=int(dt[2])
     tm_struct[8]=-1
     return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
-
+   
 class SplashScreen(Qt.QObject):
     
     def __init__(self,file_name,qapp=None):
@@ -223,8 +224,7 @@ class SplashScreen(Qt.QObject):
         self._minv=val
         self.update()
     
-    def setValue(self,val):
-        
+    def setValue(self,val):        
         for i in numpy.arange(self._cval,val,self._maxv/1000.0):
             self._cval=i
             self.update()
@@ -302,7 +302,7 @@ class Frame(object):
 
         self.setUrl(file_name, page)
         self.properties={}
-        
+        self.is_good=False
         self._open_args=args
                         
         if (('progress_bar' in args) and args['progress_bar']!=None):
@@ -323,7 +323,7 @@ class Frame(object):
         if 'rgb_fits_mode' in args:
             self.RGB_mode=args['rgb_fits_mode']
         else:
-            self.RGB_mode=False            
+            self.RGB_mode=False
         
         if (('skip_loading' in args) and 
             (args['skip_loading']==True) and
@@ -353,11 +353,6 @@ class Frame(object):
             else:
                 _tmp_data = self.open(self.url, page, PIL_priority=True, only_sizes=True, **args)
             
-            if _tmp_data==None:
-                self.is_good=False
-                return
-            else:
-                self.is_good=True
             
             if not ('data' in args):
                 del _tmp_data
@@ -420,8 +415,21 @@ class Frame(object):
      
     def getData(self, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32, PIL_priority=False):
         return self.open(self.url, self.page, asarray, asuint8, fit_levels, ftype, PIL_priority, **self._open_args)
-       
+        
     def open(self, file_name, page=0, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32,
+             PIL_priority=False, only_sizes=False, force_update=False, **args):
+        
+        data = self._open(file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority, 
+                         only_sizes, force_update, **args)
+        
+        if data==None:
+            self.is_good=False
+        else:
+            self.is_good=True
+        
+        return data
+    
+    def _open(self, file_name, page=0, asarray=False, asuint8=False, fit_levels=False, ftype=numpy.float32,
              PIL_priority=False, only_sizes=False, force_update=False, **args):
         
         image = None
@@ -715,7 +723,7 @@ class Frame(object):
                             img = cr2file.load()
                         except SyntaxError as exc:
                             msgBox = Qt.QMessageBox()
-                            msgBox.setText('Corrupted CR2 data!')
+                            msgBox.setText(tr('Corrupted CR2 data!'))
                             msgBox.setInformativeText(str(exc))
                             msgBox.setIcon(Qt.QMessageBox.Critical)
                             msgBox.exec_()
@@ -1074,13 +1082,16 @@ class Frame(object):
 
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
-    #python3 returns str...
+    #python3 return str...
     if type(news) == str:
         return news
     else:
-        #... while python2 returns QString 
+        #... while python2 return QString 
         # that must be converted to str
-        return str(news.toAscii())
+        try:
+            return str(news.toAscii())
+        except:
+            return str(news)
 
 def getSupportedFormats():
     formats={}
@@ -1338,7 +1349,7 @@ def polar(input, wmul=1, hmul=1, clip=False):
 
     return lpinput
 
-def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_order=3):
+def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_order=0):
     
     if derotate:
         trace(' computing image derotation...')
@@ -1360,10 +1371,11 @@ def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_
         trace('  shift = '+str(s[1]))
         shift = s[1]
         s0 = s[0]
+        
     else:
         shift = [0,0]
         s0 = None
-
+    
     return s0,shift,angle
 
 
@@ -1422,17 +1434,7 @@ def _derotate_mono(im1, im2, sharpening=2):
 
 
 def _correlate_mono(im1, im2, sharpening=1):
-    
-    #mean_1=im1.mean()
-    #max_1=im1.max()
-    #min_1=im1.min()
-    
-    #mean_2=im2.mean()
-    #max_2=im2.max()
-    #min_2=im2.min()
-    
-    #im2=((im2-min_2)*(max_1-min_1)/(max_2-min_2)) + min_1
-    
+        
     n = numpy.zeros_like(im1)
 
     n[0:im2.shape[0],0:im2.shape[1]]=im2
@@ -1445,7 +1447,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     del f1
     del f2
     
-    r = _IFT_mono(f)
+    r = abs(_IFT_mono(f))
     
     #this section is necessary to avoid 
     #the bad infuence of the maximum at
@@ -1466,10 +1468,11 @@ def _correlate_mono(im1, im2, sharpening=1):
     
     mean_2 = r.mean()
     max_2 = r.max()
-
+    
     if ((mean_1/mean_2)<0.2) and ((max_1*max_2)<max_1):
+        print "----------------"
         #then probably the center is the only maximum present in the image
-        utils.trace(' probably very small shift')
+        trace(' probably very small shift')
         r[0,0]=r_0_0
         r[-1,0]=r_1_0
         r[0,-1]=r_0_1
@@ -1519,7 +1522,7 @@ def _correlate_mono(im1, im2, sharpening=1):
         y_start = rmax[0]-10
         y_end = rmax[0]+11
 
-    zoom_level=10.0
+    zoom_level=25.0
 
     sub_region=r[y_start:y_end,x_start:x_end]
     sub_region=scipy.ndimage.zoom(sub_region,zoom_level,order=5)
@@ -1567,7 +1570,7 @@ def drawMarker(painter, x, y, r=7, l=4, ring=True, cross=True, square=False):
         painter.drawLine(Qt.QPointF(x,y-l-r),Qt.QPointF(x,y-r+l))
         painter.drawLine(Qt.QPointF(x,y+r+l),Qt.QPointF(x,y+r-l))
     
-    if not (cross or ring):
+    if not (cross or ring or square):
         painter.drawPolygon(Qt.QPointF(x-r,y),Qt.QPointF(x,y-r),Qt.QPointF(x+r,y),Qt.QPointF(x,y+r))
         
 def drawAxis(painter, data_x=(0,1), data_y=(0,1), x_offset=60.0, y_offset=30.0, axis_name=('x','y'),
@@ -1578,10 +1581,10 @@ def drawAxis(painter, data_x=(0,1), data_y=(0,1), x_offset=60.0, y_offset=30.0, 
     w=surface_window.width()
     h=surface_window.height()
     
-    miny=data_y[0]-0.1
-    maxy=data_y[-1]+0.1
-    minx=data_x[0]-0.1
-    maxx=data_x[-1]+0.1
+    miny=data_y[0]
+    maxy=data_y[-1]
+    minx=data_x[0]
+    maxx=data_x[-1]
     
     
     if inverted_y:
@@ -1589,7 +1592,7 @@ def drawAxis(painter, data_x=(0,1), data_y=(0,1), x_offset=60.0, y_offset=30.0, 
         y1=y_offset
         x2=w-x_offset 
         y2=h-y_offset 
-        y3=5
+        y3=10
         x_scale=(w-2*x_offset)/(maxx-minx)
         y_scale=(h-2*y_offset)/(maxy-miny)
     else:
@@ -1597,61 +1600,104 @@ def drawAxis(painter, data_x=(0,1), data_y=(0,1), x_offset=60.0, y_offset=30.0, 
         y1=h-y_offset
         x2=w-x_offset 
         y2=y_offset 
-        y3=-15
+        y3=-10
         x_scale=(w-2*x_offset)/(maxx-minx)
         y_scale=-(h-2*y_offset)/(maxy-miny)
     
     pxy1=Qt.QPointF(x1,y1)
     px2=Qt.QPointF(x2,y1)
     py2=Qt.QPointF(x1,y2)
-    
+        
+    #draw x-axis
     painter.setPen(Qt.QPen(QtCore.Qt.black,1,QtCore.Qt.SolidLine))
-    
-    #draw x-axis    
     painter.drawLine(pxy1,py2)
     painter.drawText(Qt.QPointF(x2,y1-y3),brakets(axis_name[0]))
-    for x in getChartDivision(minx,maxx):
+    count=0
+    for x in getChartDivision(minx,maxx,w/50):
+        if x<=minx:
+            continue
+        elif x>maxx:
+            break
+        stxt_off=0.75+1.25*(count%2)
+        painter.setPen(Qt.QPen(QtCore.Qt.black,1,QtCore.Qt.SolidLine))
         p1 = Qt.QPointF((x-minx)*x_scale+x1,y1)
-        p2 = Qt.QPointF((x-minx)*x_scale+x1,y1-y3)
-        p3 = Qt.QPointF((x-minx)*x_scale+x1,y1-2*y3)
+        p2 = Qt.QPointF((x-minx)*x_scale+x1,y1-stxt_off*y3)
+        p3 = Qt.QPointF((x-minx)*x_scale+x1-25,y1-stxt_off*y3-1.25*y3)
+        p4 = Qt.QPointF((x-minx)*x_scale+x1,y2)
         painter.drawLine(p1,p2)
         painter.drawText(p3,x_str_func(x))
+        painter.setPen(Qt.QPen(QtCore.Qt.gray,1,QtCore.Qt.DotLine))
+        painter.drawLine(p1,p4)
+        count+=1
     
     #draw y-axis
+    painter.setPen(Qt.QPen(QtCore.Qt.black,1,QtCore.Qt.SolidLine))
     painter.drawLine(pxy1,px2)
     painter.drawText(Qt.QPointF(10,y2-y3-20),brakets(axis_name[1]))
-    for y in getChartDivision(miny,maxy):
+    for y in getChartDivision(miny,maxy,h/50):
+        if y<=miny:
+            continue
+        elif y>maxy:
+            break
+        painter.setPen(Qt.QPen(QtCore.Qt.black,1,QtCore.Qt.SolidLine))
         p1 = Qt.QPointF(2*x1/3,(y-miny)*y_scale+y1)
         p2 = Qt.QPointF(x1,(y-miny)*y_scale+y1)
         p3 = Qt.QPointF(5,(y-miny)*y_scale+y1)
+        p4 = Qt.QPointF(x2,(y-miny)*y_scale+y1)
         painter.drawLine(p1,p2)
         painter.drawText(p3,y_str_func(y))
+        painter.setPen(Qt.QPen(QtCore.Qt.gray,1,QtCore.Qt.DotLine))
+        painter.drawLine(p2,p4)
+
+
+def getSciVal(val):
+
+    if val!=0.0:    
+        exp = int(numpy.floor(math.log10(abs(val))))
+        sv = val/(10.0**exp)
     
-def getChartDivision(vmin,vmax,n=10):
-
-    ivmax = numpy.ceil(vmax)
-    ivmin = numpy.floor(vmin)
-    
-    diff = ivmax-ivmin+1
-
-    fp,deci =  math.modf(math.log(diff,n))
-
-    if (fp < 0.397):
-        c_factor=4
-    elif (fp<0.699):
-        c_factor=2
+        return (sv,exp)
     else:
-        c_factor=1
+        return (0.0,0)
+
+def ceil5(val):
+    val*=10
+    vmod=val%10
+    if vmod>=5:
+        return int(val+10-vmod)/10.0
+    else:
+        return int(val+5-vmod)/10.0
+
     
-    step=(n**deci)/c_factor
+def floor5(val):
+    val*=10
+    vmod=val%10
+    if vmod>=5:
+        return int(val+5-vmod)/10.0
+    else:
+        return int(val-vmod)/10.0
 
-    arr = numpy.arange(ivmin,ivmax,step)
+def getSciRange(vmin,vmax):
+    s1,e1=getSciVal(vmax)
+    s2,e2=getSciVal(vmin)
+    
+    ds,de=getSciVal(vmax-vmin)
+    ivmax = ceil5(s1*(10**(-de+e1)))*(10**(de))
+    ivmin = floor5(s2*(10**(-de+e2)))*(10**(de))
+    
+    return (ivmin,ivmax)
 
+def getChartDivision(vmin,vmax,n=10):
+        
+    step=(vmax-vmin)/float(n)
+    
+    arr = numpy.arange(vmin,vmax,step)
+    
     return arr
     
     
 def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
-               point_type='+', line_type=False, bar_type=False, int_param=64,
+               point_type='s', line_type=False, bar_type=False, int_param=64,
                point_size=2, line_width=1,x_offset=60.0,y_offset=30.0, inverted_y=False):
     
     
@@ -1661,10 +1707,10 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
         
     pcount=len(data_y)
     
-    miny=min_max[0]-0.1
-    maxy=min_max[1]+0.1
-    minx=data_x.min()-0.1
-    maxx=data_x.max()+0.1
+    miny=min_max[0]
+    maxy=min_max[1]
+    minx=data_x.min()
+    maxx=data_x.max()
     
     if inverted_y:
         x1=x_offset
@@ -1682,58 +1728,57 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
     showpoints=True
     showline=True
     showbars=True
-    
-    POINTS_TYPE=['o','d','s','+','*']
-    
-    if point_type==POINTS_TYPE[3]:
+        
+    if point_type==POINTS_TYPE[4]:
         cross=True
         ring=False
         square=False
         painter.setBrush(0)
         r1=point_size
         r2=point_size
-    elif point_type==POINTS_TYPE[0]:
+    elif point_type==POINTS_TYPE[1]:
         cross=False
         ring=True
         square=False
         painter.setBrush(color)
         r1=point_size
         r2=point_size
-    elif point_type==POINTS_TYPE[4]:
+    elif point_type==POINTS_TYPE[5]:
         cross=True
         ring=True
         square=False
         painter.setBrush(0)
         r1=3.0*point_size/2.0
         r2=point_size/2.0
-    elif point_type==POINTS_TYPE[1]:
+    elif point_type==POINTS_TYPE[2]:
         cross=False
         ring=False
         square=False
         painter.setBrush(color)
         r1=point_size+1
         r2=point_size+1
-    elif point_type==POINTS_TYPE[2]:
+    elif point_type==POINTS_TYPE[3]:
         cross=False
         ring=False
         square=True
         painter.setBrush(color)
         r1=point_size+1
         r2=point_size+1
-    elif point_type==False:
+    else:
         showpoints=False
-        
-    if line_type=='-':
+    
+    
+    if line_type==LINES_TYPE[1]:
         linetype=QtCore.Qt.SolidLine
-    elif line_type=='--':
+    elif line_type==LINES_TYPE[2]:
         linetype=QtCore.Qt.DashLine
-    elif line_type=='..':
+    elif line_type==LINES_TYPE[3]:
         linetype=QtCore.Qt.DotLine
-    elif line_type=='-.':
+    elif line_type==LINES_TYPE[4]:
         linetype=QtCore.Qt.DashDotLine
-    elif line_type=='-..':
+    elif line_type==LINES_TYPE[5]:
         linetype=QtCore.Qt.DashDotDotLine    
-    elif line_type==False:
+    else:
         showline=False
        
     painter.setPen(color)
@@ -1743,7 +1788,7 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
             y=(data_y[i]-miny)*y_scale + y1
             drawMarker(painter,x,y,r1,r2,ring,cross,square)
             if (errors!=None):
-                if bar_type=='|':
+                if bar_type==BARS_TYPE[1]:
                     ys=(data_y[i]+errors[i]-miny)*y_scale + y1
                     yl=(data_y[i]-errors[i]-miny)*y_scale + y1
                     painter.drawLine(Qt.QPointF(x,yl),Qt.QPointF(x,ys))        
