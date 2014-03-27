@@ -104,6 +104,7 @@
 
  - Clive Rogers
  - Dariusz Duma
+ - Matthew Withers
  - Mikko Laine
  - Philippe Roux</string>
              </property>
@@ -195,7 +196,7 @@ If you find a bug in this program, please send me an e-mail and i will try to re
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>370</width>
+            <width>93</width>
             <height>200</height>
            </rect>
           </property>
@@ -249,8 +250,8 @@ English:
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>355</width>
-            <height>228</height>
+            <width>195</width>
+            <height>396</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">

@@ -13,7 +13,6 @@
 
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 from PyQt4 import Qt, QtCore
 import sys
 import os
@@ -31,10 +30,13 @@ PROGRAM_NAME = paths.PROGRAM_NAME
 FORMAT_BLACKLIST = ['BUFR', 'EPS', 'GRIB',
                     'HDF5', 'MPEG','WMF' ]
 
-CUSTOM_EXTENSIONS = {'.npy':'NPY',
+CUSTOM_EXTENSIONS = {'.fts':'FITS',
+                     '.npy':'NPY',
                      '.npz':'NPZ',
                      '.avi':'VIDEO',
-                     '.mp4':'VIDEO'}
+                     '.mp4':'VIDEO',
+                     '.mpg':'VIDEO',
+                     '.mpeg':'VIDEO'}
 
 _LOG_FILE = os.path.join(paths.HOME_PATH,'lxnstack.log')
 
@@ -1943,18 +1945,18 @@ def interpolate(data_x, data_y, upsample_factor=4.0, downsample_factor=1.0, mask
     mask=np.zeros_like(data_y)
 
     for i in xrange(N):
-        mask[i]=((1+np.cos(i*2.0*sppi/N))/2.0)**(mask_factor)
+        mask[i]=((1+np.cos(i*2.0*sp.pi/N))/2.0)**(mask_factor)
     
-    ry=spsignal.resample(data_y,N*upsample_factor,window=mask)
+    ry=sp.signal.resample(data_y,N*upsample_factor,window=mask)
 
     if downsample_factor > 0:
-        ry=spsignal.resample(ry,N*downsample_factor)
+        ry=sp.signal.resample(ry,N*downsample_factor)
     
     #now deleting the padding and retrieving the actual data
     delta=padding*downsample_factor
     ry=ry[delta:-delta]
     
-    # NOTE: it seems that spsignal.resample does not offer
+    # NOTE: it seems that sp.signal.resample does not offer
     #       a valid way to correcly resample the data_x values!
     rx=[]    
     for i in xrange(ON-1):
