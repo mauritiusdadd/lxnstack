@@ -25,32 +25,38 @@ libraries and programs must be installed on your pc:
     
   * Python 2.7 (see above)
 
-  * The python2 package 'numpy' version 1.7
+  * The python2 package 'numpy' version>=1.7
     (http://www.numpy.org/)
   
-  * The python2 package 'scipy' version 1.7
+  * The python2 package 'scipy' version>=1.7
     (http://www.scipy.org/)
 
-  * The python2 package 'PIL' version 1.1.7
+  * The python2 package 'PIL' version>=1.1.7
     (http://www.pythonware.com/products/pil/)
+    or alternatively the package PILLOW
+    (https://pypi.python.org/pypi/Pillow/)
+    [in most distribution this is provided by
+     the package 'python-imaging' or 'python2-imaging]    
 
-  * The libraries 'opencv' version 2
+  * The libraries 'opencv' version>=2
     (http://opencv.org/)
 
-  * The package 'v4l-utils' version 0.9
+  * The package 'v4l-utils' version>=0.9
     (in particular the program v4l2-ctl is needed)
   
-  * The libreries 'Qt4' version 4.8
+  * The libreries 'Qt4' version>=4.8
     (http://qt-project.org)
     
-  * The python2 package 'PyQt4' version 4.9
+  * The python2 package 'PyQt4' version>=4.9
     (http://www.riverbankcomputing.co.uk/software/pyqt/intro)
+    or alternatively the package 'PySide'
+    (http://qt-project.org/wiki/PySide)
 
   * [optional, to enable FITS files support] 
-    The python2 package'pyfits'
-       (http://www.stsci.edu/institute/software_hardware/pyfits)
-    or the package 'astropy' 
+    The package 'astropy' 
        (http://www.astropy.org/)
+    or the python2 package'pyfits'
+       (http://www.stsci.edu/institute/software_hardware/pyfits)
 
 The above packages are present in the repositories
 of almost all linux distributions.

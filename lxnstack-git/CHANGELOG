@@ -49,7 +49,7 @@ version 1.4.1:
   * Updated installation script to
     include "cr2plugin.py"
   * Fixed a bug that caused the introduction
-    of extra noise in the result image
+    of extra noise in the resulting image
   * Fixed some other minor bugs in cr2plugin
   * Fixed the reading of EXIF data
   * Added the Bias-frame section
@@ -62,7 +62,13 @@ version 1.4.2:
   * added more command line options
 
 version 1.4.3:
-  * Fixed a CR2 decoder
+  * Fixed a bug in the CR2 decoder
   * Added astropy support
+
+version 1.4.4:
+  * Fixed some compatibility issues with old pyfits
+    package in Ubuntu 12.04
+  * Added the capability to save 8bits and 16bits FITS
+  * Fixed other minor bugs
 
   

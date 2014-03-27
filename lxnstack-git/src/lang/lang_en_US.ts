@@ -4,196 +4,171 @@
 <context>
     <name>@default</name>
     <message>
-        <location filename="main_app.py" line="37"/>
+        <location filename="utils.py" line="116"/>
         <source>&apos;numpy&apos; python module not found!</source>
         <translation>&apos;numpy&apos; python module not found!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="38"/>
+        <location filename="utils.py" line="116"/>
         <source>Please install numpy.</source>
         <translation>Please install numpy.</translation>
     </message>
     <message>
-        <location filename="utils.py" line="100"/>
+        <location filename="utils.py" line="141"/>
         <source>&apos;PIL&apos; python module not found!</source>
         <translation>&apos;PIL&apos; python module not found!</translation>
     </message>
     <message>
-        <location filename="utils.py" line="101"/>
-        <source>Please install the python imaging library (PIL).</source>
-        <translation>Please install the python imaging library (PIL).</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="59"/>
-        <source>&apos;opencv2&apos; python module found!</source>
-        <translation>&apos;opencv2&apos; python module found!</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="60"/>
-        <source>Please install opencv2.</source>
-        <translation>Please install opencv2.</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="1043"/>
+        <location filename="main_app.py" line="1128"/>
         <source>Image</source>
         <translation>Image</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1245"/>
+        <location filename="main_app.py" line="1324"/>
         <source>Choose the detination folder</source>
         <translation>Choose the detination folder</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1521"/>
+        <location filename="main_app.py" line="1638"/>
         <source>No capture device selected</source>
         <translation>No capture device selected</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1573"/>
+        <location filename="main_app.py" line="1687"/>
         <source>Cannot open current capture device!</source>
         <translation>Cannot open current capture device!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1575"/>
+        <location filename="main_app.py" line="1689"/>
         <source>Cannot open this video file.</source>
         <translation>Cannot open this video file.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1614"/>
+        <location filename="main_app.py" line="1725"/>
         <source>Frame size or number of channels does not match.
 </source>
         <translation>Frame size or number of channels does not match.
 </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3026"/>
+        <location filename="main_app.py" line="3103"/>
         <source>current size=</source>
         <translation>current size=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1885"/>
+        <location filename="main_app.py" line="1725"/>
         <source> image size=</source>
         <translation> image size=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3033"/>
+        <location filename="main_app.py" line="3110"/>
         <source>current channels=</source>
         <translation>current channels=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1885"/>
+        <location filename="main_app.py" line="1725"/>
         <source> image channels=</source>
         <translation> image channels=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3147"/>
+        <location filename="main_app.py" line="3224"/>
         <source>All supported images</source>
         <translation>All supported images</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3147"/>
+        <location filename="main_app.py" line="3224"/>
         <source>All files *.* (*.*)</source>
         <translation>All files *.* (*.*)</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1796"/>
+        <location filename="main_app.py" line="1896"/>
         <source>Select master-dark file</source>
         <translation>Select master-dark file</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1883"/>
+        <location filename="main_app.py" line="1969"/>
         <source>Cannot use this file:</source>
         <translation>Cannot use this file:</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1823"/>
+        <location filename="main_app.py" line="1969"/>
         <source> size or number of channels does not match!</source>
         <translation> size or number of channels does not match!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1898"/>
-        <source>Error:</source>
-        <translation>Error:</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="1884"/>
-        <source>Size or number of channels does not match!</source>
-        <translation>Size or number of channels does not match!</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="1907"/>
+        <location filename="main_app.py" line="1986"/>
         <source>Do you really want to quit?</source>
         <translation>Do you really want to quit?</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1908"/>
+        <location filename="main_app.py" line="1986"/>
         <source>All unsaved changes will be lost!</source>
         <translation>All unsaved changes will be lost!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2726"/>
+        <location filename="main_app.py" line="2804"/>
         <source>zoom: none</source>
         <translation>zoom: none</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2732"/>
+        <location filename="main_app.py" line="2810"/>
         <source>zoom: fit</source>
         <translation>zoom: fit</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2736"/>
+        <location filename="main_app.py" line="2814"/>
         <source>zoom: full</source>
         <translation>zoom: full</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2897"/>
+        <location filename="main_app.py" line="2975"/>
         <source>cancel</source>
         <translation>cancel</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2904"/>
+        <location filename="main_app.py" line="2982"/>
         <source>Welcome!</source>
         <translation>Welcome!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5555"/>
+        <location filename="main_app.py" line="5660"/>
         <source> of </source>
         <translation> of </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3148"/>
+        <location filename="main_app.py" line="3225"/>
         <source>Select one or more files</source>
         <translation>Select one or more files</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3026"/>
+        <location filename="main_app.py" line="3103"/>
         <source> --&gt; size does not match:</source>
         <translation> --&gt; size does not match:</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3026"/>
+        <location filename="main_app.py" line="3103"/>
         <source>image size=</source>
         <translation>image size=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3033"/>
+        <location filename="main_app.py" line="3110"/>
         <source> --&gt; number of channels does not match:</source>
         <translation> --&gt; number of channels does not match:</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3033"/>
+        <location filename="main_app.py" line="3110"/>
         <source>image channels=</source>
         <translation>image channels=</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3208"/>
+        <location filename="main_app.py" line="3285"/>
         <source>Some imagese have different sizes or number of channels and will been ignored.
 </source>
         <translation>Some imagese have different sizes or number of channels and will been ignored.
 </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3209"/>
+        <location filename="main_app.py" line="3286"/>
         <source>All images must have the same size and number of channels.
 
 </source>
@@ -202,532 +177,557 @@
 </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3209"/>
+        <location filename="main_app.py" line="3286"/>
         <source>Click the &apos;Show Details&apos; button for more information.
 </source>
         <translation>Click the &apos;Show Details&apos; button for more information.
 </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3076"/>
+        <location filename="main_app.py" line="3153"/>
         <source>Searching for dark frames, please wait...</source>
         <translation>Searching for dark frames, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3081"/>
+        <location filename="main_app.py" line="3158"/>
         <source>Searching for flatfiled frames, please wait...</source>
         <translation>Searching for flatfiled frames, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6578"/>
+        <location filename="main_app.py" line="6673"/>
         <source>DONE</source>
         <translation>DONE</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3090"/>
+        <location filename="main_app.py" line="3167"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3715"/>
+        <location filename="main_app.py" line="3796"/>
         <source>image</source>
         <translation>image</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3715"/>
+        <location filename="main_app.py" line="3796"/>
         <source>
 align point </source>
         <translation>
 align point </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6458"/>
+        <location filename="main_app.py" line="6557"/>
         <source>Save the project</source>
         <translation>Save the project</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4219"/>
+        <location filename="main_app.py" line="4300"/>
         <source>Cannot save the project: </source>
         <translation>Cannot save the project: </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4220"/>
+        <location filename="main_app.py" line="4301"/>
         <source>Assure you have the permissions to write the file.</source>
         <translation>Assure you have the permissions to write the file.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4236"/>
+        <location filename="main_app.py" line="4317"/>
         <source>Open a project</source>
         <translation>Open a project</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4698"/>
+        <location filename="main_app.py" line="4788"/>
         <source>detecting point </source>
         <translation>detecting point </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4835"/>
+        <location filename="main_app.py" line="4925"/>
         <source>Calculating image shift, please wait...</source>
         <translation>Calculating image shift, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5895"/>
+        <location filename="main_app.py" line="5998"/>
         <source>Creating master-dark, please wait...</source>
         <translation>Creating master-dark, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5482"/>
+        <location filename="main_app.py" line="5586"/>
         <source>Computing final image...</source>
         <translation>Computing final image...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6444"/>
+        <location filename="main_app.py" line="6540"/>
         <source>Operation canceled by user</source>
         <translation>Operation canceled by user</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6451"/>
+        <location filename="main_app.py" line="6547"/>
         <source>Choose the output folder</source>
         <translation>Choose the output folder</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1856"/>
+        <location filename="main_app.py" line="1946"/>
         <source>Select master-flatfield file</source>
         <translation>Select master-flatfield file</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4644"/>
+        <location filename="main_app.py" line="4734"/>
         <source>detecting points, please wait...</source>
         <translation>detecting points, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5912"/>
+        <location filename="main_app.py" line="5973"/>
         <source>Cannot open &apos;</source>
         <translation>Cannot open &apos;</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5913"/>
+        <location filename="main_app.py" line="6014"/>
         <source>the file does not exist.</source>
         <translation>the file does not exist.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4698"/>
+        <location filename="main_app.py" line="4788"/>
         <source> on image </source>
         <translation> on image </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3182"/>
+        <location filename="main_app.py" line="3259"/>
         <source>Cannot open image</source>
         <translation>Cannot open image</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2955"/>
+        <location filename="main_app.py" line="3032"/>
         <source>Loading files, please wait...</source>
         <translation>Loading files, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4631"/>
+        <location filename="main_app.py" line="4721"/>
         <source>Try to add them manually.</source>
         <translation>Try to add them manually.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4637"/>
+        <location filename="main_app.py" line="4727"/>
         <source>Try to modify the alignment settings.</source>
         <translation>Try to modify the alignment settings.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6705"/>
+        <location filename="main_app.py" line="6809"/>
         <source>Cannot save image:</source>
         <translation>Cannot save image:</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6706"/>
+        <location filename="main_app.py" line="6809"/>
         <source>Unsupported format </source>
         <translation>Unsupported format </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6706"/>
+        <location filename="main_app.py" line="6809"/>
         <source>for</source>
         <translation>for</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1075"/>
+        <location filename="utils.py" line="1189"/>
         <source>A file named</source>
         <translation>A file named</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1075"/>
+        <location filename="utils.py" line="1189"/>
         <source>already exists.</source>
         <translation>already exists.</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1078"/>
+        <location filename="utils.py" line="1192"/>
         <source>Do you want to overwite it?</source>
         <translation>Do you want to overwite it?</translation>
     </message>
     <message>
-        <location filename="utils.py" line="1095"/>
+        <location filename="utils.py" line="1209"/>
         <source>Cannot save image due to cv2 exception:</source>
         <translation>Cannot save image due to cv2 exception:</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4636"/>
+        <location filename="main_app.py" line="4726"/>
         <source>No suitable points foud!</source>
         <translation>No suitable points foud!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6592"/>
+        <location filename="main_app.py" line="6686"/>
         <source>The selected output folder is not a directory
 or it does not exist!</source>
         <translation>The selected output folder is not a directory
 or it does not exist!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="48"/>
+        <location filename="utils.py" line="124"/>
         <source>&apos;scipy&apos; python module not found!</source>
         <translation>&apos;scipy&apos; python module not found!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="49"/>
+        <location filename="utils.py" line="124"/>
         <source>Please install scipy.</source>
         <translation>Please install scipy.</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1460"/>
+        <location filename="main_app.py" line="1578"/>
         <source>Sorry, but Fps cannot be changed on this device</source>
         <translation>Sorry, but Fps cannot be changed on this device</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3998"/>
+        <location filename="main_app.py" line="4079"/>
         <source>The project is invalid or corrupted!</source>
         <translation>The project is invalid or corrupted!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4257"/>
+        <location filename="main_app.py" line="4338"/>
         <source>loading project, please wait...</source>
         <translation>loading project, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4912"/>
+        <location filename="main_app.py" line="5002"/>
         <source>Calculating references, please wait...</source>
         <translation>Calculating references, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4961"/>
+        <location filename="main_app.py" line="5051"/>
         <source>Computing phase correlation, please wait...</source>
         <translation>Computing phase correlation, please wait...</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4989"/>
-        <source>Cancelled by the user</source>
-        <translation>Cancelled by the user</translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="5010"/>
+        <location filename="main_app.py" line="5100"/>
         <source>shift: </source>
         <translation>shift: </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5010"/>
+        <location filename="main_app.py" line="5100"/>
         <source>rotation: </source>
         <translation>rotation: </translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1252"/>
+        <location filename="main_app.py" line="1331"/>
         <source>Choose the temporary folder</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4009"/>
+        <location filename="main_app.py" line="4090"/>
         <source>saving project, please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5919"/>
+        <location filename="main_app.py" line="6018"/>
         <source>Creating master-flat, please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5224"/>
+        <location filename="main_app.py" line="5313"/>
         <source>Stacking images, please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5233"/>
+        <location filename="main_app.py" line="5322"/>
         <source>Generating histograhms...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5505"/>
+        <location filename="main_app.py" line="5610"/>
         <source>Computing</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="734"/>
+        <location filename="utils.py" line="808"/>
         <source>please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5555"/>
+        <location filename="main_app.py" line="5660"/>
         <source>Computing </source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5555"/>
+        <location filename="main_app.py" line="5660"/>
         <source> on subregion </source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5639"/>
+        <location filename="main_app.py" line="5744"/>
         <source>standard deviation</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5645"/>
+        <location filename="main_app.py" line="5750"/>
         <source>variance</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5650"/>
+        <location filename="main_app.py" line="5755"/>
         <source>sigma clipping</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5654"/>
+        <location filename="main_app.py" line="5759"/>
         <source>median</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5633"/>
+        <location filename="main_app.py" line="5738"/>
         <source>average</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5658"/>
+        <location filename="main_app.py" line="5763"/>
         <source>maximum</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5668"/>
+        <location filename="main_app.py" line="5773"/>
         <source>product</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5678"/>
+        <location filename="main_app.py" line="5785"/>
         <source>Registering images, please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="137"/>
+        <location filename="main_app.py" line="108"/>
         <source>red</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="138"/>
+        <location filename="main_app.py" line="109"/>
         <source>green</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="139"/>
+        <location filename="main_app.py" line="110"/>
         <source>blue</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="140"/>
+        <location filename="main_app.py" line="111"/>
         <source>yellow</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="141"/>
+        <location filename="main_app.py" line="112"/>
         <source>cyan</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="142"/>
+        <location filename="main_app.py" line="113"/>
         <source>magenta</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="143"/>
+        <location filename="main_app.py" line="114"/>
         <source>dark red</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="144"/>
+        <location filename="main_app.py" line="115"/>
         <source>gray</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="145"/>
+        <location filename="main_app.py" line="116"/>
         <source>dark yellow</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="146"/>
+        <location filename="main_app.py" line="117"/>
         <source>dark green</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="147"/>
+        <location filename="main_app.py" line="118"/>
         <source>dark cyan</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="148"/>
+        <location filename="main_app.py" line="119"/>
         <source>dark blue</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="149"/>
+        <location filename="main_app.py" line="120"/>
         <source>dark magenta</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="150"/>
+        <location filename="main_app.py" line="121"/>
         <source>black</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1086"/>
+        <location filename="main_app.py" line="1171"/>
         <source>contrast</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1078"/>
+        <location filename="main_app.py" line="1163"/>
         <source>none</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1082"/>
+        <location filename="main_app.py" line="1167"/>
         <source>full</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1086"/>
+        <location filename="main_app.py" line="1171"/>
         <source>yes</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1397"/>
+        <location filename="utils.py" line="91"/>
         <source>Warning</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="1397"/>
+        <location filename="main_app.py" line="1517"/>
         <source>The selected device seems to be broken
  and may not fully work!</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="2242"/>
+        <location filename="main_app.py" line="2320"/>
         <source>Save the chart</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="4755"/>
+        <location filename="main_app.py" line="4845"/>
         <source>Resetting alignment for image</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5399"/>
-        <source>please wait</source>
-        <translation></translation>
-    </message>
-    <message>
-        <location filename="main_app.py" line="5663"/>
+        <location filename="main_app.py" line="5768"/>
         <source>minimum</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5996"/>
+        <location filename="utils.py" line="85"/>
         <source>Error</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6504"/>
+        <location filename="main_app.py" line="6602"/>
         <source>Cannot create the video file.</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6505"/>
+        <location filename="main_app.py" line="6602"/>
         <source>Try to use a lower resolution and assure you
 have the permissions to write the file.</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="6521"/>
+        <location filename="main_app.py" line="6616"/>
         <source>Writing video, please wait...</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="724"/>
+        <location filename="utils.py" line="798"/>
         <source>decoding image </source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="738"/>
+        <location filename="utils.py" line="812"/>
         <source>decoding raw data to file</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="723"/>
+        <location filename="utils.py" line="797"/>
         <source> loading raw data</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="734"/>
+        <location filename="utils.py" line="808"/>
         <source>decoding image</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="777"/>
+        <location filename="utils.py" line="855"/>
         <source>loading frame</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="777"/>
+        <location filename="utils.py" line="855"/>
         <source>of video</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="1882"/>
+        <location filename="utils.py" line="1985"/>
         <source>Cannot create the data file: </source>
         <translation></translation>
     </message>
     <message>
-        <location filename="utils.py" line="1883"/>
+        <location filename="utils.py" line="1986"/>
         <source>Assure you have the authorization to write the file.</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="main_app.py" line="909"/>
+        <location filename="main_app.py" line="892"/>
         <source>shadows</source>
         <translation>shadows</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="910"/>
+        <location filename="main_app.py" line="893"/>
         <source>middletones</source>
         <translation>middletones</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="911"/>
+        <location filename="main_app.py" line="894"/>
         <source>lights</source>
         <translation>lights</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="5236"/>
+        <location filename="main_app.py" line="5325"/>
         <source>Generating preview...</source>
         <translation>Generating preview...</translation>
     </message>
     <message>
-        <location filename="utils.py" line="744"/>
+        <location filename="utils.py" line="820"/>
         <source>Corrupted CR2 data!</source>
         <translation>Corrupted CR2 data!</translation>
     </message>
     <message>
-        <location filename="main_app.py" line="3007"/>
+        <location filename="main_app.py" line="3084"/>
         <source>Analyzing images, please wait...</source>
         <translation>Analyzing images, please wait...</translation>
+    </message>
+    <message>
+        <location filename="main_app.py" line="5079"/>
+        <source>canceled by the user</source>
+        <translation>canceled by the user</translation>
+    </message>
+    <message>
+        <location filename="main_app.py" line="6744"/>
+        <source>Cannot save compressed files with this version of pyfits</source>
+        <translation>Cannot save compressed files with this version of pyfits</translation>
+    </message>
+    <message>
+        <location filename="main_app.py" line="6744"/>
+        <source>the image was saved as an uncompressed FITS file.</source>
+        <translation>the image was saved as an uncompressed FITS file.</translation>
+    </message>
+    <message>
+        <location filename="main_app.py" line="6014"/>
+        <source>Cannot open</source>
+        <translation>Cannot open</translation>
+    </message>
+    <message>
+        <location filename="utils.py" line="131"/>
+        <source>&apos;opencv2&apos; python module not found!</source>
+        <translation>&apos;opencv2&apos; python module not found!</translation>
+    </message>
+    <message>
+        <location filename="utils.py" line="131"/>
+        <source>Please install opencv2 python bindings.</source>
+        <translation>Please install opencv2 python bindings.</translation>
+    </message>
+    <message>
+        <location filename="utils.py" line="141"/>
+        <source>Please install the python imaging library (PIL/Pillow).</source>
+        <translation>Please install the python imaging library (PIL/Pillow).</translation>
     </message>
 </context>
 <context>
@@ -743,17 +743,17 @@ have the permissions to write the file.</source>
         <translation>lxnstack is a program to align and stack astronomical images.</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="76"/>
+        <location filename="about_dialog.ui" line="132"/>
         <source>Author</source>
         <translation>Author</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="126"/>
+        <location filename="about_dialog.ui" line="182"/>
         <source>Translation</source>
         <translation>Translation</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="150"/>
+        <location filename="about_dialog.ui" line="206"/>
         <source>The following translations are available:
 
 Italian:
@@ -770,12 +770,12 @@ English:
   by the author</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="180"/>
+        <location filename="about_dialog.ui" line="236"/>
         <source>Legal notes</source>
         <translation>Legal notes</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="210"/>
+        <location filename="about_dialog.ui" line="266"/>
         <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
@@ -788,14 +788,14 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="82"/>
+        <location filename="about_dialog.ui" line="138"/>
         <source>lxnstack  Copyright (C) 2013-2014 
  Maurizio D&apos;Addona &lt;mauritiusdadd@gmail.com&gt;</source>
         <translation>lxnstack  Copyright (C) 2013-2014 
  Maurizio D&apos;Addona &lt;mauritiusdadd@gmail.com&gt;</translation>
     </message>
     <message>
-        <location filename="about_dialog.ui" line="102"/>
+        <location filename="about_dialog.ui" line="158"/>
         <source>This program comes with ABSOLUTELY NO WARRANTY.
 
 This is free software, and you are welcome to redistribute it under certain conditions. 
@@ -806,6 +806,26 @@ If you find a bug in this program, please send me an e-mail and i will try to re
 This is free software, and you are welcome to redistribute it under certain conditions. 
 
 If you find a bug in this program, please send me an e-mail and i will try to resolve it :)</translation>
+    </message>
+    <message>
+        <location filename="about_dialog.ui" line="76"/>
+        <source>Thanks</source>
+        <translation>Thanks</translation>
+    </message>
+    <message>
+        <location filename="about_dialog.ui" line="103"/>
+        <source>A special thanks to all of you who are using and testing this program, to all the people that have sent and will send a bug report or just a suggestion or a new feature request. In particular a special thanks to:
+
+ - Clive Rogers
+ - Dariusz Duma
+ - Mikko Laine
+ - Philippe Roux</source>
+        <translation>A special thanks to all of you who are using and testing this program, to all the people that have sent and will send a bug report or just a suggestion or a new feature request. In particular a special thanks to:
+
+ - Clive Rogers
+ - Dariusz Duma
+ - Mikko Laine
+ - Philippe Roux</translation>
     </message>
 </context>
 <context>
@@ -864,119 +884,119 @@ If you find a bug in this program, please send me an e-mail and i will try to re
         <translation>open</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="282"/>
+        <location filename="option_dialog.ui" line="304"/>
         <source>Alignment</source>
         <translation>Alignment</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="285"/>
+        <location filename="option_dialog.ui" line="307"/>
         <source>Alignment options</source>
         <translation>Alignment options</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="462"/>
+        <location filename="option_dialog.ui" line="484"/>
         <source>Auto detection</source>
         <translation>Auto detection</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="492"/>
+        <location filename="option_dialog.ui" line="514"/>
         <source>Max points</source>
         <translation>Max points</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="537"/>
+        <location filename="option_dialog.ui" line="559"/>
         <source>Min quality</source>
         <translation>Min quality</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="508"/>
+        <location filename="option_dialog.ui" line="530"/>
         <source> points</source>
         <translation> points</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="315"/>
+        <location filename="option_dialog.ui" line="337"/>
         <source>Rectangle size</source>
         <translation>Rectangle size</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="415"/>
+        <location filename="option_dialog.ui" line="437"/>
         <source> px</source>
         <translation> px</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="396"/>
+        <location filename="option_dialog.ui" line="418"/>
         <source>Height</source>
         <translation>Height</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="345"/>
+        <location filename="option_dialog.ui" line="367"/>
         <source>Width</source>
         <translation>Width</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="656"/>
+        <location filename="option_dialog.ui" line="678"/>
         <source>Capture devices</source>
         <translation>Capture devices</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="689"/>
+        <location filename="option_dialog.ui" line="711"/>
         <source>Contrast</source>
         <translation>Contrast</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="703"/>
+        <location filename="option_dialog.ui" line="725"/>
         <source>Exposure</source>
         <translation>Exposure</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="717"/>
+        <location filename="option_dialog.ui" line="739"/>
         <source>Brightness</source>
         <translation>Brightness</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="731"/>
+        <location filename="option_dialog.ui" line="753"/>
         <source>Saturation</source>
         <translation>Saturation</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="757"/>
+        <location filename="option_dialog.ui" line="779"/>
         <source>Resolution</source>
         <translation>Resolution</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="774"/>
+        <location filename="option_dialog.ui" line="796"/>
         <source>Gain</source>
         <translation>Gain</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="795"/>
+        <location filename="option_dialog.ui" line="817"/>
         <source>Hue</source>
         <translation>Hue</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="831"/>
+        <location filename="option_dialog.ui" line="853"/>
         <source>Exposure
 type</source>
         <translation>Exposure
 type</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="839"/>
+        <location filename="option_dialog.ui" line="861"/>
         <source>Sharpness</source>
         <translation>Sharpness</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="863"/>
+        <location filename="option_dialog.ui" line="885"/>
         <source>Gamma</source>
         <translation>Gamma</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="884"/>
+        <location filename="option_dialog.ui" line="906"/>
         <source>Destination directory</source>
         <translation>Destination directory</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="893"/>
+        <location filename="option_dialog.ui" line="915"/>
         <source>...</source>
         <translation>...</translation>
     </message>
@@ -986,42 +1006,42 @@ type</translation>
         <translation>Graphics</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="214"/>
+        <location filename="option_dialog.ui" line="232"/>
         <source>Automatically detect RBG Fits file</source>
         <translation>Automatically detect RBG Fits file</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="234"/>
+        <location filename="option_dialog.ui" line="252"/>
         <source>Automatically search for dark and flat frames</source>
         <translation>Automatically search for dark and flat frames</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="468"/>
+        <location filename="option_dialog.ui" line="490"/>
         <source>Auto detect bets quality</source>
         <translation>Auto detect bets quality</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="321"/>
+        <location filename="option_dialog.ui" line="343"/>
         <source>Auto detect best size</source>
         <translation>Auto detect best size</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="204"/>
+        <location filename="option_dialog.ui" line="222"/>
         <source>Use &apos;jet&apos; colormap for Black&amp;&amp;White image</source>
         <translation>Use &apos;jet&apos; colormap for Black&amp;&amp;White image</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="122"/>
+        <location filename="option_dialog.ui" line="140"/>
         <source>Floating point precision</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="139"/>
+        <location filename="option_dialog.ui" line="157"/>
         <source>32 bits (normal memory usage)</source>
         <translation>32 bits (normal memory usage)</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="144"/>
+        <location filename="option_dialog.ui" line="162"/>
         <source>64 bits (high memory usage)</source>
         <translation>64 bits (high memory usage)</translation>
     </message>
@@ -1031,60 +1051,60 @@ type</translation>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="243"/>
+        <location filename="option_dialog.ui" line="261"/>
         <source>Use custom directory
 for temporary files</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="254"/>
+        <location filename="option_dialog.ui" line="272"/>
         <source>~/lxnstack/.temp</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="270"/>
+        <location filename="option_dialog.ui" line="288"/>
         <source>Use compressed temporary files
 (slower, but saves disk space)</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="598"/>
+        <location filename="option_dialog.ui" line="620"/>
         <source>Interpolation order</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="605"/>
+        <location filename="option_dialog.ui" line="627"/>
         <source>   0</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="643"/>
+        <location filename="option_dialog.ui" line="665"/>
         <source>5</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="224"/>
+        <location filename="option_dialog.ui" line="242"/>
         <source>Automatically decode CR2 files on loading</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="291"/>
+        <location filename="option_dialog.ui" line="313"/>
         <source>Alingment points</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="433"/>
+        <location filename="option_dialog.ui" line="455"/>
         <source>Use whole image to track
 the alignment points</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="583"/>
+        <location filename="option_dialog.ui" line="605"/>
         <source>Phase correlation</source>
         <translation>Phase correlation</translation>
     </message>
     <message>
-        <location filename="option_dialog.ui" line="589"/>
+        <location filename="option_dialog.ui" line="611"/>
         <source>Show corrlation images during alignment process (slower)</source>
         <translation></translation>
     </message>
@@ -1830,119 +1850,124 @@ video</source>
 <context>
     <name>SaveDialog</name>
     <message>
-        <location filename="save_dialog.ui" line="33"/>
+        <location filename="save_dialog.ui" line="36"/>
         <source>Save result image</source>
         <translation>Save result image</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="57"/>
+        <location filename="save_dialog.ui" line="60"/>
         <source>Destination directory</source>
         <translation>Destination directory</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="75"/>
+        <location filename="save_dialog.ui" line="78"/>
         <source>...</source>
         <translation>...</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="91"/>
+        <location filename="save_dialog.ui" line="94"/>
         <source>Output option</source>
         <translation>Output option</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="107"/>
-        <source>Unsigned Integer</source>
-        <translation>Unsigned Integer</translation>
-    </message>
-    <message>
-        <location filename="save_dialog.ui" line="123"/>
+        <location filename="save_dialog.ui" line="136"/>
         <source>Floating point </source>
         <translation>Floating point </translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="139"/>
+        <location filename="save_dialog.ui" line="152"/>
         <source>8 bit</source>
         <translation>8 bit</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="152"/>
+        <location filename="save_dialog.ui" line="165"/>
         <source>16 bit</source>
         <translation>16 bit</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="162"/>
+        <location filename="save_dialog.ui" line="175"/>
         <source>32 bit</source>
         <translation>32 bit</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="172"/>
+        <location filename="save_dialog.ui" line="185"/>
         <source>64 bit</source>
         <translation>64 bit</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="190"/>
+        <location filename="save_dialog.ui" line="293"/>
         <source>Image Format</source>
         <translation>Image Format</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="203"/>
+        <location filename="save_dialog.ui" line="306"/>
         <source>Bits per pixel</source>
         <translation>Bits per pixel</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="216"/>
+        <location filename="save_dialog.ui" line="280"/>
         <source>File name</source>
         <translation>File name</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="235"/>
+        <location filename="save_dialog.ui" line="209"/>
         <source>JPEG</source>
         <translation>JPEG</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="248"/>
+        <location filename="save_dialog.ui" line="222"/>
         <source>PNG</source>
         <translation>PNG</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="261"/>
+        <location filename="save_dialog.ui" line="235"/>
         <source>TIFF</source>
         <translation>TIFF</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="280"/>
+        <location filename="save_dialog.ui" line="254"/>
         <source>FITS</source>
         <translation>FITS</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="308"/>
+        <location filename="save_dialog.ui" line="321"/>
         <source>Quality</source>
         <translation>Quality</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="371"/>
+        <location filename="save_dialog.ui" line="384"/>
         <source>Compression level</source>
         <translation>Compression level</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="439"/>
+        <location filename="save_dialog.ui" line="452"/>
         <source>Save RGB image as sigle multipage FITS</source>
         <translation>Save RGB image as sigle multipage FITS</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="426"/>
+        <location filename="save_dialog.ui" line="439"/>
         <source>Include master-dark and master-flat images</source>
         <translation>Include master-dark and master-flat images</translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="290"/>
+        <location filename="save_dialog.ui" line="264"/>
         <source>NPY</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="save_dialog.ui" line="455"/>
+        <location filename="save_dialog.ui" line="468"/>
         <source>Use compressed FITS</source>
         <translation></translation>
+    </message>
+    <message>
+        <location filename="save_dialog.ui" line="110"/>
+        <source>Unsigned</source>
+        <translation>Unsigned</translation>
+    </message>
+    <message>
+        <location filename="save_dialog.ui" line="120"/>
+        <source>Integer</source>
+        <translation>Integer</translation>
     </message>
 </context>
 <context>

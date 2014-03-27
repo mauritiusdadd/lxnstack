@@ -2,7 +2,9 @@
 #                              LXNSTACK                               #
 #######################################################################
 
-Maurizio D'Addona (C) 2013
+* LEGAL NOTES
+
+Maurizio D'Addona <mauritiusdadd@gmail.com> (C) 2013
 
 lxnstack is a software designed for astronomical images alignment
 and stacking.
@@ -20,4 +22,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+* INSTALLATION
+
 For installation instruction read the file INSTALL
+
+* BUGS AND WISHES
+
+If you find a bug or you just want to suggest a new feature, please
+send me an e-mail.

@@ -460,7 +460,6 @@ class BitStream(object):
             return val>>available_bits
     
 class QCR2Image(QtCore.QObject):
-
     decodingProgressChanged = QtCore.pyqtSignal(int)
     decodingStarted = QtCore.pyqtSignal()
     decodingEnded = QtCore.pyqtSignal()
@@ -475,6 +474,11 @@ class QCR2Image(QtCore.QObject):
         QtCore.QObject.__init__(self)
         self.version = 0
         self.isOpened=False
+        
+        self._canceled=False
+        
+        self.__decoding_progress=0
+        
         if fname != None:
             self.filename=fname
             self.fp = open(self.filename,'rb')
@@ -482,6 +486,9 @@ class QCR2Image(QtCore.QObject):
             
     def __del__(self):
         self.close()
+        
+    def cancel(self):
+        self._canceled=True
         
     def load(self, fname=None, ifd=3):
         if (not self.isOpened):
@@ -518,14 +525,19 @@ class QCR2Image(QtCore.QObject):
             #  +---------------------------------------------+ /
             #  \----------------SENSOR WIDTH-----------------/ 
             
-            image = uncropped[tbord:bbord,lbord:rbord].copy()
+            if uncropped != None:
+                image = uncropped[tbord:bbord,lbord:rbord].copy()
+            else:
+                image = None
+                
             gc.collect()
             del uncropped
             
         elif ifd==1:
             image = self.extractEmbeddedJpeg()
         
-        self.imageReady.emit()
+        if image != None:
+            self.imageReady.emit()
         
         return image
     
@@ -615,10 +627,14 @@ class QCR2Image(QtCore.QObject):
         self.closed.emit()
         
     def extractEmbeddedJpeg(self):
+        self._canceled=False
+        self.decodingStarted.emit()
+        self.decodingProgressChanged.emit(100)
+        self.decodingEnded.emit()
         pass #TODO
     
     def decodeRawImage(self):
-        
+        self._canceled=False
         self.decodingStarted.emit()
         
         self.fp.seek(self.CR2SLICES[0],0)
@@ -671,7 +687,7 @@ class QCR2Image(QtCore.QObject):
         img = self._decompressLosslessJpeg(imdata,hts)
     
         del imdata
-        
+            
         return img
     
     def _decompressLosslessJpeg(self,data,hts):
@@ -683,7 +699,7 @@ class QCR2Image(QtCore.QObject):
         imagew = hts[StartOfFrameMarker].width*components
         imageh = hts[StartOfFrameMarker].height
         
-        if (imagew != self.size[0]) or (imageh != self.size[1]):
+        if (imagew != self.Sensor.width) or (imageh != self.Sensor.height):
             print("Warning: probably corrupted data!")
         
         index = 0
@@ -846,8 +862,14 @@ class QCR2Image(QtCore.QObject):
                         # is much faster then using ndarray directly!
                 
                 if not row%_update_val:
+                    self.__decoding_progress=int(row*100.0/imageh)
                     self.decodingProgressChanged.emit(int(row*100.0/imageh))
-                
+                    Qt.QApplication.instance().processEvents()
+                    
+                    if self._canceled:
+                        self._canceled=False
+                        return None
+                    
                 for col in cols:
                 
                     if (lenbuff<MIN_BUFFER_LEN):
@@ -946,7 +968,14 @@ class QCR2Image(QtCore.QObject):
                 crow=[] # using list and converting to ndarray later
                         # is much faster then using ndarray directly!
                 
-                self.decodingProgressChanged.emit(int(row*100.0/imageh))
+                if not row%_update_val:
+                    self.__decoding_progress=int(row*100.0/imageh)
+                    self.decodingProgressChanged.emit(int(row*100.0/imageh))
+                    Qt.QApplication.instance().processEvents()
+                    
+                    if self._canceled:
+                        self._canceled=False
+                        return None
                 
                 for col in cols:
                 
