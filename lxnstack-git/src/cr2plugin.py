@@ -82,42 +82,42 @@ def ba2bs(b):
     s=''.join(m)
     return s
 
-def _reconstructData(byte_order, *bytes):
+def _reconstructData(byte_order, *bytesdata):
     
     result=0
 
     if byte_order==b'II':
-        for b in range(len(bytes)):
-            data = bytes[b]
+        for b in range(len(bytesdata)):
+            data = bytesdata[b]
             if type(data) == str:
                 data = ord(data)
             offs = (b*8)
             result+=data<<offs
     else:
-        for b in range(len(bytes)):
-            data = bytes[-b]
+        for b in range(len(bytesdata)):
+            data = bytesdata[-b]
             if type(data) == str:
                 data = ord(data)
             offs = (b*8)
             result+=data<<offs
     return result
 
-def _reconstructDataFromString(byte_order, bytes):
+def _reconstructDataFromString(byte_order, bytesdata):
     
     result=0
     if byte_order==b'II':
-        for b in range(len(bytes)):
-            data = bytes[b]
+        for b in range(len(bytesdata)):
+            data = bytesdata[b]
             if type(data) == str:
                 data = ord(data)
             offs = (b*8)
             result+=data<<offs
     else:
-        for b in range(len(bytes)):
-            data = bytes[b]
+        for b in range(len(bytesdata)):
+            data = bytesdata[b]
             if type(data) == str:
                 data = ord(data)
-            offs = (len(bytes)-b-1)*8
+            offs = (len(bytesdata)-b-1)*8
             result+=data<<offs
     return result
 
@@ -545,9 +545,9 @@ class QCR2Image(QtCore.QObject):
 
         # check header
         if IS_PYTHON_3:
-            header = self.fp.read(0x0e)
+            header = self.fp.read(0x0f)
         else:
-            header = bytearray(self.fp.read(0x0e))
+            header = bytearray(self.fp.read(0x0f))
 
         byteorder=header[0:2]
         self.byteorder=byteorder
@@ -570,9 +570,8 @@ class QCR2Image(QtCore.QObject):
         self.version = float(major_version +'.'+ minor_version) #and this should be 2.0      
         
         ifd0_offset = _reconstructDataFromString(byteorder, header[4:8])
-        ifd3_offset = _reconstructDataFromString(byteorder, header[12:14])
-        
-        
+        ifd3_offset = _reconstructDataFromString(byteorder, header[12:16])
+                
         # the IFD0 for sensor information
         self.IFD0 = self._readIfd(byteorder,ifd0_offset)
         
@@ -599,7 +598,7 @@ class QCR2Image(QtCore.QObject):
         #the RAW IFD
         
         self.IFD3 = self._readIfd(byteorder,ifd3_offset)
-
+        
         if (CR2Slice not in self.IFD3.keys()):
             self.CR2SLICES = (self.IFD3[StripOffset],
                               0,
