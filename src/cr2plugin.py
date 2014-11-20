@@ -229,7 +229,7 @@ class HuffmanTable(object):
         for i in range(MAX_HUFFMAN_BITS):
             self.masks.append((1<<i)-1)
         
-        if (data != None):
+        if (data is not None):
             if data[0:2] != DhtMarker:
                 raise SyntaxError("Invalid Huffman Talbe")
             offset=4
@@ -479,7 +479,7 @@ class QCR2Image(QtCore.QObject):
         
         self.__decoding_progress=0
         
-        if fname != None:
+        if fname is not None:
             self.filename=fname
             self.fp = open(self.filename,'rb')
             self.open()
@@ -492,7 +492,7 @@ class QCR2Image(QtCore.QObject):
         
     def load(self, fname=None, ifd=3):
         if (not self.isOpened):
-            if fname==None:
+            if fname is None:
                 raise SyntaxError("unknown file name")
             else:
                 self.filename=fname
@@ -525,7 +525,7 @@ class QCR2Image(QtCore.QObject):
             #  +---------------------------------------------+ /
             #  \----------------SENSOR WIDTH-----------------/ 
             
-            if uncropped != None:
+            if uncropped is not None:
                 image = uncropped[tbord:bbord,lbord:rbord].copy()
             else:
                 image = None
@@ -536,7 +536,7 @@ class QCR2Image(QtCore.QObject):
         elif ifd==1:
             image = self.extractEmbeddedJpeg()
         
-        if image != None:
+        if image is not None:
             self.imageReady.emit()
         
         return image

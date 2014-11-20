@@ -16,48 +16,17 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 from PyQt4 import Qt, QtCore
 import sys, os, time
 
-PROGRAM_VERSION="1.4.4"
+PROGRAM_VERSION="1.5.0"
 
 if __name__ == "__main__":
 
     sys.path.append("@RESOURCES_PATH")
-
-    if ('--help' in sys.argv) or ('-h' in sys.argv):
-        
-        print("\nUsage: lxnstack [OPTION]\n")
-        print("Mandatory arguments to long options are mandatory for short options too\n")
-        print("  -a, --align[=METHOD]        execute the phase correlation alignment")
-        print("                              with the given METHOD. The values allowed")
-        print("                              for METHOD are: align-only, derotate-only,")
-        print("                              align-derotate, reset. If no METHOD is")
-        print("                              specified then align-derotate is used by")
-        print("                              default.\n")
-        print("  -h, --help                  show this help and exit\n")
-        print("  -i, --add-images FILES      load the images from the files FILES\n")
-        print("  -m, --user-manual           show the use manual in a web browser")
-        print("                              and exit\n")
-        print("  -l, --load-project=FILE     load the project from file FILE\n")
-        print("  -s, --save-project[=FILE]   save the project to file FILE.")
-        print("                              If FILE is not given and a project is alrady")
-        print("                              loaded then the current project will be")
-        print("                              overwritten. If FILE is not given and no")
-        print("                              project is loaded, then an error is raised.\n")
-        print("  -S, --stack[=MODE]          stack the images using the mode MODE.")
-        print("                              The values allowed for MODE are:  ")
-        print("                              average, median, sigma-clipping, minimum,")
-        print("                              maximum, stddev, variance, product.")
-        print("                              If no MODE is given then the average is")
-        print("                              be computed.\n")
-        print("      --lightcurve            generate the lightcurves (a project with")
-        print("                              lightcurve informations must be loaded).\n")
-        print("  -v, --version               print the version of the program")
-        print("                              and exit\n")
-        sys.exit(0)
-
+    
+    import log
+    
     batch_mode=False
 
     if len(sys.argv)>1:
@@ -77,7 +46,9 @@ if __name__ == "__main__":
     else:
         args=[]
         show_help = False
-        
+    
+    logger = log.createMainLogger()
+    
     #create main QApplication
     app = Qt.QApplication(sys.argv)
 
@@ -109,7 +80,7 @@ if __name__ == "__main__":
     splash.setValue(20)
     app.installTranslator(qtr)
     splash.setValue(25)
-
+    
     splash.showMessage('loading application settings...')
     #create the main application
     mainApp = main_app.theApp(lang,args)
@@ -122,12 +93,12 @@ if __name__ == "__main__":
     mainApp.wnd.show()
 
     try:
-        utils.trace('loading application settings',verbose=_VERBOSE)
+        log.log("lxnstack",'loading application settings')
         mainApp.loadSettings()
     except Exception as exc:
         #probably the first execution
-        utils.trace('an error has occured while loading the application settings:\n'+str(exc),verbose=True)
-        utils.trace('Ignore this warning if it is the first execution after the installation/upgrade.',verbose=True)
+        log.log("lxnstack",'an error has occured while loading the application settings:\n'+str(exc),level=logging.ERROR)
+        log.log("lxnstack",'Ignore this warning if it is the first execution after the installation/upgrade.',level=logging.ERROR)
         pass
 
     splash.setValue(100)
@@ -137,9 +108,9 @@ if __name__ == "__main__":
 
     splash.close()
     mainApp.executeCommads()
-    #executes
+            
     retval=app.exec_()
 
-    utils.trace('Shutting down...',verbose=_VERBOSE)
+    log.log("lxnstack",'Shutting down...')
 
     sys.exit(retval)

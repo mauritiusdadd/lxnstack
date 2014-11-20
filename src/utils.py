@@ -7,13 +7,14 @@
 #(at your option) any later version.
 
 #This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#but WITHOUT ANY WARRANTY without even the implied warranty of
 #MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #GNU General Public License for more details.
 
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from PyQt4 import Qt, QtCore
+
+from PyQt4 import Qt, QtCore, QtGui, uic
 import sys
 import os
 import subprocess
@@ -22,7 +23,8 @@ import time
 import math
 import tempfile
 import cPickle  
-
+import logging
+import log
 
 PROGRAM = paths.PROGRAM_NAME
 PROGRAM_NAME = paths.PROGRAM_NAME
@@ -38,11 +40,14 @@ CUSTOM_EXTENSIONS = {'.fts':'FITS',
                      '.mpg':'VIDEO',
                      '.mpeg':'VIDEO'}
 
-_LOG_FILE = os.path.join(paths.HOME_PATH,'lxnstack.log')
-
 POINTS_TYPE=['','o','d','s','+','*']
 LINES_TYPE=['','-','--','..','-.','-..']
 BARS_TYPE=['','|']
+
+LIGHT_FRAME_TYPE  = 'light frame'
+BIAS_FRAME_TYPE   = 'bias frame'
+DARK_FRAME_TYPE   = 'dark frame'
+FLAT_FRAME_TYPE   = 'flatfield frame'
 
 def tr(s):
     news=QtCore.QCoreApplication.translate('@default',s)
@@ -58,13 +63,12 @@ def tr(s):
             return str(news)
 
 def showMsgBox(text,informative_text="",parent=None,buttons=Qt.QMessageBox.Ok,icon=None):
-
     msgBox = Qt.QMessageBox(parent)
     msgBox.setText(str(text))
     msgBox.setInformativeText(str(informative_text))
     msgBox.setStandardButtons(buttons)
     
-    if icon != None:
+    if icon is not None:
         msgBox.setIcon(icon)
         
     return msgBox.exec_()
@@ -84,37 +88,22 @@ def showYesNoCancelMsgBox(text,informative_text="",parent=None):
                       Qt.QMessageBox.Question)
 
 def showErrorMsgBox(text,informative_text="",parent=None):
+    log.log("utils","MessageBox: "+str(text)+": "+informative_text,level=logging.ERROR)
     return showMsgBox(tr("Error")+": "+str(text),
                       informative_text,
                       parent,
                       icon=Qt.QMessageBox.Critical)
 
 def showWarningMsgBox(text,informative_text="",parent=None):
+    log.log("utils","MessageBox: "+str(text)+": "+informative_text,level=logging.WARN)
     return showMsgBox(tr("Warning")+": "+str(text),
                       informative_text,
                       parent,
                       icon=Qt.QMessageBox.Warning)
-
-
-def trace(msg,log=True,reset=False,verbose=True, **args):
-    if log:
-        try:
-            if reset:
-                f = open(_LOG_FILE,'w')
-            else:
-                f = open(_LOG_FILE,'a')
-            f.write(time.strftime('[%Y-%m-%d %H:%M:%S] ==> ')+msg.replace('\n','')+'\n')
-            f.close()
-        except:
-            pass #nothing to do
-    
-    if verbose==True:
-        print(msg)
-
 try:
     import numpy as np
 except ImportError:
-    trace('ERROR: \'numpy\' python module not found! exiting program.',verbose=True)
+    log.log("utils",'\'numpy\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'numpy\' python module not found!"),tr("Please install numpy."))
     sys.exit(1)
 
@@ -122,14 +111,14 @@ try:
     import scipy as sp
     from scipy import signal, ndimage
 except ImportError:
-    trace('ERROR: \'scipy\' python module not found! exiting program.',verbose=True)
+    log.log("utils",'\'scipy\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'scipy\' python module not found!"),tr("Please install scipy."))
     sys.exit(1)
 
 try:
     import cv2
 except ImportError:
-    trace('ERROR: \'opencv (cv2)\' python module not found! exiting program.',verbose=True)
+    log.log("utils",'\'opencv (cv2)\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'opencv2\' python module not found!"),tr("Please install opencv2 python bindings."))
     sys.exit(1)
 
@@ -139,28 +128,28 @@ try:
     from PIL import Image, ExifTags
     Image.init()
 except ImportError:
-    trace('ERROR: \'PIL\' python module not found! exiting program.',verbose=True)
+    log.log("utils",'\'PIL\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'PIL\' python module not found!"),tr("Please install the python imaging library (PIL/Pillow)."))
     sys.exit(1)
 
 try:
     import astropy.io.fits as pyfits
     FITS_SUPPORT=True
-    trace("FITS support enabled", verbose=True)
+    log.log("utils","FITS support enabled",level=logging.INFO)
     
 except ImportError:
     #if you have pyfits
     try:
         import pyfits
         FITS_SUPPORT=True
-        trace("FITS support enabled", verbose=True)
-        trace("The pyFITS package will be soon fully replaced by 'astropy'!\nYou can find it at http://www.astropy.org/", verbose=True)
+        log.log("utils","FITS support enabled",level=logging.INFO)
+        log.log("utils","The pyFITS package will be soon fully replaced by 'astropy'!\nYou can find it at http://www.astropy.org/",level=logging.WARN)
 
     except ImportError:
-        trace("FITS support not enabled:\nto enable FITS support please install the 'astropy' python package!", verbose=True)
+        log.log("utils","FITS support not enabled:\nto enable FITS support please install the 'astropy' python package!",level=logging.WARN)
 
         FITS_SUPPORT=False
-        FORMAT_BLACKLIST.append('FITS')   
+        FORMAT_BLACKLIST.append('FITS')
 
 if FITS_SUPPORT:
 
@@ -179,13 +168,56 @@ if FITS_SUPPORT:
 try:
     import cr2plugin
     CR2_SUPPORT=True
-    trace("CR2 support enabled")
+    log.log("utils","CR2 support enabled",level=logging.INFO)
     for ext in cr2plugin.EXTENSION.keys():
         CUSTOM_EXTENSIONS[ext]=cr2plugin.EXTENSION[ext]
 except Exception as exc:
-    trace("WARNING: CR2 support not enabled:\n"+str(exc))
+    log.log("utils","WARNING: CR2 support not enabled:\n"+str(exc),level=logging.WARNING)
     FORMAT_BLACKLIST.append('CR2')
 
+# it seems that kde's native dialogs work correctly while, on the contrary,
+# gnome's dialogs (and also dialogs of other desktop environmetns?) will not
+# display correclty! In this case the Qt (non native) dialogs will be
+# used.
+
+try:
+    #try automatic detection
+    if 'kde' == os.environ['XDG_CURRENT_DESKTOP'].lower():
+        DIALOG_OPTIONS = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails)
+    else:
+       DIALOG_OPTIONS = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
+except Exception:
+    # This should work in each Desktop Environment
+    DIALOG_OPTIONS = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
+
+
+def genTimeUID():
+    time.sleep(0.00001)
+    baseid = "{0:016x}".format(int(time.time()*10000000))
+    return baseid[0:4]+'-'+baseid[4:8]+'-'+baseid[8:12]+'-'+baseid[12:16]
+    
+
+def Int(val):
+    i = math.floor(val)
+    if ((val-i)<0.5):
+        return int(i)
+    else:
+        return int(math.ceil(val))
+
+def timeouted_loop(func, t_step=0.5, timeout=10, c_val=None, arg=(), args={}):
+    timelimit = time.time() + timeout
+    
+    result=func(*arg,**args)
+    if c_val in (True, False, None):
+        while (result is not c_val) and (time.time()<timelimit):
+            time.sleep(0.5)
+            result=func(*arg,**args)
+        return result is c_val
+    else:
+        while (result != c_val) and (time.time()<timelimit):
+            time.sleep(0.5)
+            result=func(*arg,**args)
+        return result == c_val
 
 def getCreationTime(url):
     # Some times I found files modified before their creation!
@@ -240,7 +272,48 @@ def _getCTime(v, sep=' '):
     tm_struct[2]=int(dt[2])
     tm_struct[8]=-1
     return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
-   
+
+def getCurrentTimeMsec():
+    return Qt.QDateTime.toMSecsSinceEpoch(Qt.QDateTime.currentDateTime())
+
+
+def getQIcon(name="",verbose=False):
+    
+    if type(name) != str:
+        name=str(name)
+    
+    if name=="":
+        return QtGui.QIcon("")
+    
+    if QtGui.QIcon.hasThemeIcon(name):
+
+        log.log("utils","Found icon form Theme: \""+name+"\"",level=logging.DEBUG)
+        return QtGui.QIcon.fromTheme(name)
+    else:
+        iconurl=os.path.join(paths.ICONS_PATH,name)
+        
+        if os.path.isfile(iconurl):
+            log.log("utils","Found icon: \""+name+"\"",level=logging.DEBUG)
+            return QtGui.QIcon(iconurl)
+        else:
+            
+            root_name = os.path.basename(os.path.splitext(name)[0])
+                            
+            for each_icon in os.listdir(paths.ICONS_PATH):
+                
+                new_name = os.path.splitext(each_icon)[0]
+                
+                if root_name == new_name:
+                    log.log("utils","Found default icon: \""+os.path.join(paths.ICONS_PATH,each_icon)+"\"",level=logging.DEBUG)
+                    return QtGui.QIcon(os.path.join(paths.ICONS_PATH,each_icon))
+                
+            log.log("utils","No icon found for: \""+name+"\"",level=logging.WARNING)
+            return QtGui.QIcon("")
+                
+        
+        
+    
+
 class SplashScreen(Qt.QObject):
     
     def __init__(self,file_name,qapp=None):
@@ -276,7 +349,7 @@ class SplashScreen(Qt.QObject):
         self.update()
     
     def setValue(self,val):        
-        for i in np.arange(self._cval,val,self._maxv/1000.0):
+        for i in np.arange(self._cval,val,(self._maxv-self._minv)/100.0):
             self._cval=i
             self.update()
     
@@ -339,14 +412,48 @@ class SplashScreen(Qt.QObject):
         self._qss.finish(qwid)
     
     def processEvents(self):
-        if self._qapp!=None:
+        if self._qapp is not None:
             self._qapp.processEvents()
-            
+
+
+class ToolComboBox(Qt.QFrame):
+    
+    def __init__(self,title="",tooltip="",useframe=True):
+        Qt.QFrame.__init__(self)
+        self.setFrameStyle(Qt.QFrame.Plain)
+        self._label=Qt.QLabel(title)
+        self._selector = Qt.QComboBox()
+        
+        vLayout = Qt.QHBoxLayout(self)
+
+        vLayout.addWidget(self._label)
+        vLayout.addWidget(self._selector)
+        
+        self.setToolTip(tooltip)
+        self._label.setToolTip(tooltip)
+        self._selector.setToolTip(tooltip)
+        
+        self.setLabel=self._label.setText
+        self.addItem=self._selector.addItem
+        self.addItems=self._selector.addItems
+        self.count = self._selector.count
+        self.currentIndexChanged=self._selector.currentIndexChanged
+        self.currentIndex=self._selector.currentIndex
+        self.setCurrentIndex=self._selector.setCurrentIndex
+        self.currentText = self._selector.currentText
+        self.duplicatesEnabled = self._selector.duplicatesEnabled
+        self.setFrame=self._selector.setFrame
+        self.hasFrame=self._selector.hasFrame 
+        self.clear=self._selector.clear
+        
+        self.setFrame(useframe)
+
+        
 class Frame(Qt.QObject):
     
     """
     command for args**
-    rgb_fits = True;False
+    rgb_fits = True/False
     """
     
     titleChanged = QtCore.pyqtSignal(str)
@@ -358,22 +465,28 @@ class Frame(Qt.QObject):
     canceled = QtCore.pyqtSignal()
     
     def cancel(self):
+        self.hideProgress.emit()
         self.canceled.emit()
-        
-    def __init__(self, file_name, page=0, **args):
+    
+    def __del__(self):
+        log.log("utils.Fame","deleting Frame \'"+self.tool_name+"\'",level=logging.DEBUG)
+    
+    def __init__(self, file_name="", page=0, **args):
         Qt.QObject.__init__(self)
         self.setUrl(file_name, page)
         self.properties={}
         self.is_good=False
         self._open_args=args
         
-        if (('progress_bar' in args) and args['progress_bar']!=None):
+        if (('progress_bar' in args) and args['progress_bar'] is not None):
             pb = args['progress_bar']
             self.progressValueChanged.connect(pb.setValue)
             self.progressMaximumChanged.connect(pb.setMaximum)
             self.infoTextChanged.connect(pb.setLabelText)
             self.titleChanged.connect(pb.setWindowTitle)
             self.showProgress.connect(pb.show)
+            self.hideProgress.connect(pb.hide)
+            
             pb.canceled.connect(self.cancel)
             
         self.titleChanged.emit('Please wait')
@@ -413,7 +526,7 @@ class Frame(Qt.QObject):
                     else:
                         return None
                 
-                self.mode = _tmp_data.shape[3]
+                
             else:
                 _tmp_data = self.open(self.url, page, PIL_priority=True, only_sizes=True, **args)
             
@@ -424,9 +537,8 @@ class Frame(Qt.QObject):
         self.alignpoints=[]
         self.angle=0
         self.offset=None
-        self.setOffset([0,0])        
-
-
+        self.setOffset([0,0])
+        
     def setUrl(self, url, page):
         self.url=str(url)
         self.name=os.path.basename(self.url)
@@ -456,7 +568,7 @@ class Frame(Qt.QObject):
         if key in self.properties:
             return self.properties[key]
         else:
-            trace('WARNING: image '+str(self.name)+' has no property '+str(key))
+            log.log("utils.Frame",'image '+str(self.name)+' has no property '+str(key),level=logging.WARNING)
             return None
             
     """
@@ -481,10 +593,12 @@ class Frame(Qt.QObject):
         data = self._open(file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority, 
                          only_sizes, force_update, **args)
         
-        if data==None:
+        if data is None:
             self.is_good=False
         else:
             self.is_good=True
+        
+        QtGui.QApplication.instance().processEvents()
         
         return data
     
@@ -496,7 +610,7 @@ class Frame(Qt.QObject):
         file_path,file_ext = os.path.splitext(file_name)
         
         file_ext=file_ext.lower()
-                                      
+                            
         if 'rgb_fits_mode' in args:
             self.RGB_mode=args['rgb_fits_mode']
         else:
@@ -510,15 +624,18 @@ class Frame(Qt.QObject):
         else:
             return None
         
+        if page == 0:
+            log.log("utils.Frame","Opening file \'"+str(file_name)+"\'",level=logging.INFO)
+            log.log("utils.Frame","file format: \'"+str(file_type)+"\'",level=logging.DEBUG)
+            
         ctime = None
         exif_file_path = file_path+'.exif'
         
         if os.path.isfile(exif_file_path):
             self.importProperties(exif_file_path)
-        
+                
         #choosing among specific loaders
         if file_type == 'FITS':
-
             if not FITS_SUPPORT:
                 #this should never happen
                 return None
@@ -623,12 +740,12 @@ class Frame(Qt.QObject):
                             #this should work
                             naxis=len(imagehdu.data.shape)
                         except:
-                            trace("ERROR: FITS: corrupted data")
+                            log.log("utils.Frame","FITS: corrupted data", level=logging.ERROR)
                             return None
                     else:
                         if naxis <= 1:
                             #cannot handle 0-D or 1-D image data!
-                            trace("WARNING: FITS: unsupported data format in HDU "+str(i))
+                            log.log("utils.Frame","FITS: unsupported data format in HDU "+str(i),level=logging.WARNING)
                         else:
                             axis=imagehdu.data.shape[:-2] #number of image layers
                             imh,imw=imagehdu.data.shape[-2:] #image size
@@ -753,7 +870,7 @@ class Frame(Qt.QObject):
                  
             if FITS_SUPPORT:
                 fits_header=[]
-                if ctime!=None:
+                if ctime is not None:
                     gm=time.gmtime(ctime)
                     date = '{0:02d}-{1:02d}-{2:02d}T{3:02d}:{4:02d}:{5:02.0f}'.format(
                         gm.tm_year,gm.tm_mon,gm.tm_mday,gm.tm_hour,gm.tm_min,gm.tm_sec)
@@ -767,12 +884,12 @@ class Frame(Qt.QObject):
                 self.infoTextChanged.emit(tr('decoding image ')+self.name+', '+tr('please wait...'))
                                 
                 if notUpdated(self.url,data_file_name) or force_update==True:
-                    trace(tr('decoding raw data to file')+' '+data_file_name)
+                    log.log("utils.Frame",'decoding raw data to file '+data_file_name,level=logging.INFO)
                     self.infoTextChanged.emit(tr('decoding raw data to file')+'\n'+data_file_name)
                     
                     try:
                         img = cr2file.load()
-                        if img == None:
+                        if img is None:
                             return None
                     except SyntaxError as exc:
                         msgBox = Qt.QMessageBox()
@@ -796,26 +913,26 @@ class Frame(Qt.QObject):
                         image = img.astype(ftype)
 
                 else:
-                    trace(tr(' loading raw data'))
+                    log.log("utils.Frame",'loading raw data',level=logging.INFO)
                     self.infoTextChanged.emit(tr('decoding image ')+self.name+', '+tr('please wait...'))
                     try:
                         image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
                     except:
                         image=None
                     
-                    if (image==None) or (cr2file.size[0] != self.width) or (cr2file.size[1] != self.height):
+                    if (image is None) or (cr2file.size[0] != self.width) or (cr2file.size[1] != self.height):
                         self.open(file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,force_update=True,**args)
             else:
                 if (('convert_cr2' in args) and args['convert_cr2']==True):
                     self.infoTextChanged.emit(tr('decoding image')+', '+tr('please wait...'))
                      
                     if notUpdated(self.url,data_file_name):
-                        trace(tr('decoding raw data to file')+' '+data_file_name)
+                        log.log("utils.Frame",'decoding raw data to file '+data_file_name,level=logging.INFO)
                         self.infoTextChanged.emit(tr('decoding raw data to file')+'\n'+data_file_name)
                         
                         try:
                             img = cr2file.load()
-                            if img == None:
+                            if img is None:
                                 return None
                         except SyntaxError as exc:
                             msgBox = Qt.QMessageBox()
@@ -845,13 +962,18 @@ class Frame(Qt.QObject):
             s=video.read()
             total_frames=video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
             if not s[0]:
+                log.log("utils.Frame","the video file is corrupted or have an unsupported format",level=logging.ERROR)
                 return None
+            elif total_frames <=0:
+                log.log("utils.Frame","the video file may be corrupted",level=logging.ERROR)
             elif page >= total_frames:
+                log.log("utils.Frame","video loading ended",level=logging.ERROR)
                 self.hideProgress.emit()
                 return None
             else:
 
                 if only_sizes:
+                    self.showProgress.emit()
                     self.progressMaximumChanged.emit(total_frames)
                     self.progressValueChanged.emit(page)
                     self.infoTextChanged.emit(tr('loading frame') +' '+ str(page) +'/'+str(total_frames)+ tr('of video')+' \n'+file_name)
@@ -879,7 +1001,7 @@ class Frame(Qt.QObject):
                 self.height = imh
                 self.mode = dep
 
-                trace("loading frame "+str(page)+" of video "+str(file_name))
+                log.log("utils.Frame","loading frame "+str(page)+" of video "+str(file_name),level=logging.INFO)
                 
                 if only_sizes:
                     return True
@@ -911,7 +1033,7 @@ class Frame(Qt.QObject):
             except:
                 cv2img=None
                 
-            if (page==0) and (cv2img!=None) and not(PIL_priority):
+            if (page==0) and (cv2img is not None) and not(PIL_priority):
                     
                 img = bgr2rgb(cv2img)
                 
@@ -988,7 +1110,7 @@ class Frame(Qt.QObject):
                     return None
                 except Exception as err:
                     if page==0:
-                        if cv2img == None:  # Nor PIL neither CV2 can open the file!
+                        if cv2img is None:  # Nor PIL neither CV2 can open the file!
                             msgBox = Qt.QMessageBox()
                             msgBox.setText(str(err))
                             msgBox.setIcon(Qt.QMessageBox.Critical)
@@ -1015,7 +1137,7 @@ class Frame(Qt.QObject):
                         image = img
     
         if not 'UTCEPOCH' in self.properties:
-            if ctime==None:
+            if ctime is None:
                 self.addProperty('UTCEPOCH',getCreationTime(file_name))
             else:
                 self.addProperty('UTCEPOCH',ctime)
@@ -1047,7 +1169,7 @@ class Frame(Qt.QObject):
             cPickle.dump(self.properties,f)
             return True
         except Exception as exc:
-            trace('Cannot create file '+url+':'+str(exc))
+            log.log("utils.Frame",'Cannot create file '+url+':'+str(exc),level=logging.ERROR)
             return False
         
     def importProperties(self,url):
@@ -1060,7 +1182,7 @@ class Frame(Qt.QObject):
             del f
             return True
         except Exception as exc:
-            trace('Cannot read file '+url+':'+str(exc))
+            log.log("utils.Frame",'Cannot read file '+url+':'+str(exc),level=logging.ERROR)
             return False
 
     def _fits_secure_imwrite(self, hdulist, url, force=False):
@@ -1082,7 +1204,8 @@ class Frame(Qt.QObject):
            
         hdulist.writeto(url)
 
-    def _imwrite_fits_(self, data, rgb_mode=True, override_name=None, force_overwrite=False, compressed=False, header={},outbits=16):
+    def _imwrite_fits_(self, data, rgb_mode=True, override_name=None, force_overwrite=False,
+                       compressed=False, header={},outbits=16, **args):
 
         if override_name!= None:
             name = override_name
@@ -1106,25 +1229,19 @@ class Frame(Qt.QObject):
                 
         if rgb_mode and (len(data.shape) == 3):
             
-            if compressed:
                 #NOTE: cannot compress primary HDU
-                hdu=pyfits.PrimaryHDU(header=getFitsStdHeader())
-                for k,v,d in header:
-                    hdu.header.update(str(k).upper(),v,str(d))
+            hdu=pyfits.PrimaryHDU(header=getFitsStdHeader())                
             
-                hdu_r = pyfits.CompImageHDU(data[...,0].copy())
-                hdu_g = pyfits.CompImageHDU(data[...,1].copy())
-                hdu_b = pyfits.CompImageHDU(data[...,2].copy())
-            else:
-                hdu_r = pyfits.PrimaryHDU(data[...,0].copy())
-                hdu_g = pyfits.ImageHDU(data[...,1].copy())
-                hdu_b = pyfits.ImageHDU(data[...,2].copy())
+            hdu_r = imgHDU(data[...,0].copy())
+            hdu_g = imgHDU(data[...,1].copy())
+            hdu_b = imgHDU(data[...,2].copy())
             
             hdu_r.update_ext_name('RED')
             hdu_g.update_ext_name('GREN')
             hdu_b.update_ext_name('BLUE')
             
             for k,v,d in header:
+                hdu.header.update(str(k).upper(),v,str(d))
                 hdu_r.header.update(str(k).upper(),v,str(d))
                 hdu_g.header.update(str(k).upper(),v,str(d))
                 hdu_b.header.update(str(k).upper(),v,str(d))
@@ -1134,37 +1251,37 @@ class Frame(Qt.QObject):
                 hdu_g.scale('int16', bzero=32768)
                 hdu_b.scale('int16', bzero=32768)
             
-            if compressed:
-                hdl = pyfits.HDUList([hdu,hdu_r,hdu_g,hdu_b])
-            else:
-                hdl = pyfits.HDUList([hdu_r,hdu_g,hdu_b])
+            
+            hdl = pyfits.HDUList([hdu,hdu_r,hdu_g,hdu_b])
                 
-            trace('Saving to '+name+'-RGB.fits')
+            log.log("utils.Frame",'Saving to '+name+'-RGB.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl,name+'-RGB.fits',force=force_overwrite)
-            trace(hdl.info())
+            log.log("utils.Frame",hdl.info(),level=logging.INFO)
             
         elif (len(data.shape) == 3):
             hdl_r=self._get_fits_hdl(name,data[...,0].copy(),header,compressed,outbits)
-            trace('Saving to '+name+'-R.fits')
+            log.log("utils.Frame",'Saving to '+name+'-R.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_r,name+'-R.fits',force=force_overwrite)
-            trace(hdl_r.info())
+            log.log("utils.Frame",hdl_r.info(),level=logging.INFO)
             
             hdl_g=self._get_fits_hdl(name,data[...,1].copy(),header,compressed,outbits)
-            trace('Saving to '+name+'-G.fits')
+            log.log("utils.Frame",'Saving to '+name+'-G.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_g,name+'-G.fits',force=force_overwrite)
-            trace(hdl_g.info())
+            log.log("utils.Frame",hdl_g.info(),level=logging.INFO)
             
             hdl_b=self._get_fits_hdl(name,data[...,2].copy(),header,compressed,outbits)
-            trace('Saving to '+name+'-B.fits')
+            log.log("utils.Frame",'Saving to '+name+'-B.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_b,name+'-B.fits',force=force_overwrite)
-            trace(hdl_b.info())
+            log.log("utils.Frame",hdl_b.info(),level=logging.INFO)
             
-        else:  
+        elif (len(data.shape) <= 2):  
             hdl=self._get_fits_hdl(name,data,header,compressed,outbits)
-            trace('Saving to '+name+'.fits')
+            log.log("utils.Frame",'Saving to '+name+'.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl,name+'.fits',force=force_overwrite)
-            trace(hdl.info())
-    
+            log.log("utils.Frame",hdl.info(),level=logging.INFO)
+        else:
+            showErrorMsgBox("unsupported data format!")
+            
     def _get_fits_hdl(self,name,data,header,compressed=False,outbits=16):
             if compressed: #NOTE: cannot compress primary HDU
                 hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
@@ -1184,35 +1301,384 @@ class Frame(Qt.QObject):
                 hdl = pyfits.HDUList([hdu])
             return hdl
                 
-    def _imwrite_cv2_(self, data, flags):
+    def _imwrite_cv2_(self, data, flags=None, force_overwrite=False, override_name=None, **args):
+        
+        if override_name!= None:
+            url = override_name
+        else:
+            url = self.url
+        
         try:
-            if os.path.exists(self.url):
-                msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("A file named")+" \""+
-                               os.path.basename(self.url)
-                               +"\" "+tr("already exists."))
-                msgBox.setInformativeText(tr("Do you want to overwite it?"))
-                msgBox.setIcon(Qt.QMessageBox.Question)
-                msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
-                if msgBox.exec_() == Qt.QMessageBox.Yes:
-                    os.remove(self.url)
+            if os.path.exists(url):
+                if force_overwrite:
+                    os.remove(url)
                 else:
-                    return False
+                    msgBox = Qt.QMessageBox()
+                    msgBox.setText(tr("A file named")+" \""+
+                                os.path.basename(url)
+                                +"\" "+tr("already exists."))
+                    msgBox.setInformativeText(tr("Do you want to overwite it?"))
+                    msgBox.setIcon(Qt.QMessageBox.Question)
+                    msgBox.setStandardButtons(Qt.QMessageBox.Yes | Qt.QMessageBox.No)
+                    if msgBox.exec_() == Qt.QMessageBox.Yes:
+                        os.remove(url)
+                    else:
+                        return False
+                    
             if len(data.shape) == 3:
-                return cv2.imwrite(self.url,data[...,(2,1,0)].copy(),flags)
+                return cv2.imwrite(url,data[...,(2,1,0)].copy(),flags)
             elif len(data.shape) == 2:
-                return cv2.imwrite(self.url,data,flags)
+                return cv2.imwrite(url,data,flags)
             else:
                 #this should never happens
                 raise TypeError("Cannot save "+str(len(data.shape))+"-D images")
         except Exception as exc:
-            trace("Cannot save image due to cv2 exception: " + str(exc))
+            log.log("utils.Frame","Cannot save image due to cv2 exception: " + str(exc),level=logging.ERROR)
             msgBox = Qt.QMessageBox()
             msgBox.setText(tr("Cannot save image due to cv2 exception:"))
             msgBox.setInformativeText(str(exc))
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
-            return False
+            return False       
+    
+    def saveData(self, data=None, filename=None, save_dlg=None, force_overwrite=False,
+             frmat=None, bits=None, dtype=None, fits_compressed=False,
+             rgb_fits_mode=True, flags=None, **args):
+        
+        """
+        save the Frame data to the current file
+        
+        Parameters
+        ----------
+        
+        data : numpy.ndarray [=None]
+            Specify the data to write. If no data is passed, the current
+            data is used.
+        
+        filename : string [=""]
+            Specify the output file. If no name is specified, the current
+            file url is used.
+            
+        save_dlg : QWidget [=None]
+            If a QWidget is passed, it will be uesd as save-dialog window.
+            If None is passed the default dialog will be used else if 
+            False is passed then no dialog will be used.
+            
+            NOTE: If a save-dialog is used, then its options will take
+                  precedence over any other conflicting parameter passed.
+            
+        force_overwrite: bool [=False]
+            If true the file will be overwritten without any confirmation.
+            
+        frmat: string [=None]
+            'fits', 'numpy', 'jpg', 'png'
+            
+        bits: integer [=None]
+            8, 16, 32, 64
+            
+        dtype: string [=None]
+            'uint', 'int', 'float'
+            
+        FITS options
+        ------------
+        
+        rgb_fits_mode : bool [=True]
+            If true a single RGB FITS file will be saved, otherwise
+            a mocrhomatic FITS file will be written for each component.
+            
+        fits_compressed : bool [=False]
+            Specify if compression must be applied or not.
+        
+        fits_header : dict [={}]
+        
+        CV2 options
+        -----------
+        
+        flags : tuple [=None]
+        """
+        
+        external_save_dialog=False
+        use_dialog=True 
+        
+        if save_dlg is None:
+            log.log("utils.Frame","Creating a new standard save-dialog window",level=logging.DEBUG)
+            self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'save_dialog.ui'))
+            external_save_dialog=False
+            use_dialog=True
+            try:
+                #connecting signals
+                self.save_dlg.radioButtonJpeg.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonPng.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonTiff.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonFits.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonNumpy.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonInt.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButtonFloat.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButton8.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButton16.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButton32.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.radioButton64.toggled.connect(self._updateSaveOptions)
+                self.save_dlg.checkBoxUnsigned.stateChanged.connect(self._updateSaveOptions)
+                self.save_dlg.pushButtonDestDir.clicked.connect(self._getDestDir)
+                self.save_dlg.radioButtonFits.setEnabled(FITS_SUPPORT)
+                
+                self.save_dlg.saveMastersCheckBox.hide()
+
+            except Exception as exc:
+                log.log("utils.Frame","Unsupported dialog window: " + str(exc),level=logging.ERROR)
+                del self.save_dlg
+        elif save_dlg == False:
+            external_save_dialog=False
+            use_dialog=False
+            log.log("utils.Frame","Using no save-dialog window",level=logging.DEBUG)
+        else:
+            log.log("utils.Frame","Using an existing external save-dialog window: "+str(save_dlg),level=logging.DEBUG)
+            external_save_dialog=True
+            use_dialog=True
+            self.save_dlg=save_dlg #NOTE: external dialogs passed here,
+                                    #     must have their own signals already 
+                                    #     connected to theire respective slots
+                                    #     and must follow the naming scheme of
+                                    #     'save_dialog.ui'
+            try:
+                self.save_dlg.saveMastersCheckBox.hide()
+            except:
+                # no error here if there is no saveMastersCheckBox
+                pass
+        
+        if use_dialog:
+            log.log("utils.Frame","Running save-dialog window..." ,level=logging.DEBUG)
+                        
+            if filename == None:
+                self.save_dlg.lineEditFileName.setText(os.path.basename(self.url))
+                self.save_dlg.lineEditDestDir.setText(os.path.dirname(self.url))
+            else:
+                self.save_dlg.lineEditFileName.setText(os.path.basename(filenamel))
+                self.save_dlg.lineEditDestDir.setText(os.path.dirname(filenamel))
+            
+            self._updateSaveOptions()
+            if self.save_dlg.exec_() == 1:
+                destdir=str(self.save_dlg.lineEditDestDir.text())
+                name=str(self.save_dlg.lineEditFileName.text())
+                
+                valid_dir  = os.path.isdir(destdir)
+                valid_name = (name.strip() != "")
+                
+                while not (valid_dir and valid_name):
+                    
+                    if not valid_dir:
+                        showWarningMsgBox(tr("The selected output folder is not a directory\nor it does not exist!"))                        
+                    if not valid_name:
+                        showWarningMsgBox(tr("The file name is not valid!"))
+                        
+                    if self.save_dlg.exec_() != 1:
+                        log.log("utils.Frame","Operation canceled: deleting save dialog window",level=logging.DEBUG)
+                        del self.save_dlg
+                        return False                    
+                    destdir=str(self.save_dlg.lineEditDestDir.text())
+                    name=str(self.save_dlg.lineEditFileName.text())
+                        
+                    valid_dir  = os.path.isdir(destdir)
+                    valid_name = (name.strip() != "")
+                
+                                
+                flags=None
+                
+                if self.save_dlg.radioButtonJpeg.isChecked():
+                    frmat='jpg'
+                    flags=(cv2.cv.CV_IMWRITE_JPEG_QUALITY,int(self.save_dlg.spinBoxIQ.value()))
+                elif self.save_dlg.radioButtonPng.isChecked():
+                    frmat='png'
+                    flags=(cv2.cv.CV_IMWRITE_PNG_COMPRESSION,int(self.save_dlg.spinBoxIC.value()))
+                elif self.save_dlg.radioButtonTiff.isChecked():
+                    frmat='tiff'
+                elif self.save_dlg.radioButtonFits.isChecked():
+                    frmat='fits'
+                elif self.save_dlg.radioButtonNumpy.isChecked():
+                    frmat='numpy'
+                
+                if self.save_dlg.radioButton8.isChecked():
+                    bits=8
+                elif self.save_dlg.radioButton16.isChecked():
+                    bits=16
+                elif self.save_dlg.radioButton32.isChecked():
+                    bits=32
+                elif self.save_dlg.radioButton64.isChecked():
+                    bits=64
+                
+                if self.save_dlg.radioButtonInt.isChecked():
+                    if self.save_dlg.checkBoxUnsigned.checkState()==2:
+                        dtype='uint'
+                    else:
+                        dtype='int'
+                elif self.save_dlg.radioButtonFloat.isChecked():
+                    dtype='float'
+                
+                
+                filename=os.path.join(destdir,name+"."+frmat)
+                
+                rgb_fits_mode = (self.save_dlg.rgbFitsCheckBox.checkState()==2)
+                fits_compressed = (self.save_dlg.comprFitsCheckBox.checkState()==2)
+                
+                args["force_overwrite"]=force_overwrite
+                args["frmat"]=frmat
+                args["bits"]=bits
+                args["dtype"]=dtype
+                args["flags"]=flags
+                                
+            if not external_save_dialog:
+                log.log("utils.Frame","Deleting save dialog window",level=logging.DEBUG)
+                del self.save_dlg
+        
+        if data is None:
+            data=self.getData(asarray=True)
+            
+        log.log("utils.Frame","Saving Frame data to file: "+self.url,level=logging.INFO)
+        log.log("utils.Frame","filename: "+str(filename),level=logging.DEBUG)
+        log.log("utils.Frame","frmat: "+str(frmat),level=logging.DEBUG)
+        log.log("utils.Frame","bits: "+str(bits),level=logging.DEBUG)
+        log.log("utils.Frame","dtype: "+str(dtype),level=logging.DEBUG)
+        log.log("utils.Frame","save_dlg: "+str(save_dlg),level=logging.DEBUG)
+        log.log("utils.Frame","rgb_fits_mode: "+str(rgb_fits_mode),level=logging.DEBUG)
+        log.log("utils.Frame","fits_compressed: "+str(fits_compressed),level=logging.DEBUG)
+        log.log("utils.Frame","flags: "+str(flags),level=logging.DEBUG)
+        log.log("utils.Frame","args: "+str(args),level=logging.DEBUG)
+                
+        if frmat=='fits':
+            try:
+                return self._imwrite_fits_(data,rgb_fits_mode,compressed=fits_compressed,outbits=bits,override_name=filename,**args)
+            except:
+                return self._imwrite_fits_(data,rgb_fits_mode,compressed=False,outbits=bits,override_name=filename,**args)
+                if use_dialog:
+                    showWarningMsgBox(tr("Cannot save compressed files with this version of pyfits")+":\n "+ tr("the image was saved as an uncompressed FITS file."))
+                else:
+                    log.log("Cannot save compressed files with this version of pyfits: the image was saved as an uncompressed FITS file.",level=logging.WARNING)
+                
+            
+        elif frmat=='numpy':
+            return np.save(filename,data.astype(dtype+str(bits)))
+        else:
+            
+            if bits==8:
+                rawavg=normToUint8(data, False)
+            elif bits==16:
+                rawavg=normToUint16(data, False)
+            else:
+                #this should never be executed!
+                showErrorMsgBox(tr("Cannot save image:"),tr("Unsupported format ")+str(bits)+"-bit "+tr("for")+" "+str(frmt))
+                return False
+                
+            return self._imwrite_cv2_(data,flags,force_overwrite,override_name=filename)
+    
+    def _getDestDir(self):
+        destdir = str(Qt.QFileDialog.getExistingDirectory(None,
+                                                          tr("Choose the output folder"),
+                                                          os.path.dirname(self.url),
+                                                          DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly ))
+        self.save_dlg.lineEditDestDir.setText(str(destdir))
+        
+    def _updateSaveOptions(self, *args):       
+        
+        if self.save_dlg.radioButtonJpeg.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(True)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+            
+            if (self.save_dlg.radioButton32.isChecked() or
+                self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+            
+        elif self.save_dlg.radioButtonPng.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(True)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+            
+            if (self.save_dlg.radioButton32.isChecked() or
+                self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+            
+        elif self.save_dlg.radioButtonTiff.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton8.setEnabled(True)
+            self.save_dlg.radioButton16.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+            if (self.save_dlg.radioButton32.isChecked() or
+                self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+            
+        elif self.save_dlg.radioButtonFits.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.radioButtonInt.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)        
+            self.save_dlg.radioButton8.setEnabled(True)
+            self.save_dlg.radioButton16.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(True)
+            self.save_dlg.radioButton64.setEnabled(True)
+            self.save_dlg.comprFitsCheckBox.setEnabled(True)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(True)
+            
+            if self.save_dlg.radioButton8.isChecked():
+                self.save_dlg.radioButtonInt.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            elif self.save_dlg.radioButton16.isChecked():
+                self.save_dlg.radioButtonInt.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            elif self.save_dlg.radioButton32.isChecked():
+                self.save_dlg.radioButtonFloat.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            elif self.save_dlg.radioButton64.isChecked():
+                self.save_dlg.radioButtonFloat.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            else:
+                pass #should never happen
+            
+        elif self.save_dlg.radioButtonNumpy.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(True)
+            self.save_dlg.radioButtonInt.setEnabled(True)
+            self.save_dlg.checkBoxUnsigned.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(True)
+            self.save_dlg.radioButton64.setEnabled(True)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+            
+            if self.save_dlg.radioButtonFloat.isChecked():
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+                self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            else:
+                self.save_dlg.checkBoxUnsigned.setEnabled(True)
+            
+        else:
+            pass #should never happen
+        
+            
+        self.save_dlg.radioButtonFloat.toggled.connect(self._updateSaveOptions)
+    
         
 def getSupportedFormats():
     formats={}
@@ -1239,25 +1705,20 @@ def bgr2rgb(cv2img):
         
 
 def normToUint8 (data,adapt=False, lrange=None):
-    if data==None:
+    if data is None:
         return None
     else:
-        minv,maxv=getMinMax(data,adapt, lrange)
-            
-        norm = maxv-minv
-        
-        if norm > 0:
-            spec=(data-minv)*255.0/norm
-        elif norm==0:
-            spec=data
+        minv,maxv=getMinMax(data,adapt, lrange) # 35% of computation time
+        delta = maxv-minv
+        if delta > 0: # 25% of computation time
+            norm = 255.0/delta
+            result=(data-minv)*norm
         else:
-            #should never happens
-            spec=-(data)*255.0/norm
-        
-        return spec.clip(0,255).astype(np.uint8)
+            result=data            
+        return result.clip(0,255).astype(np.uint8) #40% of computation time
 
 def normToUint16 (data, refit=True):    
-    if data==None:
+    if data is None:
         return None
     elif data.dtype == np.uint16:
         return data
@@ -1285,124 +1746,46 @@ def normToUint16 (data, refit=True):
         return spec.astype(np.uint16)
     
 def getMinMax(data,adapt=False, lrange=None):
+    
+    datamax=data.max()
+    datamin=data.min()
+    
     if ((adapt==2) and
-        (lrange!=None) and
+        (lrange is not None) and
         (len(lrange)>=2)):
-        maxv=np.max(lrange)*data.max()/100.0
-    elif adapt==1 or (data.max() > 65536):
-        maxv=data.max()
-    elif data.max() > 255:
-        maxv=65536.0
-    elif data.max() <= 1:
-        #some float point images have values in range [0,1]
-        maxv=data.max()
+        maxv=lrange[1]*datamax/100.0
+        minv=datamin+lrange[0]*(datamax-datamin)/100.0
+    elif adapt==1:
+        maxv=datamax
+        minv=datamin
     else:
-        maxv=255.0
-
-    if ((adapt==2) and
-        (lrange!=None) and
-        (len(lrange)>=2)):
-        minv=data.min()+np.min(lrange)*(data.max()-data.min())/100.0
-    elif adapt==1 or (data.min() < 0):
-        minv=data.min()
-    else:
-        minv=0
+        if datamax > 65536:
+            maxv=datamax
+        elif datamax > 255:
+            maxv=65536.0
+        elif datamax <= 1:
+            #some float point images have values in range [0,1]
+            maxv=datamax
+        else:
+            maxv=255.0
+        
+        if datamin < 0:
+            minv=datamin
+        else:
+            minv=0
+    
     return (minv,maxv)
 
-def getJetColor(data,fit_levels=True, lrange=None):
-
-    value = data.astype(np.float)
-    minv,maxv = getMinMax(data,fit_levels,lrange)
+def testreshape(img,h,w):
     
-    if maxv==minv:
-        x = (value/float(2*maxv)).astype(np.float32)
-    else:
-        x = ((value - minv)/float(maxv-minv)).astype(np.float32)
+    arr = 255*np.ones((h,w,3), np.uint8, 'C')
     
-    del value
-    
-    r = (4*x - 1.5).clip(0.0,1.0) - (4*x - 3.5).clip(0.0,1.0)
-    g = (4*x - 0.5).clip(0.0,1.0) - (4*x - 2.5).clip(0.0,1.0)
-    b = (4*x + 0.5).clip(0.0,1.0) - (4*x - 1.5).clip(0.0,1.0)
-    
-    arr=[255*r, 255*g, 255*b]
-    
-    del r
-    del g
-    del b
-     
-    return arr
-    
-def arrayToQImage(img,R=0,G=1,B=2,A=3,bw_jet=True,fit_levels=False,levels_range=None):
-    
-    if img==None:
-        return None
-    elif type(img) != np.ndarray:
-        raise TypeError('In module utils, in function arrayToQImage, ndarray expected as first argumrnt but '+str(type(img))+' given instead')
-    
-    #searching for NaN values
-    if img.dtype.kind == 'f':
-        tb=(img!=img).nonzero()
-        img[tb]=np.Inf
-        tb=(img==np.Inf).nonzero()
-        img[tb]=img.min()
-
-    if img.ndim ==2:
-        h,w = img.shape[0:2]
-        channels = 1
-    else:
-        h,w,channels = img.shape[0:3]
-
-    #data must be 32bit aligned
-    if (w%4) != 0:
-        optimal_w = w + 4 - w%4
-    else:
-        optimal_w = w
-        
-    if (h%4) != 0:
-        optimal_h = h + 4 - h%4
-    else:
-        optimal_h = h
-    
-        
-    if img.ndim==2:
-        arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C')
-        
-        if bw_jet:
-            jet=getJetColor(img,fit_levels,levels_range)
-            arr[0:h,0:w,2] = jet[0]
-            arr[0:h,0:w,1] = jet[1]
-            arr[0:h,0:w,0] = jet[2]
-        else:
-            img2 = normToUint8(img,fit_levels,levels_range)
-            arr[0:h,0:w,2] = img2
-            arr[0:h,0:w,1] = img2
-            arr[0:h,0:w,0] = img2
+    arr[0:h,0:w,2] = img[2]
+    arr[0:h,0:w,1] = img[1]
+    arr[0:h,0:w,0] = img[0]
             
-        arr[h:,0:,3] = 0
-        arr[0:,w:,3] = 0
-        
-    elif (img.ndim==3) and (channels == 3):
-        img2 = normToUint8(img,fit_levels,levels_range)
-        arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C')
-        arr[0:h,0:w,0:3]=img2[...,(B,G,R)]
-        arr[h:,0:,3] = 0
-        arr[0:,w:,3] = 0
-        
-    elif (img.ndim==3) and (channels == 4):
-        img2 = normToUint8(img,fit_levels,levels_range)
-        arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C')
-        arr[0:h,0:w]=img2[...,(B,G,R,A)]
-    else:
-        return None
-
     arr=arr.astype('uint8')
-    rawdata=arr.data
-    del arr
-    result = Qt.QImage(rawdata,optimal_w,optimal_h,Qt.QImage.Format_ARGB32_Premultiplied)
-    result._raw_data=rawdata
-    result._original_data=img
-    return result
+    return arr
 
 def getNeighboursAverage(array,x0,y0,raw_mode=False):
     
@@ -1476,11 +1859,11 @@ def polar(input, wmul=1, hmul=1, clip=False):
 def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_order=0):
     
     if derotate:
-        trace(' computing image derotation...')
+        log.log("utils",'computing image derotation...',level=logging.INFO)
         d = _derotate_mono(ref, img, sharp1)    
         angle = d[1]
         dsize = d[0].shape
-        trace('  rotation angle = '+str(angle))
+        log.log("utils",'rotation angle = '+str(angle),level=logging.INFO)
     else:
         angle=0
     
@@ -1490,9 +1873,9 @@ def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_
         derotated = img
     
     if align:
-        trace(' computing image shift...')
+        log.log("utils",'computing image shift...',level=logging.INFO)
         s = _correlate_mono(ref, derotated,sharp2)    
-        trace('  shift = '+str(s[1]))
+        log.log("utils",'shift = '+str(s[1]),level=logging.INFO)
         shift = s[1]
         s0 = s[0]
         
@@ -1595,7 +1978,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     
     if ((mean_1/mean_2)<0.2) and ((max_1*max_2)<max_1):
         #then probably the center is the only maximum present in the image
-        trace(' probably very small shift')
+        log.log("utils",' probably very small shift',level=logging.INFO)
         r[0,0]=r_0_0
         r[-1,0]=r_1_0
         r[0,-1]=r_0_1
@@ -1627,7 +2010,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     if ((rmax[0] < 10) or (rmax[0] > (r.shape[0]-10)) or
         (rmax[1] < 10) or (rmax[1] > (r.shape[1]-10))):
         #this is a very bad situation!
-        trace(" Shift is too big for sub-pixe alignment")
+        log.log("utils"," Shift is too big for sub-pixe alignment",level=logging.WARNING)
         shift=[center[1]-rmax[1],center[0]-rmax[0]]
         return (r,shift)
     
@@ -1910,7 +2293,7 @@ def drawCurves(painter, data_x, data_y, min_max, color=0,errors=None,
             x=(data_x[i]-minx)*x_scale + x1
             y=(data_y[i]-miny)*y_scale + y1
             drawMarker(painter,x,y,r1,r2,ring,cross,square)
-            if (errors!=None):
+            if (errors is not None):
                 if bar_type==BARS_TYPE[1]:
                     ys=(data_y[i]+errors[i]-miny)*y_scale + y1
                     yl=(data_y[i]-errors[i]-miny)*y_scale + y1
@@ -2112,7 +2495,7 @@ def getDefocusCircleRadius2(img):
             difference = ((x-cx)**2+(y-cy)**2)**0.5
 
             if difference <= tollerance:
-                if best == None:
+                if best is None:
                     best = difference
                     best_radius = r
                 elif difference <= best:
@@ -2351,11 +2734,11 @@ def storeTmpArray(array, tmpdir=None, compressed=False):
     
     if compressed:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npz', dir=tmpdir)
-        trace(" saving to compressed temporary file "+str(tmp.name)+"\n")
+        log.log("utils"," saving to compressed temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
         np.savez_compressed(tmp.name,array)
     else:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npy', dir=tmpdir)
-        trace(" saving to temporary file "+str(tmp.name)+"\n")
+        log.log("utils"," saving to temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
         np.save(tmp.name,array)
     tmp.seek(0)
     return tmp
@@ -2390,7 +2773,7 @@ def generatePreview(imgdata,max_dim):
         zoom_factor=max_dim/h
     
     if (zoom_factor >= 1):
-        trace("WARNING: A preview bigger than/equal to the actual image was requested!")
+        log.log("utils","A preview bigger than/equal to the actual image was requested!",level=logging.WARNING)
         return imgdata
     
     zoom=np.ones(len(imgdata.shape))
@@ -2403,25 +2786,37 @@ def generateHistograhms(imgdata, bins=255):
     
     hists=[]
     shape=imgdata.shape
-
-    hrange=[imgdata.min(),imgdata.max()]
+        
+    hrange=getMinMax(imgdata,False)
+    
+    #NOTE: computing an extra histogram here for the total image
+    #      is faster than adding the histograms of each component
+    #      during the drawing operations.
     
     if len(shape)==2:
-        hists.append(np.array(np.histogram(imgdata,bins,range=hrange)))
-        hists.append(np.array(np.histogram(imgdata,bins,range=hrange)))
+        h=np.histogram(imgdata,bins,range=hrange)
+        hists.append(h)
+        hists.append(h[:])
     else:
         channels=imgdata.shape[2]
-        hists.append(np.array(np.histogram(imgdata,bins,range=hrange)))
+        toth=None
         for i in range(channels):
-            hists.append(np.array(np.histogram(imgdata[...,i],bins,range=hrange)))
-
+            h=np.histogram(imgdata[...,i],bins,range=hrange)
+            hists.append(h)
+            if toth is None:
+                toth=[h[0].copy(),h[1].copy()]
+            else:
+                toth[0]+=h[0]
+        hists.insert(0,toth)
+    
+    
     return np.array(hists)
 
 def applyWhiteBalance(data, factors, table):
     
     dmax=data.max()
     
-    #TODO FIX l AND h
+    #TODO fix l and h
     
     factors_l=np.zeros(len(table),dtype=data.dtype)
     factors_m=np.zeros(len(table),dtype=data.dtype)
@@ -2474,9 +2869,9 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
     else:
         ymax=max(ymax,max(2,max(hists[0][0])))
     
-    if xmax==None:
+    if xmax is None:
         xmax=max(hists[0][1])
-    if xmin==None:
+    if xmin is None:
         xmin=min(hists[0][1])
     
     num_of_components=len(hists)
@@ -2520,13 +2915,15 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
         
         path.lineTo(x0+w*(hist[1][0]-1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
         
+        if logY:
+            hist_y=np.emath.logn(10,hist[0]+1)
+        else:
+            hist_y=hist[0]
+        
         for i in range(len(hist[1])-1):
             x=hist[1][i]
-            if logY:
-                y=np.emath.logn(10,hist[0][i]+1)
-            else:
-                y=hist[0][i]
-                
+            y=hist_y[i]
+            
             path.lineTo(x0+w*(x-xmin)*(gm2-gm1)/(xmax-xmin),y0-(h*(gm2-gm1))*y/ymax)
 
         path.lineTo(x0+w*(hist[1][-1]+1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
@@ -2634,106 +3031,5 @@ def getLocale():
         settings.setValue("language_file",current_language)
         settings.endGroup()
         return current_language
-
-def setV4LFormat(device,cmd):
-    v4l2_ctl = subprocess.Popen(['v4l2-ctl','--device='+device, '--set-fmt-video='+cmd])
-    v4l2_ctl.wait()
-    del v4l2_ctl
-    
-def setV4LCtrl(device,ctrl,data):
-    v4l2_ctl = subprocess.Popen(['v4l2-ctl','--device='+device, '--set-ctrl='+ctrl+'='+str(data)])
-    v4l2_ctl.wait()
-    del v4l2_ctl
-    
-def getV4LFps(device):
-    v4l2_ctl = subprocess.Popen(['v4l2-ctl','--device='+device, '--get-parm'], stdout=subprocess.PIPE)
-    v4l2_ctl.wait()
-    rawdata=v4l2_ctl.stdout.read().replace(' ','').replace('\t','')
-    
-    pos1 = rawdata.find('Framespersecond:') + 16
-    pos2 = rawdata.find('(',pos1)
-    
-    fps = rawdata[pos1:pos2]
-    return float(fps)
     
     
-def getV4LDeviceProperties(device):
-    
-    formats={}    
-    v4l2_ctl = subprocess.Popen(['v4l2-ctl','--device='+device, '--list-formats-ext'], stdout=subprocess.PIPE)
-    v4l2_ctl.wait()
-    rawdata=v4l2_ctl.stdout.read().replace(' ','').replace('\t','')
-    del v4l2_ctl
-        
-    blocks=rawdata.split('PixelFormat:\'')[1:]
-
-    for block in blocks:
-        format_name = block[:block.find('\'')]
-        formats[format_name]={}
-        sizes=block.split('Size:Discrete')[1:]
-        for size in sizes:
-            lines=size.split('\n')
-            size=lines[0]
-            w,h=size.split('x')
-            formats[format_name][size]={'width':int(w),'height':int(h),'fps':[]}
-            for line in lines[1:]:
-                try:
-                    fps=float(line[line.find('(')+1:line.find('fps)')])
-                    formats[format_name][size]['fps'].append(str(fps)+' fps')
-                except:
-                    pass
-
-    v4l2_ctl = subprocess.Popen(['v4l2-ctl','--device='+device, '-L'], stdout=subprocess.PIPE)
-    v4l2_ctl.wait()
-    rawdata=v4l2_ctl.stdout.readlines()
-    del v4l2_ctl
-
-    props = {'formats' : formats}
-    
-    for line in rawdata:
-        if ' : ' in line:
-            vals = line.replace('\n','').replace('\r','').split(':')
-            name = vals[0][:vals[0].rfind('(')].replace(' ','').replace('\t','')
-            typ  = vals[0][vals[0].rfind('(')+1:vals[0].rfind(')')]
-            
-            props[name]={'min':None, 'max':None, 'default':None, 'value':None, 'flags':None}
-
-            for token in props[name]:        
-                props[name][token]=_parse_token(vals[1],token)
-
-            props[name]['type'] = typ
-            if typ=='menu':
-                props[name]['menu']={}
-                
-        elif ': ' in line:
-            s = line.replace('\n','').replace('\r','').split(':')
-            val = _autoType(s[0].replace(' ','').replace('\t',''))
-            nme = s[1].replace(' ','').replace('\t','')
-            props[name]['menu'][nme]=val
-    return props
-    
-def _autoType(val):    
-    try:
-        ret=float(val)
-    except:
-        try:
-            ret=int(val)
-        except:
-            ret=val
-    return ret
-
-
-def _parse_token(data, token):
-    if token not in data:
-        return None
-    else:
-        start = data.find(token)
-        start = data.find('=',start)+1
-        end   = data.find(' ',start)
-
-        if end<0:
-            val=data[start:]
-        else:
-            val=data[start:end]
-
-        return _autoType(val)

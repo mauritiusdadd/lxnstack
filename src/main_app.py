@@ -22,17 +22,26 @@ import shutil
 import subprocess
 import webbrowser
 import tempfile
+import argparse
 from xml.dom import minidom
 import paths
+import logging
+
 from PyQt4 import uic, Qt, QtCore, QtGui
 
-def tr(s):
-    return utils.tr(s)
-
+import log
+import videocapture
 import utils
+import imgfeatures
+import mappedimage
+import guicontrols
+import colormaps as cmaps
 import numpy as np
 import scipy as sp
 import cv2
+
+def tr(s):
+    return utils.tr(s)
 
 def Int(val):
     i = math.floor(val)
@@ -56,33 +65,15 @@ class theApp(Qt.QObject):
         
         self.parseArguments(args)
 
-        self.resetLog('Starting lxnstack...')
+        log.log("main_app.theApp",'Starting lxnstack...',level=logging.INFO)
         
         self._old_tab_idx=0
-        self.__operating=False
-        self.__updating_mwb_ctrls=False
+        self.__operating=False          #this will be used to avoid recursion loop
+        self.__updating_mdi_ctrls=False #this will be used to avoid recursion loop
         self._photo_time_clock=0
-        self._ignore_histogrham_update = False #this will be used to avoid recursion loop!
         self._phase_align_data=None
         
-        # it seems that kde's native dialogs work correctly while, on the contrary,
-        # gnome's dialogs (and also dialogs of other desktop environmetns?) will not
-        # display correclty! In this case the Qt (non native) dialogs will be
-        # used.
-        
-        try:
-            #try automatic detection
-            if 'kde' == os.environ['XDG_CURRENT_DESKTOP'].lower():
-                self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails)
-            else:
-                self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
-        except Exception:
-            # This should work in each Desktop Environment
-            self._dialog_options = Qt.QFileDialog.Option(Qt.QFileDialog.HideNameFilterDetails | Qt.QFileDialog.DontUseNativeDialog)
-        
         self.current_match_mode=cv2.TM_SQDIFF #TODO: Add selection box
-
-        self.qapp=Qt.QApplication.instance() 
         
         self._generateOpenStrings()
 
@@ -91,6 +82,9 @@ class theApp(Qt.QObject):
         
         if not os.path.isdir(paths.HOME_PATH):
             os.makedirs(paths.HOME_PATH)
+            
+        if not os.path.isdir(paths.CAPTURED_PATH):
+            os.makedirs(paths.CAPTURED_PATH)
             
         self.temp_path=paths.TEMP_PATH
                 
@@ -101,8 +95,6 @@ class theApp(Qt.QObject):
         self.exposure=0
         self.zoom_enabled=False
         self.zoom_fit=False
-        self.current_image = None
-        self.ref_image=None
         self.current_dir='~'
         
         self.colors=[(QtCore.Qt.red,tr('red')),
@@ -120,12 +112,9 @@ class theApp(Qt.QObject):
                      (QtCore.Qt.darkMagenta,tr('dark magenta')),
                      (QtCore.Qt.black,tr('black'))]
         
-        self.component_table={}
-        self.MWB_CORRECTION_FACTORS={}
-
         self.wasCanceled=False
-        self.wasStopped=False
-        self.wasStarted=False
+        self.__video_capture_stopped=False
+        self.__video_capture_started=False
         self.isPreviewing=False
         self.shooting=False
         
@@ -145,8 +134,7 @@ class theApp(Qt.QObject):
         self._drk=None
         self._stk=None
         self._flt=None
-        self._hst=None
-        
+                
         self._preview_data=None
         self._preview_image=None
         
@@ -159,6 +147,15 @@ class theApp(Qt.QObject):
         self.manual_align=False
 
         self.ftype=np.float32
+        
+        self.mdi_windows={}
+        
+        self.framelist=[]
+        self.biasframelist=[]
+        self.darkframelist=[]
+        self.flatframelist=[]
+        self.starslist=[]
+        self.lightcurve={}
 
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,'main.ui'))
         self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,'option_dialog.ui'))
@@ -166,19 +163,26 @@ class theApp(Qt.QObject):
         self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'save_dialog.ui'))
         self.stack_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'stack_dialog.ui'))
         self.align_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'align_dialog.ui'))
-        self.levels_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'levels_dialog.ui'))
         self.video_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'video_dialog.ui'))
         
-        self.component_ctrl_table={}
+        self.dlg.refreshPushButton.setIcon(utils.getQIcon("view-refresh"))
         
-        self.wnd.chartsTabWidget.setTabEnabled(1,False)
-        self.wnd.chartsTabWidget.setTabEnabled(2,False)
+        self.statusBar = self.wnd.statusBar()
+        self.statusLabelMousePos = Qt.QLabel()
+                
+        self.mdi = self.wnd.mdiArea
         
+        self.videoCaptureScheduler = videocapture.CaptureScheduler()
+        
+        self.buildMenus()
+        self.setUpStatusBar()
+        self.setUpToolBars()
+                        
         self.currentWidth=0
         self.currentHeight=0
         self.currentDepht=0
         
-        self.use_colormap_jet = True
+        self.current_colormap = 0
 
         self.result_w=0
         self.result_h=0
@@ -198,17 +202,10 @@ class theApp(Qt.QObject):
         self.master_bias_mul_factor=1.0
         self.master_dark_mul_factor=1.0
         self.master_flat_mul_factor=1.0
-                
-        self.framelist=[]
-        self.biasframelist=[]
-        self.darkframelist=[]
-        self.flatframelist=[]
-        self.starslist=[]
-        self.lightcurve={}
-        
+                        
         self.tracking_align_point=False
         self.tracking_star_point=False
-        self.use_cursor = QtCore.Qt.OpenHandCursor
+        
         self.panning=False
         self.panning_startig=(0,0)
         self.panning_ending=(0,0)
@@ -235,13 +232,13 @@ class theApp(Qt.QObject):
         
         self.fit_levels=False
         
-        self.current_cap_device=cv2.VideoCapture(None)
+        self.current_cap_device=None
+        self.current_cap_device_title=""
         self.video_writer = cv2.VideoWriter()
         self.video_url=''
         self.writing=False
         self.captured_frames=0
         self.max_captured_frames=0
-        self.current_cap_device_idx=-1
         self.save_image_dir=os.path.join(os.path.expandvars('$HOME'),'Pictures',paths.PROGRAM_NAME.lower())
         self.current_cap_combo_idx=-1
         self.devices=[]
@@ -258,82 +255,16 @@ class theApp(Qt.QObject):
         self.hue=0
         self.max_points=10
         self.min_quality=0.20
-        
-        self.levelfunc_idx=0
-        self.levels_range=[0,100]
-        
-        self.current_pixel=(0,0)
-        
-        self.statusLabelMousePos = Qt.QLabel()
-        self.statusBar = self.wnd.statusBar()
-        self.setUpStatusBar()
-        self.imageLabel= Qt.QLabel()
-        self.imageLabel.setMouseTracking(True)
-        self.imageLabel.setAlignment(QtCore.Qt.AlignTop)
-        self.wnd.imageViewer.setWidget(self.imageLabel)
-        self.wnd.imageViewer.setAlignment(QtCore.Qt.AlignTop)
-        
-        self.viewHScrollBar =  self.wnd.imageViewer.horizontalScrollBar()
-        self.viewVScrollBar =  self.wnd.imageViewer.verticalScrollBar()
-        
-        self.wnd.colorBar.current_val=None
-        self.wnd.colorBar.max_val=1.0
-        self.wnd.colorBar.min_val=0.0
-        self.wnd.colorBar._is_rgb=False
-        
-        self.bw_colormap=None
-        self.rgb_colormap=None
                 
-        self.wnd.manualAlignGroupBox.setEnabled(False)
-        
-        # resize callback
-        self.wnd.__resizeEvent__= self.wnd.resizeEvent #base implementation
-        self.wnd.resizeEvent = self.mainWindowResizeEvent #new callback
-        
-        # mousemove callback
-        self.imageLabel.__mouseMoveEvent__= self.imageLabel.mouseMoveEvent #base implementation
-        self.imageLabel.mouseMoveEvent = self.imageLabelMouseMoveEvent #new callback
-        
-        self.imageLabel.__mousePressEvent__ = self.imageLabel.mousePressEvent
-        self.imageLabel.mousePressEvent = self.imageLabelMousePressEvent
-        
-        self.imageLabel.__mouseReleaseEvent__ = self.imageLabel.mouseReleaseEvent
-        self.imageLabel.mouseReleaseEvent = self.imageLabelMouseReleaseEvent
-        
-        
-        self.wnd.imageViewer.__wheelEvent__ = self.wnd.imageViewer.wheelEvent
-        self.wnd.imageViewer.wheelEvent = self.imageViewerWheelEvent
-        
-        # paint callback
-        self.imageLabel.__paintEvent__= self.imageLabel.paintEvent #base implementation
-        self.imageLabel.paintEvent = self.imageLabelPaintEvent #new callback        
-        
-        # paint callback for colorBar
-        self.wnd.colorBar.__paintEvent__= self.wnd.colorBar.paintEvent #base implementation
-        self.wnd.colorBar.paintEvent = self.colorBarPaintEvent #new callback        
-
-        # paint callback for histoGraphicsView
-        self.levels_dlg.histoView.__paintEvent__= self.levels_dlg.histoView.paintEvent #base implementation
-        self.levels_dlg.histoView.paintEvent = self.histoViewPaintEvent #new callback        
-
-        # paint callback for ADU label
-        self.wnd.aduLabel.__paintEvent__= self.wnd.aduLabel.paintEvent #base implementation
-        self.wnd.aduLabel.paintEvent = self.aduLabelPaintEvent #new callback        
-
-        # paint callback for Mag label
-        self.wnd.magLabel.__paintEvent__= self.wnd.magLabel.paintEvent #base implementation
-        self.wnd.magLabel.paintEvent = self.magLabelPaintEvent #new callback        
-
-
         # exit callback
         self.wnd.__closeEvent__= self.wnd.closeEvent #base implementation
         self.wnd.closeEvent = self.mainWindowCloseEvent #new callback
         
-        # paint callback
-        self.levels_dlg.previewLabel.__paintEvent__= self.levels_dlg.previewLabel.paintEvent #base implementation
-        self.levels_dlg.previewLabel.paintEvent = self.previewLabelPaintEvent #new callback        
-
+        self.mdi.subWindowActivated.connect(self.updateMdiControls)
+        
         self.wnd.alignGroupBox.setEnabled(False)
+        self.mdi.setTabsClosable(True)
+        self.mdi.setViewMode(QtGui.QMdiArea.TabbedView)
         self.wnd.manualAlignGroupBox.setEnabled(False)
         self.wnd.masterBiasGroupBox.setEnabled(False)
         self.wnd.masterDarkGroupBox.setEnabled(False)
@@ -341,21 +272,14 @@ class theApp(Qt.QObject):
         self.wnd.masterBiasGroupBox.hide()
         self.wnd.masterDarkGroupBox.hide()
         self.wnd.masterFlatGroupBox.hide()
-        self.wnd.stopCapturePushButton.hide()
-        self.wnd.rawModeWidget.hide()
-        self.wnd.captureWidget.hide()
         self.wnd.magDoubleSpinBox.setEnabled(False)
         self.changeAlignMethod(self.current_align_method)
-        self.wnd.fitMinMaxCheckBox.setCheckState(0)
         
         self.save_dlg.radioButtonFits.setEnabled(utils.FITS_SUPPORT)
         
-        self.wnd.zoomCheckBox.stateChanged.connect(self.setZoomMode)
-        self.wnd.zoomSlider.valueChanged.connect(self.signalSliderZoom)
-        self.wnd.zoomDoubleSpinBox.valueChanged.connect(self.signalSpinZoom)
         self.wnd.addPushButton.clicked.connect(self.doLoadFiles)
         self.wnd.remPushButton.clicked.connect(self.removeImage)
-        self.wnd.clrPushButton.clicked.connect(self.clearList)
+        self.wnd.clrPushButton.clicked.connect(self.clearLightList)
         self.wnd.biasAddPushButton.clicked.connect(self.doAddBiasFiles)
         self.wnd.biasClearPushButton.clicked.connect(self.doClearBiasList)
         self.wnd.darkAddPushButton.clicked.connect(self.doAddDarkFiles)
@@ -366,15 +290,20 @@ class theApp(Qt.QObject):
         self.wnd.listUncheckAllBtn.clicked.connect(self.uncheckAllListItems)
         self.wnd.alignDeleteAllPushButton.clicked.connect(self.clearAlignPoinList)
         self.wnd.starsDeleteAllPushButton.clicked.connect(self.clearStarsList)
-        self.wnd.listWidget.currentRowChanged.connect(self.listItemChanged)
+        self.wnd.lightListWidget.currentRowChanged.connect(self.listItemChanged)
+        self.wnd.lightListWidget.currentItemChanged.connect(self.showFrameItemInCurrentTab)
+        self.wnd.darkListWidget.currentItemChanged.connect(self.showDarkFrameItemInCurrentTab)
+        self.wnd.flatListWidget.currentItemChanged.connect(self.showFlatFrameItemInCurrentTab)
+        self.wnd.biasListWidget.currentItemChanged.connect(self.showBiasFrameItemInCurrentTab)
+        self.wnd.lightListWidget.itemDoubleClicked.connect(self.showFrameItemInNewTab)
+        self.wnd.darkListWidget.itemDoubleClicked.connect(self.showDarkFrameItemInNewTab)
+        self.wnd.flatListWidget.itemDoubleClicked.connect(self.showFlatFrameItemInNewTab)
+        self.wnd.biasListWidget.itemDoubleClicked.connect(self.showBiasFrameItemInNewTab)
         self.wnd.listWidgetManualAlign.currentRowChanged.connect(self.manualAlignListItemChanged)
         self.wnd.listWidgetManualAlign.itemChanged.connect(self.currentManualAlignListItemChanged)
         self.wnd.starsListWidget.itemChanged.connect(self.starsListItemChanged)
         self.wnd.alignPointsListWidget.currentRowChanged.connect(self.alignListItemChanged)
         self.wnd.starsListWidget.currentRowChanged.connect(self.currentStarsListItemChanged)
-        self.wnd.avrPushButton.clicked.connect(self.doStack)
-        self.wnd.saveVideoPushButton.clicked.connect(self.doSaveVideo)
-        self.wnd.levelsPushButton.clicked.connect(self.editLevels)
         self.wnd.toolBox.currentChanged.connect(self.updateToolBox)
         self.wnd.spinBoxXAlign.valueChanged.connect(self.shiftX)
         self.wnd.spinBoxYAlign.valueChanged.connect(self.shiftY)
@@ -391,8 +320,6 @@ class theApp(Qt.QObject):
         self.wnd.removePointPushButton.clicked.connect(self.removeAlignPoint)
         self.wnd.addStarPushButton.clicked.connect(self.addStar)
         self.wnd.removeStarPushButton.clicked.connect(self.removeStar)
-        self.wnd.alignPushButton.clicked.connect(self.doAlign)
-        self.wnd.saveResultPushButton.clicked.connect(self.saveResult)
         self.wnd.autoSetPushButton.clicked.connect(self.autoSetAlignPoint)
         self.wnd.autoDetectPushButton.clicked.connect(self.autoDetectAlignPoints)
         self.wnd.masterBiasCheckBox.stateChanged.connect(self.useMasterBias)
@@ -401,36 +328,14 @@ class theApp(Qt.QObject):
         self.wnd.masterBiasPushButton.clicked.connect(self.loadMasterBias)
         self.wnd.masterDarkPushButton.clicked.connect(self.loadMasterDark)
         self.wnd.masterFlatPushButton.clicked.connect(self.loadMasterFlat)
-        self.wnd.stopCapturePushButton.clicked.connect(self.stopped)
-        self.wnd.capturePushButton.clicked.connect(self.started)
-        self.wnd.singleShotPushButton.clicked.connect(self.oneShot)
-        self.wnd.captureGroupBox.toggled.connect(self.capture)
-        self.wnd.rawGroupBox.toggled.connect(self.updateBayerMatrix)
-        self.wnd.bayerComboBox.currentIndexChanged.connect(self.updateBayerMatrix)
         self.wnd.biasMulDoubleSpinBox.valueChanged.connect(self.setBiasMul)
         self.wnd.darkMulDoubleSpinBox.valueChanged.connect(self.setDarkMul)
         self.wnd.flatMulDoubleSpinBox.valueChanged.connect(self.setFlatMul)
         self.wnd.alignMethodComboBox.currentIndexChanged.connect(self.changeAlignMethod)
-        self.wnd.fitMinMaxCheckBox.stateChanged.connect(self.setDisplayLevelsFitMode)
-        self.wnd.exportCVSPushButton.clicked.connect(self.exportNumericDataCSV)
-        self.wnd.minLevelDoubleSpinBox.valueChanged.connect(self.setMinLevel)
-        self.wnd.maxLevelDoubleSpinBox.valueChanged.connect(self.setMaxLevel)
         
-        self.dlg.devComboBox.currentIndexChanged.connect(self.getDeviceInfo)
-        self.dlg.videoSaveDirPushButton.clicked.connect(self._set_save_video_dir)
-        self.dlg.formatComboBox.currentIndexChanged.connect(self.deviceFormatChanged)
-        self.dlg.resolutionComboBox.currentIndexChanged.connect(self.deviceResolutionChanged)
-        self.dlg.fpsComboBox.currentIndexChanged.connect(self.deviceFpsChanged)
-        self.dlg.expTypeComboBox.currentIndexChanged.connect(self.deviceExposureTypeChanged)
-        self.dlg.expSlider.valueChanged.connect(self.deviceExposureChanged)
-        self.dlg.gainSlider.valueChanged.connect(self.deviceGainChanged)
-        self.dlg.contrastSlider.valueChanged.connect(self.deviceContrastChanged)
-        self.dlg.brightnessSlider.valueChanged.connect(self.deviceBrightnessChanged)
-        self.dlg.saturationSlider.valueChanged.connect(self.deviceSaturationChanged)
-        self.dlg.hueSlider.valueChanged.connect(self.deviceHueChanged)
-        self.dlg.sharpSlider.valueChanged.connect(self.deviceSharpnessChanged)
-        self.dlg.gammaSlider.valueChanged.connect(self.deviceGammaChanged)        
-        self.dlg.jetCheckBox.stateChanged.connect(self.setJetmapMode)
+        self.dlg.devComboBox.currentIndexChanged.connect(self.setCurrentCaptureDevice)
+        #self.dlg.videoSaveDirPushButton.clicked.connect(self._set_save_video_dir)
+        self.dlg.refreshPushButton.clicked.connect(self.updateCaptureDevicesList)
         self.dlg.jetCheckBox.setCheckState(2)
         self.dlg.fTypeComboBox.currentIndexChanged.connect(self.setFloatPrecision)
         self.dlg.jetCheckBox.setCheckState(2)
@@ -453,76 +358,32 @@ class theApp(Qt.QObject):
         self.save_dlg.checkBoxUnsigned.stateChanged.connect(self.updateSaveOptions)
         self.save_dlg.pushButtonDestDir.clicked.connect(self.getDestDir)
         
-        self.levels_dlg.curveTypeComboBox.currentIndexChanged.connect(self.updateHistograhm)
-        self.levels_dlg.aDoubleSpinBox.valueChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.bDoubleSpinBox.valueChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.oDoubleSpinBox.valueChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.nDoubleSpinBox.valueChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.mDoubleSpinBox.valueChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.dataClippingGroupBox.toggled.connect(self.updateHistograhm2)
-        self.levels_dlg.dataClipping8BitRadioButton.toggled.connect(self.updateHistograhm2)
-        self.levels_dlg.dataClippingFitDataRadioButton.toggled.connect(self.updateHistograhm2)
-        self.levels_dlg.MWBGroupBox.toggled.connect(self.updateHistograhm2)
-        self.levels_dlg.histLogViewCheckBox.stateChanged.connect(self.updateHistograhm2)
-        self.levels_dlg.buttonBox.clicked.connect(self.levelsDialogButtonBoxClickedEvent)
-        self.levels_dlg.histoTabWidget.currentChanged.connect(self.updateHistograhm2)
-        
-        self.wnd.genADUPushButton.clicked.connect(self.deGenerateLightCurves)
-        self.wnd.aduListWidget.currentRowChanged.connect(self.updateADUlistItemChanged)
-        self.wnd.aduListWidget.itemChanged.connect(self.wnd.aduLabel.repaint)
-        self.wnd.colorADUComboBox.currentIndexChanged.connect(self.setCurrentADUCurveColor)
-        self.wnd.lineADUComboBox.currentIndexChanged.connect(self.setCurrentADUCurveLineType)
-        self.wnd.pointsADUComboBox.currentIndexChanged.connect(self.setCurrentADUCurvePointsType)
-        self.wnd.barsADUComboBox.currentIndexChanged.connect(self.setCurrentADUCurveBarsType)
-        self.wnd.smoothingADUDoubleSpinBox.valueChanged.connect(self.setCurrentADUCurveSmooting)
-        self.wnd.pointSizeADUDoubleSpinBox.valueChanged.connect(self.setCurrentADUPointSize)
-        self.wnd.lineWidthADUDoubleSpinBox.valueChanged.connect(self.setCurrentADULineWidth)
-        
-        self.wnd.magListWidget.currentRowChanged.connect(self.updateMaglistItemChanged)
-        self.wnd.magListWidget.itemChanged.connect(self.wnd.magLabel.repaint)
-        self.wnd.colorMagComboBox.currentIndexChanged.connect(self.setCurrentMagCurveColor)
-        self.wnd.lineMagComboBox.currentIndexChanged.connect(self.setCurrentMagCurveLineType)
-        self.wnd.pointsMagComboBox.currentIndexChanged.connect(self.setCurrentMagCurvePointsType)
-        self.wnd.barsMagComboBox.currentIndexChanged.connect(self.setCurrentMagCurveBarsType)
-        self.wnd.smoothingMagDoubleSpinBox.valueChanged.connect(self.setCurrentMagCurveSmooting)
-        self.wnd.pointSizeMagDoubleSpinBox.valueChanged.connect(self.setCurrentMagPointSize)
-        self.wnd.lineWidthMagDoubleSpinBox.valueChanged.connect(self.setCurrentMagLineWidth)
-        self.wnd.saveADUChartPushButton.clicked.connect(self.saveADUChart)
-        self.wnd.saveMagChartPushButton.clicked.connect(self.saveMagChart)
-        
-        self.wnd.actionOpen_files.triggered.connect(self.doLoadFiles)
-        self.wnd.actionNew_project.triggered.connect(self.doNewProject)
-        self.wnd.actionSave_project_as.triggered.connect(self.doSaveProjectAs)
-        self.wnd.actionSave_project.triggered.connect(self.doSaveProject)
-        self.wnd.actionLoad_project.triggered.connect(self.doLoadProject)
-        self.wnd.actionPreferences.triggered.connect(self.doSetPreferences)
-        self.wnd.actionAbout.triggered.connect(self.doShowAbout)
-        self.wnd.actionUserManual.triggered.connect(self.doShowUserMan)
-
         self._resetPreferencesDlg()
         
-        self.setLevelsRange((0,100))
-        self.setDisplayLevelsFitMode(0)
-        
-        self.updateChartColors()
-
         if not os.path.isdir(self.save_image_dir):
             os.makedirs(self.save_image_dir)
         
         if not os.path.isdir(self.custom_temp_path):
             os.makedirs(self.custom_temp_path)
             
-        self.setZoomMode(1,True)
+        self.updateCaptureDevicesList()
         
         self.newProject()
                 
-        self.trace('Program started')
+        log.log("main_app.theApp",'Program started',level=logging.INFO)
     
     def setFullyLoaded(self):
         self._fully_loaded=True
     
     def fullyLoaded(self):
         return self._fully_loaded
+    
+    def __reload_modules__(self): #debug purpose only
+        reload(videocapture)
+        reload(utils)
+        reload(imgfeatures)
+        reload(mappedimage)
+        reload(guicontrols)
     
     #TODO: switch to argparse module
     def parseArguments(self,args):
@@ -534,469 +395,153 @@ class theApp(Qt.QObject):
         images=[None,[]]
         light=False
         
-        for arg in args:
-            
-            if arg[0]=='-':
-                if (images[0]==False) and len(images[1])>0:
-                    images[0]=True
-                
-                if (align[0]==False):
-                    align=[True,[False,True,True]]
-            
-            if (arg=="--lightcurve"):
-                light=True
-            elif ('--align' in arg):
-                if '=' in arg:
-                    val=arg.split('=')[1]
-                    if val=='align-derotate':
-                        align[1]==[False,True,True]
-                    elif val=='align-only':
-                        align[1]==[False,True,False]
-                    elif val=='derotate-only':
-                        align[1]==[False,False,True]
-                    elif val=='reset':
-                        align[1]==[True,False,False]
-                    else:
-                        self.criticalError('\n\''+val+'\' is not a recognized mode for --align.\nPlease use --help for more informations\n',False)
-                else:
-                    align[0]=False
-            elif (arg=='-a'):
-                align[0]=False
-            elif ('--load-project' in arg):
-                if '=' in arg:
-                    val=arg.split('=')[1]
-                    if val!='':
-                        lproject=[True,val]
-                    else:
-                        self.criticalError('\nNo file specified for --load-project=FILE.\nPlease use --help for more informations\n',False)
-                else:
-                    lproject[0]=False
-            elif (arg=='-l'):
-                lproject[0]=False
-            elif ('--save-project' in arg):
-                if '=' in arg:
-                    val=arg.split('=')[1]
-                    if val!='':
-                        sproject=[True,val]
-                    else:
-                        self.criticalError('\nInvalid syntax for --save-project[=FILE].\nPlease use --help for more informations\n',False)
-                else:
-                    sproject[0]=False
-            elif(arg=='-s'):
-                sproject[0]=False
-            elif ('--stack' in arg):
-                if '=' in arg:
-                    val=arg.split('=')[1]
-                    if val=='average':
-                        stacking=[True,0]
-                    elif val=='median':
-                        stacking=[True,1]
-                    elif val=='sigma-clipping':
-                        stacking=[True,2]
-                    elif val=='stddev':
-                        stacking=[True,3]
-                    elif val=='variance':
-                        stacking=[True,4]
-                    elif val=='maximum':
-                        stacking=[True,5]
-                    elif val=='minimum':
-                        stacking=[True,6]
-                    elif val=='maximum':
-                        stacking=[True,7]
-                    else:
-                        self.criticalError('\n\''+val+'\' is not a recognized mode for --align.\nPlease use --help for more informations\n',False)
-                else:
-                    stacking[0]=False
-            elif (arg=='-S'):
-                stacking[0]=False
-            elif (arg=='--add-images') or (arg=='-i'):
-                images[0]=False
-            elif (arg=='--verbose'):
-                self.verbose=True
-            else:
-                if arg[0]=='-':
-                    self.criticalError('\n\''+arg+'\' is not a recognized command.\nPlease use --help for more informations\n',False)
-                elif align[0]==False:
-                    if arg=='align-derotate':
-                        align[1]=[False,True,True]
-                    elif arg=='align-only':
-                        align[1]=[False,True,False]
-                    elif arg=='derotate-only':
-                        align[1]=[False,False,True]
-                    elif arg=='reset':
-                        align[1]=[True,False,False]
-                    else:
-                        align[1]=[False,True,True]
-                    align[0]=True
-                elif lproject[0]==False:
-                    lproject[0]=True
-                    lproject[1]=arg
-                elif sproject[0]==False:
-                    sproject[0]=True
-                    sproject[1]=arg
-                elif stacking[0]==False:
-                    stacking[0]=True
-                    if arg=='average':
-                        stacking=[True,0]
-                    elif arg=='median':
-                        stacking=[True,1]
-                    elif arg=='sigma-clipping':
-                        stacking=[True,2]
-                    elif arg=='stddev':
-                        stacking=[True,3]
-                    elif arg=='variance':
-                        stacking=[True,4]
-                    elif arg=='maximum':
-                        stacking=[True,5]
-                    elif arg=='minimum':
-                        stacking=[True,6]
-                    elif arg=='product':
-                        stacking=[True,7]
-                    else:
-                        self.criticalError('\n\''+val+'\' is not a recognized mode for --stack.\nPlease use --help for more informations\n',False)
-                elif images[0]==False:
-                    images[1].append(arg)
-                else:
-                    lproject[0]=True
-                    lproject[1]=arg
-                    
-        if (images[0]==False) and len(images[1])>0:
-            images[0]=True
+        parser = argparse.ArgumentParser(description=tr('lxnstack is aprogram usefull to align and stack the astronomical images.'))
         
-        #default values
-        if sproject[0]==False:
-            if lproject[0]==True:
-                sproject=[True,lproject[1]]
+        parser.add_argument("-a","--align", nargs='?', const='align-derotate',
+                            choices=['align-only', 'derotate-only', 'align-derotate','reset'],
+                            metavar='METHOD',
+                            help=tr('''execute the phase correlation alignment
+                                    with the given %(metavar)s. The values allowed
+                                    for %(metavar)s are: align-only, derotate-only,
+                                    align-derotate, reset. If no %(metavar)s is
+                                    specified then  %(const)s is used by
+                                    default.'''))
+        
+        parser.add_argument("-i","--add-images", nargs='+',
+                            metavar='FILES',
+                            help=tr('''load the images from the files %(metavar)s.'''))
+        
+        parser.add_argument("-m","--user-manual", action='store_true',
+                            help=tr('''show the use manual in a web browser
+                                    and exit.'''))
+        
+        parser.add_argument("-l","--load-project", nargs='?',
+                            metavar='FILE',
+                            help=tr('''load the project from the file %(metavar)s.'''))
+        
+        parser.add_argument("-s","--save-project", nargs='?',
+                            metavar='FILE',default="False",
+                            help=tr('''save the project to the file %(metavar)s
+                                    If %(metavar)s is not given and a project is alrady
+                                    loaded then the current project will be
+                                    overwritten. If %(metavar)s is not given and no
+                                    project is loaded, then an error is raised.'''))
+        
+        parser.add_argument("-S","--stack", nargs='?', const='average',
+                            choices=['average','median','sigma-clipping',
+                                     'minimum','maximum','stddev','variance',
+                                     'product'],
+                            metavar='MODE',
+                            help=tr('''stack the images using the mode %(metavar)s.
+                                    The values allowed for %(metavar)s are:
+                                    average, median, sigma-clipping, minimum,
+                                    maximum, stddev, variance, product.
+                                    If no %(metavar)s is given then the %(const)s is
+                                    be computed.'''))
+        
+        parser.add_argument("--lightcurve", action='store_true',
+                            help=tr('''generate the lightcurves (a project with
+                                    lightcurve informations must be loaded).'''))
+        
+        parser.add_argument("-v","--version", action='store_true',
+                            help=tr('''print the version of the program and exit.'''))
+        
+        parser.add_argument("--verbose", action='store_true',
+                            help=tr('''increase output verbosity'''))
+        
+        self.args = vars(parser.parse_args(args))
+        
+        self.verbose=self.args['verbose']
+        
+        #default values for project name
+        if self.args['save_project'] is None:
+            if self.args['load_project'] is not None:
+                self.args['save_project']=self.args['load_project']
             else:
                 self.criticalError('No project name specified!\nPlease use --help for more informations\n',False)
-         
-        if align[0]==False:
-            align=[True,[False,True,True]]
-         
-        if stacking[0]==False:
-            stacking=[True,0]
-        
-        self.args=(lproject,images,align,sproject,stacking,light)
         
     def executeCommads(self):
-        if self.args[0][0]==True:
-            self.loadProject(self.args[0][1])
-        if self.args[1][0]==True:
-            self.loadFiles(self.args[1][1])
-        if self.args[2][0]==True:
+        
+        if self.args['load_project'] is not None:
+            self.loadProject(self.args['load_project'])
+            
+        if self.args['add_images'] is not None:
+            self.loadFiles(self.args['add_images'])
+            
+        if self.args['align'] is not None:
             self.wnd.toolBox.setCurrentIndex(1)
-            self.align(self.args[2][1][0], self.args[2][1][1], self.args[2][1][2])
-        if self.args[3][0]==True:
-            self.current_project_fname=self.args[3][1]
+            
+            if self.args['align']=='align-only':
+                self.align(False,True,False)
+            elif self.args['align']=='derotate-only':
+                self.align(False,False,True)
+            elif self.args['align']=='align-derotate':
+                self.align(False,True,True)
+            elif self.args['align']=='reset':
+                self.align(True,False,False)
+            
+        if self.args['save_project'] is not None:
+            self.current_project_fname=self.args['save_project']
             self._save_project()
-        if self.args[4][0]==True:
+            
+        if self.args['stack'] is not None:
+            val=self.args['stack']
             self.wnd.toolBox.setCurrentIndex(7)
-            self.stack(self.args[4][1])
-        if self.args[5]==True:
+                        
+            if val=='average':
+                stacking_mode=0
+            elif val=='median':
+                stacking_mode=1
+            elif val=='sigma-clipping':
+                stacking_mode=2
+            elif val=='stddev':
+                stacking_mode=3
+            elif val=='variance':
+                stacking_mode=4
+            elif val=='maximum':
+                stacking_mode=5
+            elif val=='minimum':
+                stacking_mode=6
+            elif val=='maximum':
+                stacking_mode=7
+            
+            self.stack(stacking_mode)
+            
+        if self.args['lightcurve']:
             self.wnd.toolBox.setCurrentIndex(6)
             self.generateLightCurves(0)
         
         self.setFullyLoaded()
+        
     
     def criticalError(self,msg,msgbox=True):
-        utils.trace(msg,verbose=True)
         if msgbox:
             utils.showErrorMsgBox(msg)
+        else:
+            log.log("main_app.theApp",msg,level=logging.ERROR)
         sys.exit(1)
         
-    def resetLog(self,msg):
-        utils.trace(msg,reset=True,verbose=self.verbose)
-        
-    def trace(self,msg):
-        utils.trace(msg,verbose=self.verbose)
-    
     def clearResult(self):
         
         del self._stk
         del self._drk
         del self._flt
-        del self._old_stk
-        del self._oldhst
-        del self._hst
         del self._preview_data
         
         self._stk=None
         self._bas=None
         self._drk=None
         self._flt=None
-        self._old_stk=None        
-        self._oldhst=None
-        self._hst=None
         self._preview_data=None
         self._preview_image=None
         
-        self.updateResultImage()
     
     def activateResultControls(self):
-        self.wnd.saveResultPushButton.setEnabled(True)
-        self.wnd.levelsPushButton.setEnabled(True)
+        self.action_save_result.setEnabled(True)
         
     def deactivateResultControls(self):
-        self.wnd.saveResultPushButton.setEnabled(False)
-        self.wnd.levelsPushButton.setEnabled(False)
+        self.action_save_result.setEnabled(False)
     
-    def updateBayerComponents(self):
-        if self.currentDepht == 'L':
-            if self.isBayerUsed():
-                self.addComponents(('R','G','B'))
-            else:
-                self.addComponents(('L',))
-        else:
-            self.addComponents(list(self.currentDepht))
-        
-    def getNumberOfComponents(self):
-        return len(self.component_table)
-    
-    def getComponentName(self,index):
-        return self.component_table[index]
-    
-    def clearComponents(self):
-        for i in range(self.getNumberOfComponents()):
-            self.removeComponent(i)
-    
-    def addComponents(self,clist):
-        self.clearComponents()
-        for c in clist:
-            self.addComponent(c)
-    
-    def addComponent(self,name,index=None):
-        
-        self.clearResult()
-        self.deactivateResultControls()
-        
-        self.trace("adding component "+str(name)) 
-        
-        if index==None:
-            index=len(self.component_table)
-            
-        self.component_table[index]=name
-        
-        if name in self.MWB_CORRECTION_FACTORS:
-            return False
-               
-        self.MWB_CORRECTION_FACTORS[name]=[0,0.5,1]
-    
-    def removeComponent(self,index):
-        self.clearResult()
-        self.deactivateResultControls()
-        name=self.component_table[index]
-        self.component_table.pop(index)
-        self.MWB_CORRECTION_FACTORS.pop(name)
-    
-    def signalMWBSlider(self, *arg, **args):
-        if not self.__updating_mwb_ctrls:
-            self.__updating_mwb_ctrls=True
-            for name in self.component_ctrl_table:
-                
-                c_l_dsb=self.component_ctrl_table[name][1]
-                c_l_sld=self.component_ctrl_table[name][0]
-                c_m_dsb=self.component_ctrl_table[name][3]
-                c_m_sld=self.component_ctrl_table[name][2]
-                c_h_dsb=self.component_ctrl_table[name][5]
-                c_h_sld=self.component_ctrl_table[name][4]
-                
-                new_l_val=c_l_sld.value()/10000.0
-                new_m_val=c_m_sld.value()/10000.0
-                new_h_val=c_h_sld.value()/10000.0
-                
-                c_l_dsb.setValue(new_l_val)
-                c_m_dsb.setValue(new_m_val)
-                c_h_dsb.setValue(new_h_val)
-                
-                self.MWB_CORRECTION_FACTORS[name]=[new_l_val,new_m_val,new_h_val]
-            self.updateWBCorrectionFactors()
-            self.updateHistograhm2()
-            self.__updating_mwb_ctrls=False
-            
-    def signalMWBSpinBox(self, *arg, **args):
-        if not self.__updating_mwb_ctrls:
-            self.__updating_mwb_ctrls=True
-            for name in self.component_ctrl_table:
-                
-                c_l_dsb=self.component_ctrl_table[name][1]
-                c_l_sld=self.component_ctrl_table[name][0]
-                c_m_dsb=self.component_ctrl_table[name][3]
-                c_m_sld=self.component_ctrl_table[name][2]
-                c_h_dsb=self.component_ctrl_table[name][5]
-                c_h_sld=self.component_ctrl_table[name][4]
-                
-                new_l_val=c_l_dsb.value()
-                new_m_val=c_m_dsb.value()
-                new_h_val=c_h_dsb.value()
-                
-                c_l_sld.setValue(int(new_l_val*10000))
-                c_m_sld.setValue(int(new_m_val*10000))
-                c_h_sld.setValue(int(new_h_val*10000))
-                
-                self.MWB_CORRECTION_FACTORS[name]=[new_l_val,new_m_val,new_h_val]
-            self.updateWBCorrectionFactors()
-            self.updateHistograhm2()
-            self.__updating_mwb_ctrls=False
-    
-    def updateWBCorrectionFactors(self):
-        
-        hmax=0
-        lmin=1
-        
-        for name in self.MWB_CORRECTION_FACTORS:
-            
-            l,m,h=self.MWB_CORRECTION_FACTORS[name]
-            
-            hmax=max(hmax,h)
-            lmin=min(lmin,l)
-            
-            min_step=self.component_ctrl_table[name][1].singleStep()
-            
-            if (h - l)<=min_step:
-                self.MWB_CORRECTION_FACTORS[name][0]=h-min_step
-                self.MWB_CORRECTION_FACTORS[name][2]=l+min_step
-        
-        for name in self.MWB_CORRECTION_FACTORS:
-            self.MWB_CORRECTION_FACTORS[name][0]-=lmin
-            self.MWB_CORRECTION_FACTORS[name][2]+=(1-hmax)
-            
-        self.updateMWBControls()
-    
-    def updateMWBControls(self):
-        self.__updating_mwb_ctrls=True
-        for name in self.MWB_CORRECTION_FACTORS:
-            l,m,h=self.MWB_CORRECTION_FACTORS[name]
-            
-            c_l_dsb=self.component_ctrl_table[name][1]
-            c_l_sld=self.component_ctrl_table[name][0]
-            c_m_dsb=self.component_ctrl_table[name][3]
-            c_m_sld=self.component_ctrl_table[name][2]
-            c_h_dsb=self.component_ctrl_table[name][5]
-            c_h_sld=self.component_ctrl_table[name][4]
-
-            c_l_sld.setValue(int(l*10000))
-            c_m_sld.setValue(int(m*10000))
-            c_h_sld.setValue(int(h*10000))      
-            c_l_dsb.setValue(l)
-            c_m_dsb.setValue(m)
-            c_h_dsb.setValue(h)
-
-        self.__updating_mwb_ctrls=False
-    
-    def buildMWBControls(self):
-        
-        self.levels_dlg.MWBScrollArea.setLayout(QtGui.QGridLayout())
-        
-        idx = 0
-        
-        l_lbl=Qt.QLabel(tr("shadows"))
-        m_lbl=Qt.QLabel(tr("middletones"))
-        h_lbl=Qt.QLabel(tr("lights"))
-        
-        self.levels_dlg.MWBScrollArea.layout().addWidget(l_lbl,0,1,1,2)
-        self.levels_dlg.MWBScrollArea.layout().addWidget(h_lbl,0,3,1,2)
-        self.levels_dlg.MWBScrollArea.layout().addWidget(m_lbl,0,5,1,2)
-        
-        l_lbl.setSizePolicy(Qt.QSizePolicy.Expanding,Qt.QSizePolicy.Minimum)
-        m_lbl.setSizePolicy(Qt.QSizePolicy.Expanding,Qt.QSizePolicy.Minimum)
-        h_lbl.setSizePolicy(Qt.QSizePolicy.Expanding,Qt.QSizePolicy.Minimum)
-        
-        l_lbl.setAlignment(QtCore.Qt.AlignHCenter)
-        m_lbl.setAlignment(QtCore.Qt.AlignHCenter)
-        h_lbl.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        for i in self.component_table:
-            
-            idx+=1    
-            
-            name = self.component_table[i]
-            
-            c_lbl=Qt.QLabel(str(name))
-            
-            c_l_sld=Qt.QDial()
-            c_l_dsb=Qt.QDoubleSpinBox()
-            c_m_sld=Qt.QDial()
-            c_m_dsb=Qt.QDoubleSpinBox()
-            c_h_sld=Qt.QDial()
-            c_h_dsb=Qt.QDoubleSpinBox()
-            
-            c_l_dsb.setDecimals(4)
-            c_m_dsb.setDecimals(4)
-            c_h_dsb.setDecimals(4)
-            
-            c_l_sld.setSingleStep(1)
-            c_l_dsb.setSingleStep(0.0001)
-            c_m_sld.setSingleStep(1)
-            c_m_dsb.setSingleStep(0.0001)
-            c_h_sld.setSingleStep(1)
-            c_h_dsb.setSingleStep(0.0001)
-            
-            c_l_sld.setMaximum(10000)
-            c_l_dsb.setMaximum(1.0)
-            c_m_sld.setMaximum(10000)
-            c_m_dsb.setMaximum(1.0)
-            c_h_sld.setMaximum(10000)
-            c_h_dsb.setMaximum(1.0)
-            
-            c_l_sld.setMinimum(0)
-            c_l_dsb.setMinimum(0)
-            c_m_sld.setMinimum(0)
-            c_m_dsb.setMinimum(0)
-            c_h_sld.setMinimum(0)
-            c_h_dsb.setMinimum(0)
-            
-            c_l_sld.setValue(int(self.MWB_CORRECTION_FACTORS[name][0]*10000))
-            c_l_dsb.setValue(self.MWB_CORRECTION_FACTORS[name][0])
-            c_m_sld.setValue(int(self.MWB_CORRECTION_FACTORS[name][1]*10000))
-            c_m_dsb.setValue(self.MWB_CORRECTION_FACTORS[name][1])
-            c_h_sld.setValue(int(self.MWB_CORRECTION_FACTORS[name][2]*10000))
-            c_h_dsb.setValue(self.MWB_CORRECTION_FACTORS[name][2])
-            
-            c_l_sld.valueChanged.connect(self.signalMWBSlider)
-            c_l_dsb.valueChanged.connect(self.signalMWBSpinBox)
-            c_m_sld.valueChanged.connect(self.signalMWBSlider)
-            c_m_dsb.valueChanged.connect(self.signalMWBSpinBox)
-            c_h_sld.valueChanged.connect(self.signalMWBSlider)
-            c_h_dsb.valueChanged.connect(self.signalMWBSpinBox)
-            
-            self.component_ctrl_table[name]=(c_l_sld,c_l_dsb,c_m_sld,c_m_dsb,c_h_sld,c_h_dsb)
-            
-            self.trace("building controls for component "+str(name)) 
-            
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_lbl,idx,0)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_l_sld,idx,1)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_l_dsb,idx,2)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_h_sld,idx,3)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_h_dsb,idx,4)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_m_sld,idx,5)
-            self.levels_dlg.MWBScrollArea.layout().addWidget(c_m_dsb,idx,6)
-            
-            c_lbl.show()
-            c_l_sld.show()
-            c_l_dsb.show()
-            c_m_sld.show()
-            c_m_dsb.show()
-            c_h_sld.show()
-            c_h_dsb.show()
-                                    
-        self.trace("DONE\n")
-    
-    def clearMWBControls(self):
-        self.trace("\nclearing MWB controls...\n")
-        try:
-            del self.component_ctrl_table
-        except:
-            pass
-        
-        self.component_ctrl_table={}
-        
-        if self.levels_dlg.MWBScrollArea.layout() != None:
-            Qt.QWidget().setLayout(self.levels_dlg.MWBScrollArea.layout())
-    
-    def rebuildMWBControls(self):
-        self.clearMWBControls()
-        self.buildMWBControls()
-        
     def updateChartColors(self):
         self.wnd.colorADUComboBox.clear ()
         for i in range(len(self.colors)):
@@ -1137,59 +682,6 @@ class theApp(Qt.QObject):
     def setShowPhaseIamge(self, val):
         self.checked_show_phase_img=val
 
-    def setLevelsRange(self, lrange):
-        self.wnd.minLevelDoubleSpinBox.setValue(np.min(lrange))
-        self.wnd.maxLevelDoubleSpinBox.setValue(np.max(lrange))
-
-    def setMinLevel(self, val):
-        self.levels_range[0]=val
-        if val <= self.levels_range[1]-1:
-            self.setDisplayLevelsFitMode(self.fit_levels)
-        else:
-            self.wnd.maxLevelDoubleSpinBox.setValue(val+1)
-        
-    def setMaxLevel(self, val):
-        self.levels_range[1]=val
-        if val >= self.levels_range[0]+1:
-            self.setDisplayLevelsFitMode(self.fit_levels)
-        else:
-            self.wnd.minLevelDoubleSpinBox.setValue(val-1)
-            
-    def setDisplayLevelsFitMode(self, state=2):
-        
-        if state==0:
-            self.wnd.minLevelDoubleSpinBox.hide()
-            self.wnd.maxLevelDoubleSpinBox.hide()
-            self.wnd.fitMinMaxCheckBox.setText(tr('contrast')+': '+tr('none'))
-        elif state==1:
-            self.wnd.minLevelDoubleSpinBox.hide()
-            self.wnd.maxLevelDoubleSpinBox.hide()
-            self.wnd.fitMinMaxCheckBox.setText(tr('contrast')+': '+tr('full'))
-        else:
-            self.wnd.minLevelDoubleSpinBox.show()
-            self.wnd.maxLevelDoubleSpinBox.show()
-            self.wnd.fitMinMaxCheckBox.setText(tr('contrast')+': '+tr('yes'))
-               
-        self.fit_levels=state
-        
-        if self.current_image != None:
-            self.showImage(utils.arrayToQImage(self.current_image._original_data,
-                                            bw_jet=self.use_colormap_jet,
-                                            fit_levels=self.fit_levels,
-                                            levels_range=self.levels_range))        
-            self.setLevelsRange(self.levels_range)
-            
-        if (self.ref_image != None) and self.manual_align:
-            self.ref_image = utils.arrayToQImage(self.ref_image._original_data,
-                                                 bw_jet=self.use_colormap_jet,
-                                                 fit_levels=self.fit_levels,
-                                                 levels_range=self.levels_range)
-        self.qapp.processEvents()
-        self.generateScaleMaps()
-        self.wnd.colorBar.repaint()
-        
-    #slots for menu actions
-
     @QtCore.pyqtSlot(bool)
     def doLoadFiles(self, is_checked):
         self.loadFiles()
@@ -1228,7 +720,7 @@ class theApp(Qt.QObject):
     
     def changeAlignMethod(self, idx):
         self.current_align_method=idx
-        self.imageLabel.repaint()
+        
         if idx == 0:
             self.wnd.phaseGroupBox.show()
             self.wnd.alignGroupBox.hide()
@@ -1247,22 +739,8 @@ class theApp(Qt.QObject):
         elif idx==1:
             self.ftype=np.float64
         
-        self.trace("setting float precision to " + str(self.ftype))
+        log.log("main_app.theApp","setting float precision to " + str(self.ftype),level=logging.INFO)
         
-    def setJetmapMode(self,val):
-        if val==0:
-            self.use_colormap_jet=False
-        else:
-            self.use_colormap_jet=True
-        
-        if self.current_image != None:
-            self.current_image = utils.arrayToQImage(self.current_image._original_data,
-                                                     bw_jet=self.use_colormap_jet,
-                                                     fit_levels=self.fit_levels,
-                                                     levels_range=self.levels_range)
-            self.generateScaleMaps()
-            self.updateImage()  
-
     def showUserMan(self):
         webbrowser.open(os.path.join(paths.DOCS_PATH,'usermanual.html'))
 
@@ -1298,7 +776,7 @@ class theApp(Qt.QObject):
         self.dlg.autoSizeCheckBox.setCheckState(self.checked_autodetect_rectangle_size)
         
         self.dlg.langFileLineEdit.setText(self.__current_lang)
-        self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
+        #self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
         
         self.dlg.wholeImageCheckBox.setChecked(self.auto_align_use_whole_image)
         self.dlg.autoSizeCheckBox.setChecked(self.checked_autodetect_rectangle_size)
@@ -1324,15 +802,78 @@ class theApp(Qt.QObject):
         self.save_image_dir = str(Qt.QFileDialog.getExistingDirectory(self.dlg,
                                                                       tr("Choose the detination folder"),
                                                                       self.save_image_dir,
-                                                                      self._dialog_options))
-        self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
+                                                                      utils.DIALOG_OPTIONS))
+        #self.dlg.videoSaveLineEdit.setText(self.save_image_dir)
         
     def _set_temp_path(self):
         self.custom_temp_path = str(Qt.QFileDialog.getExistingDirectory(self.dlg,
                                                                         tr("Choose the temporary folder"),
                                                                         self.temp_path,
-                                                                        self._dialog_options))
+                                                                        utils.DIALOG_OPTIONS))
         self.dlg.tempPathLineEdit.setText(self.custom_temp_path)
+    
+    def showCaptureProperties(self):
+        
+        self.dlg.tabWidget.setCurrentIndex(2)
+        
+        if self.isPreviewing:
+            self.dlg.tabWidget.setCurrentIndex(2)
+            self.dlg.show()
+        else:
+            current_tab_idx=self.dlg.tabWidget.currentIndex()
+            self.dlg.exec_()
+            self.dlg.tabWidget.setCurrentIndex(current_tab_idx)
+    
+    def setCurrentCaptureDevice(self,index):
+        
+        if self.current_cap_device is not None:
+            if not self.current_cap_device.close():
+                return False    
+            else:
+                self.current_cap_device.lockStateChanged.disconnect(self.dlg.refreshPushButton.setDisabled)
+                self.dlg.controlsLayout.removeWidget(self.current_cap_device.getControlUI())
+                self.current_cap_device.getControlUI().setParent(None)
+                self.current_cap_device.getControlUI().hide()
+        
+        self.current_cap_combo_idx=index
+        self.current_cap_device=self.devices[index]['device']
+        self.current_cap_device_title=self.dlg.devComboBox.currentText()
+        self.current_cap_device.lockStateChanged.connect(self.dlg.refreshPushButton.setDisabled)
+        
+        for action in self.capture_devices_menu._video_action_group.actions():
+            if index == action.index:
+                action.setChecked(True)
+                
+        #adding the device's controls widget
+        self.dlg.controlsLayout.addWidget(self.current_cap_device.getControlUI())
+        self.current_cap_device.getControlUI().show()
+        
+        self.videoCaptureScheduler.setCaptureDevice(self.current_cap_device)
+        
+        if self.isPreviewing:
+            self.current_cap_device.open()
+        
+    def _setCurrentCaptureDeviceFromActions(self,checked):
+        for action in self.capture_devices_menu._video_action_group.actions():
+            if action.isChecked():
+                self.dlg.devComboBox.setCurrentIndex(action.index)            
+        
+    def updateCaptureDevicesList(self):
+        self.devices=tuple(videocapture.listVideoDevices())
+        
+        self.dlg.devComboBox.clear()
+        self.capture_devices_menu._video_action_group=QtGui.QActionGroup(self.capture_devices_menu)
+        self.capture_devices_menu.clear()
+        for device in self.devices:
+            index=self.devices.index(device)
+            name = "[{0: ^6s}] {1}".format(device['interface'],device['name'])
+            self.dlg.devComboBox.insertItem(index,name)
+            action = self.capture_devices_menu.addAction(name)
+            action.index=index
+            action.setCheckable(True)
+            action.toggled.connect(self._setCurrentCaptureDeviceFromActions)
+            self.capture_devices_menu._video_action_group.addAction(action)
+
         
     def setPreferences(self):
 
@@ -1344,52 +885,14 @@ class theApp(Qt.QObject):
                 self.dlg.langComboBox.addItem(qmf,fl)
         self._resetPreferencesDlg()
         
-        
-        
-        v4l2_ctl = subprocess.Popen(['v4l2-ctl', '--list-devices'], stdout=subprocess.PIPE)
-        v4l2_ctl.wait()
-        data = v4l2_ctl.stdout.read().split('):\n')
-        del v4l2_ctl
-
-        #OpenCV cannot list devices yet!
-        self.dlg.devComboBox.clear()
-        self.devices=[]
-                
-        for dev_file in os.listdir("/dev"):
-            if (len(dev_file)>5) and (dev_file[:5]=="video"):
-                dev=os.path.join("/dev",dev_file)
-                try:
-                    idx = int(dev_file[5:])
-                except:
-                    continue
-                
-                v4l2_ctl = subprocess.Popen(['v4l2-ctl', '--device='+dev,'--info'], stdout=subprocess.PIPE)
-                v4l2_ctl.wait()
-                data = v4l2_ctl.stdout.read().replace('\t','').split('\n')
-                
-                dev_name = "Unknown"
-                bus = "unknown"
-                for prop in data:
-                    lprop = prop.lower()
-                    if 'card type' in lprop:
-                        dev_name = prop[prop.find(':')+1:].strip()
-                    elif 'bus info' in lprop:
-                        dev_bus = prop[prop.find(':')+1:].strip()
-                        
-                self.trace("Find video device "+str(idx)+" --> " + dev_name + " at bus ["+dev_bus+"]")
-                name = dev_name+" ("+dev_bus+")" 
-        
-                
-                self.devices.append({'name':name,'dev':dev,'id':idx})
-                self.dlg.devComboBox.addItem(name)
-
+        #self.updateCaptureDevicesList()        
+            
         if self.current_cap_combo_idx < 0:
             self.current_cap_combo_idx=0
 
         self.dlg.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
 
         if self.isPreviewing:
-            current_tab_idx=self.dlg.tabWidget.currentIndex()
             self.dlg.tabWidget.setCurrentIndex(2)
             self.dlg.show()
             return True
@@ -1404,9 +907,8 @@ class theApp(Qt.QObject):
             self.max_points=int(self.dlg.maxPointsSpinBox.value())
             self.min_quality=float(self.dlg.minQualityDoubleSpinBox.value())
             self.autoalign_rectangle=(r_w, r_h)
-            self.save_image_dir = str(self.dlg.videoSaveLineEdit.text())
+            #self.save_image_dir = str(self.dlg.videoSaveLineEdit.text())
             self.current_cap_combo_idx=int(self.dlg.devComboBox.currentIndex())
-            self.current_cap_device_idx=self.devices[self.current_cap_combo_idx]['id']
             self.auto_align_use_whole_image=int(self.dlg.wholeImageCheckBox.checkState())
             self.checked_autodetect_rectangle_size=int(self.dlg.autoSizeCheckBox.checkState())
             self.checked_colormap_jet=int(self.dlg.jetCheckBox.checkState())
@@ -1430,283 +932,7 @@ class theApp(Qt.QObject):
             #discard changes
             self._resetPreferencesDlg()
             return False
-            
-    def getDeviceInfo(self,idx):
-        if idx >= 0:
-            there_is_an_error=False
-            if not self.isPreviewing:
-                i=self.devices[self.current_cap_combo_idx]['id']
-                self.current_cap_device.open(i)
-                self.current_cap_device_idx=i
-            
-                       
-            if self.current_cap_device.isOpened():
-                try:
-                    self.device_propetyes=utils.getV4LDeviceProperties(self.devices[idx]['dev'])
-                except Exception as exc:
-                    there_is_an_error=True
-                    self.device_propetyes={}
-                    
-                
-                w = int(self.current_cap_device.get(3))
-                h = int(self.current_cap_device.get(4))
-                self.resolution=str(w)+'x'+str(h)
-
-                #setting up control interface
-                try:
-                    keys=self.device_propetyes['formats'].keys()
-                    keys.sort()
-                    self.format=self._setParamMenu(self.dlg.formatComboBox, keys, self.format)
-                except Exception as exc:
-                    pass
-                
-                try:
-                    keys=self.device_propetyes['formats'][self.format].keys()
-                    keys.sort()
-
-                    self.resolution=self._setParamMenu(self.dlg.resolutionComboBox, keys, self.resolution)
-                except Exception as exc:
-                    there_is_an_error=True
-                
-                try:
-                    keys=self.device_propetyes['formats'][self.format][self.resolution]['fps']
-                    keys.sort()
-                    keys.reverse()
-                    
-                    self.fps=self._setParamMenu(self.dlg.fpsComboBox, keys, self.fps)
-                except Exception as exc:
-                    pass
-                
-                try:
-                    keys=self.device_propetyes['exposure_auto']['menu'].keys()
-                    keys.sort()
-                    self.exposure_type=self._setParamMenu(self.dlg.expTypeComboBox, keys, self.exposure_type)
-                except Exception as exc:
-                    pass
-                
-                if there_is_an_error:
-                    utils.showWarningMsgBox(tr("The selected device seems to be broken\n and may not fully work!"))
-                
-                self._setParamLimits(self.dlg.expSlider,self.dlg.expSpinBox,'exposure_absolute')
-                self._setParamLimits(self.dlg.gainSlider,self.dlg.gainSpinBox,'gain')
-                self._setParamLimits(self.dlg.gammaSlider,self.dlg.gammaSpinBox,'gamma')
-                self._setParamLimits(self.dlg.contrastSlider,self.dlg.contrastSpinBox,'contrast')
-                self._setParamLimits(self.dlg.brightnessSlider,self.dlg.brightnessSpinBox,'brightness')
-                self._setParamLimits(self.dlg.saturationSlider,self.dlg.saturationSpinBox,'saturation')
-                self._setParamLimits(self.dlg.hueSlider,self.dlg.hueSpinBox,'hue')
-                self._setParamLimits(self.dlg.sharpSlider,self.dlg.sharpSpinBox,'sharpness')
-                        
-            if not self.isPreviewing:
-                self.current_cap_device.release()
     
-    def _setParamMenu(self, combo, keys, def_val):
-        combo.clear()
-        
-        for i in keys:
-            combo.addItem(str(i))
-        try:    
-            if ((def_val not in keys) and 
-                (combo.currentIndex()>=0) and
-                (combo.currentIndex() < len(keys))):
-                 def_val=keys[combo.currentIndex()]
-            else:
-                index=combo.findText(str(def_val))
-                combo.setCurrentIndex(index)
-            return def_val
-        except Exception as exc:
-            utils.showWarningMsgBox(tr("The selected device seems to be broken\n and may not fully work!"),parent=self.wnd)
-            self.trace("The selected capture device seems to be broken and may not fully work!")
-            self.trace(str(exc))
-
-    def _setParamLimits(self, slider, spin, key):
-        if key not in self.device_propetyes:
-            slider.setEnabled(False)
-            spin.setEnabled(False)
-            return False
-        else:
-            slider.setEnabled(True)
-            spin.setEnabled(True)
-        keys=self.device_propetyes[key]
-        if keys['min']!=None:
-            slider.setMinimum(int(keys['min']))
-            spin.setMinimum(int(keys['min']))
-        if keys['max']!=None:
-            slider.setMaximum(int(keys['max']))
-            spin.setMaximum(int(keys['max']))
-        if keys['value']!=None:
-            slider.setValue(int(keys['value']))
-            spin.setValue(int(keys['value']))
-        elif keys['default']!=None:
-            slider.setValue(int(keys['default']))
-            spin.setValue(int(keys['default']))             
-
-    def deviceFormatChanged(self,idx):
-        if idx>0:
-            self.old_format=self.format
-            self.format=str(self.dlg.formatComboBox.itemText(idx))
-            keys=self.device_propetyes['formats'][self.format].keys()
-            keys.sort()
-            self.resolution=self._setParamMenu(self.dlg.resolutionComboBox, keys, self.resolution)
-            device=self.devices[self.current_cap_combo_idx]['dev']
-            _4CC = cv2.cv.FOURCC(*list(self.format[0:4]))
-            self.current_cap_device.set(cv2.cv.CV_CAP_PROP_FOURCC,_4CC)
-            #utils.setV4LFormat(device,'pixelformat='+self.format)
-                        
-    def deviceResolutionChanged(self, idx):
-        if idx>=0:
-            self.resolution=str(self.dlg.resolutionComboBox.itemText(idx))
-            keys=self.device_propetyes['formats'][self.format][self.resolution]['fps']
-            keys.sort()
-            keys.reverse()
-            self.fps=self._setParamMenu(self.dlg.fpsComboBox, keys, self.fps)
-            device=self.devices[self.current_cap_combo_idx]['dev']
-            size=self.resolution.split('x')
-            self.current_cap_device.set(3,int(size[0]))
-            self.current_cap_device.set(4,int(size[1]))
-
-    def deviceFpsChanged(self, idx):
-        if idx>=0:
-            self.fps=str(self.dlg.fpsComboBox.itemText(idx))
-            device=self.devices[self.current_cap_combo_idx]['dev']
-            fps = float(self.fps.split(' ')[0])
-            self.current_cap_device.set(cv2.cv.CV_CAP_PROP_FPS,fps)
-            
-            actual_fps = utils.getV4LFps(device)
-
-            if actual_fps != fps:
-                #the fps is not set correclty
-                self.statusBar.showMessage(tr("Sorry, but Fps cannot be changed on this device"))
-                new_idx=self.dlg.fpsComboBox.findText(str(actual_fps)+" fps")
-                self.dlg.fpsComboBox.setCurrentIndex(new_idx)
-                
-    def deviceExposureTypeChanged(self, idx):
-        if idx>=0:
-            self.exposure_type=str(self.dlg.expTypeComboBox.itemText(idx))
-            device=self.devices[self.current_cap_combo_idx]['dev']
-            value=self.device_propetyes['exposure_auto']['menu'][self.exposure_type]
-            utils.setV4LCtrl(device,'exposure_auto',value)
-
-    def deviceExposureChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'exposure_absolute',value)
-        
-    def deviceGainChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'gain',value)
-
-    def deviceContrastChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'contrast',value)
-
-    def deviceBrightnessChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'brightness',value)
-
-    def deviceSaturationChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'saturation',value)
-        
-    def deviceHueChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'hue',value)
-        
-    def deviceSharpnessChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'sharpness',value)
-        
-    def deviceGammaChanged(self, value):
-        device=self.devices[self.current_cap_combo_idx]['dev']
-        utils.setV4LCtrl(device,'gamma',value)
-        
-    def capture(self, enabled=False, origin=None):
-        
-        if (not enabled) and self.current_cap_device.isOpened():
-            self.wasCanceled=True
-            return
-        elif not enabled:
-            self.wasCanceled=False
-            return
-
-        if origin == None:
-            if ((self.current_cap_device_idx == -1) or
-                (self.save_image_dir==None)):
-                current_tab_idx=self.dlg.tabWidget.currentIndex()
-                self.dlg.tabWidget.setCurrentIndex(2)
-                if not self.setPreferences():
-                    self.current_cap_device_idx = -1
-                    self.wnd.captureGroupBox.setChecked(False)
-                    utils.showErrorMsgBox(tr("No capture device selected"))
-                    return False
-                self.dlg.tabWidget.setCurrentIndex(current_tab_idx)
-            self.current_cap_device.open(self.current_cap_device_idx)
-        else:
-            pass
-
-        if self.current_cap_device.isOpened():           
-            self.isPreviewing = True
-            self.wnd.framesGroupBox.setEnabled(False)
-            self._photo_time_clock=time.clock()
-            while(not(self.wasCanceled)):
-                self.qapp.processEvents()
-                img = self.current_cap_device.read()
-                if (img[0]==True):
-                    self.__processCaptured(img[1])
-                    if self.shooting:
-                        self.shooting=False
-                        if self._dismatchMsgBox(img[1]):
-                            continue
-                        ftime=time.strftime('%Y%m%d%H%M%S')
-                        mstime='{0:05d}'.format(int((time.clock()-self._photo_time_clock)*100))
-                        name=os.path.join(self.save_image_dir,ftime+mstime+'.tiff')
-                        cv2.imwrite(name,img[1])
-                        frm=utils.Frame(name, data=img[1])
-                        
-                        self.framelist.append(frm)
-                        
-                        q=Qt.QListWidgetItem(os.path.basename(name),self.wnd.listWidget)
-                        q.setCheckState(2)
-                        q.setToolTip(name)
-                        frm.addProperty('listItem',q)
-                        self.wnd.listWidget.setCurrentItem(q)
-                        self._unlock_cap_ctrls()
-
-                del img
-
-            self.isPreviewing = False
-            self.wasCanceled=False
-            self.current_cap_device.release()
-            self.wnd.framesGroupBox.setEnabled(True)
-            self.clearImage()
-            
-            if len(self.framelist)>0:
-                self.wnd.listWidget.setCurrentRow(0)
-                self.listItemChanged(0)
-
-        else:
-            if origin == None:
-                utils.showErrorMsgBox(tr("Cannot open current capture device!"))
-            else:
-                utils.showErrorMsgBox(tr("Cannot open this video file."))            
-            return False
-                    
-    def _unlock_cap_ctrls(self):
-        self.wnd.remPushButton.setEnabled(True)
-        self.wnd.clrPushButton.setEnabled(True)
-        self.wnd.listCheckAllBtn.setEnabled(True)
-        self.wnd.listUncheckAllBtn.setEnabled(True)
-        self.wnd.flatAddPushButton.setEnabled(True)
-        self.wnd.darkAddPushButton.setEnabled(True)
-        self.wnd.flatAddPushButton.setEnabled(True)
-        self.wnd.masterBiasCheckBox.setEnabled(True)
-        self.wnd.masterDarkCheckBox.setEnabled(True)
-        self.wnd.masterFlatCheckBox.setEnabled(True)
-        self.wnd.rawGroupBox.setChecked(False)
-        
-        if self.framelist[0].isRGB():
-            self.wnd.rawGroupBox.setEnabled(False)
-        else:
-            self.wnd.rawGroupBox.setEnabled(True)
-        
     def _dismatchMsgBox(self,img):
         imw = img.shape[1]
         imh = img.shape[0]
@@ -1739,95 +965,183 @@ class theApp(Qt.QObject):
             self.currentDepht=dep
             return False
             
+    def unlockSidebar(self):
+        self.wnd.remPushButton.setEnabled(True)
+        self.wnd.clrPushButton.setEnabled(True)
+        self.wnd.listCheckAllBtn.setEnabled(True)
+        self.wnd.listUncheckAllBtn.setEnabled(True)
+        self.wnd.biasAddPushButton.setEnabled(True)
+        self.wnd.darkAddPushButton.setEnabled(True)
+        self.wnd.flatAddPushButton.setEnabled(True)
+        self.wnd.masterBiasCheckBox.setEnabled(True)
+        self.wnd.masterDarkCheckBox.setEnabled(True)
+        self.wnd.masterFlatCheckBox.setEnabled(True)
+        self.action_enable_rawmode.setChecked(False)
+        
+        self.wnd.addStarPushButton.setEnabled(True)
+        
+        self.action_align.setEnabled(True)
+        self.action_stack.setEnabled(True)
+        self.action_save_video.setEnabled(True)
+        
+        for i in xrange(self.wnd.toolBox.count()):
+            self.wnd.toolBox.setItemEnabled(i,True)
+            
+        if len(self.framelist) == 0:
+            self.action_enable_rawmode.setEnabled(False)
+        elif self.framelist[0].isRGB():
+            self.action_enable_rawmode.setEnabled(False)
+        else:
+            self.action_enable_rawmode.setEnabled(True)
+    
+    def lockSidebar(self):
+        
+        self.wnd.remPushButton.setEnabled(False)
+        self.wnd.clrPushButton.setEnabled(False)
+        self.wnd.listCheckAllBtn.setEnabled(False)
+        self.wnd.listUncheckAllBtn.setEnabled(False)
+        self.wnd.biasAddPushButton.setEnabled(False)
+        self.wnd.darkAddPushButton.setEnabled(False)
+        self.wnd.flatAddPushButton.setEnabled(False)
+        self.wnd.masterBiasCheckBox.setEnabled(False)
+        self.wnd.masterDarkCheckBox.setEnabled(False)
+        self.wnd.masterFlatCheckBox.setEnabled(False)
+        self.wnd.addStarPushButton.setEnabled(False)
+        self.wnd.starsDeleteAllPushButton.setEnabled(False)
+        self.wnd.removeStarPushButton.setEnabled(False)
+        self.action_stack.setEnabled(False)
+        self.action_align.setEnabled(False)
+        self.action_save_video.setEnabled(False)
+        self.action_gen_lightcurves.setEnabled(False)
+        self.deactivateResultControls()
+        self.action_enable_rawmode.setChecked(False)
+        self.action_enable_rawmode.setEnabled(False)
+        
+        self.wnd.toolBox.setItemEnabled(0,True)
+        for i in xrange(self.wnd.toolBox.count()-1):
+            self.wnd.toolBox.setItemEnabled(i+1,False)        
+        
+    def lockRecording(self):
+        self.lockSidebar()
+        self.wnd.addPushButton.setEnabled(False)
+        self.action_add_files.setEnabled(False)
+        self.action_load_project.setEnabled(False)
+        self.action_new_project.setEnabled(False)
+        self.action_save_project.setEnabled(False)
+        self.action_save_project_as.setEnabled(False)
+        self.action_save_video.setEnabled(False)
+        self.action_edit_pan.setEnabled(False)
+        self.action_edit_select.setEnabled(False)
+        self.action_take_shot.setEnabled(False)
+        self.action_stop_capture.setEnabled(True)
+        self.action_start_capture.setEnabled(False)
+        
+        self.directVideoCaptureTypeComboBox.setEnabled(False)
+        self.dlg.refreshPushButton.setEnabled(False)
+        
+        self.__video_capture_stopped=False
+        self.__video_capture_started=True
+    
+    def unlockRecording(self):
+        self.unlockSidebar()
+        self.wnd.addPushButton.setEnabled(True)
+        self.action_add_files.setEnabled(True)
+        self.action_load_project.setEnabled(True)
+        self.action_new_project.setEnabled(True)
+        self.action_save_project.setEnabled(True)
+        self.action_save_project_as.setEnabled(True)
+        self.action_save_video.setEnabled(True)
+        self.action_edit_pan.setEnabled(True)
+        self.action_edit_select.setEnabled(True)
+        self.action_take_shot.setEnabled(True)
+        self.action_stop_capture.setEnabled(False)
+        self.action_start_capture.setEnabled(True)
+        
+        self.directVideoCaptureTypeComboBox.setEnabled(True)
+        self.dlg.refreshPushButton.setEnabled(True)
+        
+        self.__video_capture_stopped=True
+        self.__video_capture_started=False
+    
+    
     def oneShot(self):
         self.shooting=True
-                        
-    def __processCaptured(self, img):
+    
+    def stopDirectVideoCapture(self):
+        self.videoCaptureScheduler.stop()   
+        self.videoCaptureScheduler._controlgui.jobPropGroupBox.setEnabled(True)
+        self.videoCaptureScheduler._controlgui.jobListWidget.setEnabled(True)
+        self.videoCaptureScheduler._controlgui.buttonsWidget.setEnabled(True)
+        self.videoCaptureScheduler._controlgui.confirmPushButton.setEnabled(True)
         
-        if len(img.shape)==3:
-            self.wnd.colorBar._is_rgb=True
-        else:
-            self.wnd.colorBar._is_rgb=False
-        
-        self.showImage(utils.arrayToQImage(img,2,1,0, bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels,levels_range=self.levels_range))
-        if self.wasStarted:
-            self.wnd.stopCapturePushButton.show()
-            self.wnd.capturePushButton.hide()
-            if not self.wasStopped:
-                if not self.writing:
-                    self.video_url = os.path.join(self.save_image_dir,time.strftime('%Y-%m-%d@%H:%M:%S'))
-                    self.wnd.singleShotPushButton.setEnabled(False)
-                    self.captured_frames=0
-                    self.writing=True
-                    self.max_captured_frames=self.wnd.frameCountSpinBox.value()
-                    
-                    if self._dismatchMsgBox(img):
-                        self.stopped()
-                        return False
+        self.videoCaptureScheduler.deleteAllJobs()
+        self.unlockRecording()
+        try:
+            self.videoCaptureScheduler.addJobs(self.videoCaptureScheduler.oldjoblist)
+            del self.videoCaptureScheduler.oldjoblist
+        except:
+            pass
 
-                    if not (os.path.isdir(self.video_url)):
-                        os.makedirs(self.video_url)
-                        
-                    self.wnd.maxCapturedCheckBox.setEnabled(False)
-                    self.wnd.singleShotPushButton.setEnabled(False)
-                else:
-                    self.captured_frames+=1
-                    
-                    name=os.path.join(self.video_url,'{0:05d}'.format(self.captured_frames)+'.tiff')
-                    cv2.imwrite(name,img)
-                    
-                    frm = utils.Frame(name,0,skip_loading=True, **self.frame_open_args)
-                    frm.addProperty('UTCEPOCH',utils.getCreationTime(name))
-                    try:
-                        frm.width=img.shape[1]
-                        frm.height=img.shape[0]
-                    except Exception:
-                        self.trace( "Cannot retrieve image size!")
-                        frm.width=0
-                        frm.height=0
-                        
-                    if (len(img.shape)==3) and (img.shape[2]==3):
-                        frm.mode='RGB'
-                        frm.width=img.shape[1]
-                        frm.height=img.shape[0]
-                    elif (len(img.shape)==2):
-                        frm.mode='L'
+    def startDirectVideoCapture(self):
+        
+        self.videoCaptureScheduler.oldjoblist = self.videoCaptureScheduler.jobs
+        
+        self.videoCaptureScheduler.deleteAllJobs()
+        
+        direct_video_capture_job = self.videoCaptureScheduler.getJob(self.videoCaptureScheduler.addJob(jobid="Direct Video Capturing"))
+        self.lockRecording()
+        
+        direct_video_capture_job.setType(self.directVideoCaptureTypeComboBox.currentIndex())
+        direct_video_capture_job._end_type=2
+        direct_video_capture_job.setNumberOfFrames(-1)
+        
+        self.videoCaptureScheduler.setCurrentJob(None)
+        
+        self.videoCaptureScheduler._controlgui.jobPropGroupBox.setEnabled(False)
+        self.videoCaptureScheduler._controlgui.jobListWidget.setEnabled(False)
+        self.videoCaptureScheduler._controlgui.buttonsWidget.setEnabled(False)
+        self.videoCaptureScheduler._controlgui.confirmPushButton.setEnabled(False)
+        self.videoCaptureScheduler.start()
+        
+    def enableVideoPreview(self, enabled=False, origin=None):
+        
+        if self.current_cap_device is not None:
+            
+            if enabled:
+                
+                if not self.current_cap_device.open():
+                    return False
+                
+                self.action_start_capture.setEnabled(True)
+                
+                self.isPreviewing=True
+                
+                self.dlg.refreshPushButton.setEnabled(False)
+                old_tooltip=str(self.dlg.refreshPushButton.toolTip())
+                self.dlg.refreshPushButton.setToolTip(tr("Cannot refresh devices list")+": "+tr("current device is in use"))
+                log.log("main_app.theApp","Starting live preview from device "+str(self.current_cap_device),level=logging.INFO)
+                
+                # preview main loop
+                self.lockSidebar
+                
+                while (self.isPreviewing):
+                    QtGui.QApplication.instance().processEvents()
+                    if self.current_cap_device.isLocked():
+                        ndimage = self.current_cap_device.getLastFrame()
                     else:
-                        frm.mode='???'
-                        self.trace("Warning: unknown image format")
-                        
-                    self.framelist.append(frm)
-                    
-                    q=Qt.QListWidgetItem(os.path.basename(name),self.wnd.listWidget)
-                    q.setCheckState(2)
-                    q.setToolTip(name)
-                    q.exif_properties=frm.properties
-                    
-                    self.wnd.listWidget.setCurrentItem(q)
-                    
-                    
-                    if(self.wnd.maxCapturedCheckBox.checkState()==2):
-                        self.max_captured_frames-=1
-                        if self.max_captured_frames <= 0:
-                            self.stopped()
-                        elif self.captured_frames%5==0:
-                            self.wnd.frameCountSpinBox.setValue(self.max_captured_frames)
-                    elif self.captured_frames%5==0:
-                        self.wnd.frameCountSpinBox.setValue(self.captured_frames)
-
+                        ndimage = self.current_cap_device.getFrame()
+                    self.showImage(ndimage,title=self.current_cap_device_title,override_cursor=False)
+                
+                self.current_cap_device.close()
+                self.dlg.refreshPushButton.setEnabled(True)
+                self.dlg.refreshPushButton.setToolTip(old_tooltip)
+                self.stopDirectVideoCapture()
+                self.action_start_capture.setEnabled(False)
+                
             else:
-                self.writing=False
-                self.wnd.singleShotPushButton.setEnabled(True)
-                self.wnd.maxCapturedCheckBox.setEnabled(True)
-                self.wnd.singleShotPushButton.setEnabled(True)
-                self.wnd.stopCapturePushButton.hide()
-                self.wnd.capturePushButton.show()
-                self.wasStarted=False
-                if (len(self.framelist)>0):
-                    self.wnd.frameCountSpinBox.setValue(self.captured_frames)
-                    self.wnd.listWidget.setCurrentRow(0)
-                    self._unlock_cap_ctrls()
-
+                self.isPreviewing=False
+                log.log("main_app.theApp","Stopping live preview",level=logging.INFO)
+    
     def useMasterBias(self,state):        
         if state == 2:
             self.wnd.masterBiasGroupBox.setEnabled(True)
@@ -1847,7 +1161,7 @@ class theApp(Qt.QObject):
                                                               self.current_dir,
                                                               open_str,
                                                               None,
-                                                              self._dialog_options
+                                                              utils.DIALOG_OPTIONS
                                                               )
                               )
         if os.path.isfile(master_bias_file):
@@ -1876,7 +1190,7 @@ class theApp(Qt.QObject):
                                                      
                del i
            except Exception as exc:
-               self.trace(str(exc))
+               log.log("main_app.theApp",str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
 
     def useMasterDark(self,state):        
@@ -1898,7 +1212,7 @@ class theApp(Qt.QObject):
                                                               self.current_dir,
                                                               open_str,
                                                               None,
-                                                              self._dialog_options
+                                                              utils.DIALOG_OPTIONS
                                                               )
                               )
         if os.path.isfile(master_dark_file):
@@ -1926,7 +1240,7 @@ class theApp(Qt.QObject):
                                          parent=self.wnd)
                del i
            except Exception as exc:
-               self.trace(str(exc))
+               log.log("main_app.theApp",str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
             
     def useMasterFlat(self,state):        
@@ -1948,7 +1262,7 @@ class theApp(Qt.QObject):
                                                               self.current_dir,
                                                               open_str,
                                                               None,
-                                                              self._dialog_options
+                                                              utils.DIALOG_OPTIONS
                                                               )
                               )
         if os.path.isfile(master_flat_file):
@@ -1976,7 +1290,7 @@ class theApp(Qt.QObject):
                                          parent=self.wnd)
                del i
            except Exception as exc:
-               self.trace(str(exc))
+               log.log("main_app.theApp",str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
                
         
@@ -1988,7 +1302,7 @@ class theApp(Qt.QObject):
                                         parent=self.wnd)
             
             if val == Qt.QMessageBox.Yes:
-                self.stopped()
+                self.stopDirectVideoCapture()
                 self.canceled()
                 self.saveSettings()
                 if os.path.exists(paths.TEMP_PATH):
@@ -2017,7 +1331,8 @@ class theApp(Qt.QObject):
         settings.setValue("max_align_points",int(self.max_points))
         settings.setValue("min_point_quality",float(self.min_quality))
         settings.setValue("use_whole_image", int(self.dlg.wholeImageCheckBox.checkState()))
-        settings.setValue("use_colormap_jet", int(self.dlg.jetCheckBox.checkState()))
+        settings.setValue("current_colormap", int(self.current_colormap))
+        settings.setValue("toolbar_locked", bool(self.action_lock_toolbars.isChecked()))
         settings.setValue("auto_rgb_fits", int(self.dlg.rgbFitsCheckBox.checkState()))
         settings.setValue("auto_convert_cr2", int(self.dlg.decodeCR2CheckBox.checkState()))
         settings.setValue("auto_search_dark_flat",int(self.dlg.autoFolderscheckBox.checkState()))
@@ -2068,7 +1383,8 @@ class theApp(Qt.QObject):
         self.dlg.minQualitycheckBox.setCheckState(self.checked_autodetect_min_quality)
         self.auto_align_use_whole_image=settings.value("use_whole_image",None,int)
         self.dlg.wholeImageCheckBox.setCheckState(self.auto_align_use_whole_image)
-        self.checked_colormap_jet=settings.value("use_colormap_jet",None,int)
+        current_colormap=settings.value("current_colormap",None,int)
+        self.action_lock_toolbars.setChecked(settings.value("toolbar_locked",None,bool))
         self.dlg.jetCheckBox.setCheckState(self.checked_colormap_jet)
         self.dlg.decodeCR2CheckBox.setCheckState(settings.value("auto_convert_cr2",None,int))
         self.dlg.rgbFitsCheckBox.setCheckState(settings.value("auto_rgb_fits",None,int))
@@ -2098,217 +1414,7 @@ class theApp(Qt.QObject):
 
         self.wnd.alignMethodComboBox.setCurrentIndex(self.current_align_method)
         self.changeAlignMethod(self.current_align_method)
-
-    ##resizeEvent callback
-    def mainWindowResizeEvent(self, event):
-        val = self.wnd.__resizeEvent__(event)# old implementation
-        if self.zoom_fit:
-            self.updateImage()    
-        self.generateScaleMaps()
-        return val
-
-    #mouseMoveEvent callback    
-    def imageLabelMouseMoveEvent(self, event):
-        val = self.imageLabel.__mouseMoveEvent__(event)
-        mx=event.x()
-        my=event.y()
-        x=Int(mx/self.actual_zoom)
-        y=Int(my/self.actual_zoom)
-
-        if (self.current_image != None) and (not self.manual_align):
-            if self.current_image._original_data != None:
-                imshape = self.current_image._original_data.shape
-                if ((y>=0) and (y < imshape[0]) and
-                    (x>=0) and (x < imshape[1])):
-                        pix_val=self.current_image._original_data[y,x]
-                        self.current_pixel=(x,y)
-                        self.wnd.colorBar.current_val=pix_val
-                        self.wnd.colorBar.repaint()
-            else:
-                pix_val=None
-                
-        if self.panning:            
-            sx = mx-self.panning_startig[0]
-            sy = my-self.panning_startig[1]           
-            
-            self.viewHScrollBar.setValue(self.viewHScrollBar.value()-sx)
-            self.viewVScrollBar.setValue(self.viewVScrollBar.value()-sy)
-            
-        if (self.tracking_align_point and 
-            (self.image_idx>=0) and 
-            (self.point_idx>=0)
-           ):
-            pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
-            pnt[0]=x
-            pnt[1]=y
-            self.wnd.spinBoxXAlign.setValue(x)
-            self.wnd.spinBoxYAlign.setValue(y)
-            self.imageLabel.repaint()
-        elif (self.tracking_star_point and 
-             (self.star_idx>=0)
-           ):
-            pnt = self.starslist[self.star_idx]
-            pnt[0]=x
-            pnt[1]=y
-            self.wnd.spinBoxXStar.setValue(x)
-            self.wnd.spinBoxYStar.setValue(y)
-            self.imageLabel.repaint()
-        return val
-    
-    
-    def imageViewerWheelEvent(self, event):
-        if self.zoom_enabled:
-            delta = np.sign(event.delta())*math.log10(self.zoom+1)/2.5
-            mx=event.x()
-            my=event.y()
-            cx = self.wnd.imageViewer.width()/2.0
-            cy = self.wnd.imageViewer.height()/2.0
-            sx=(cx - mx)/2
-            sy=(cy - my)/2
-            self.viewHScrollBar.setValue(self.viewHScrollBar.value()-sx)
-            self.viewVScrollBar.setValue(self.viewVScrollBar.value()-sy)
-                        
-            self.setZoom(self.zoom+delta)
-
-            
-        return Qt.QWheelEvent.accept(event)
-    
-    def imageLabelMousePressEvent(self, event):
-        val = self.imageLabel.__mousePressEvent__(event)
-        btn=event.button()
         
-        if btn==1:
-            self.wnd.imageViewer.setCursor(QtCore.Qt.ClosedHandCursor)
-            self.imageLabel.setCursor(QtCore.Qt.ClosedHandCursor)
-            self.panning=True
-            self.panning_startig=(event.x(),event.y())
-        elif btn==2:
-            if self.showAlignPoints:
-                self.tracking_align_point=True
-            elif self.showStarPoints:
-                self.tracking_star_point=True
-        return val
-    
-    def imageLabelMouseReleaseEvent(self, event):
-        val = self.imageLabel.__mouseReleaseEvent__(event)
-        btn=event.button()
-        x=Int(event.x()/self.actual_zoom)
-        y=Int(event.y()/self.actual_zoom)
-        if btn==1:
-            self.panning=False
-            self.wnd.imageViewer.setCursor(self.use_cursor)
-            self.imageLabel.setCursor(self.use_cursor)
-        elif btn==2:
-            if self.showAlignPoints and self.point_idx >= 0:
-                self.tracking_align_point=False
-                pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
-                pnt[0]=x
-                pnt[1]=y
-                self.wnd.spinBoxXAlign.setValue(x)
-                self.wnd.spinBoxYAlign.setValue(y)
-                self.imageLabel.repaint()
-            elif self.showStarPoints and self.star_idx >= 0:
-                self.tracking_star_point=False
-                pnt = self.starslist[self.star_idx]
-                pnt[0]=x
-                pnt[1]=y
-                self.wnd.spinBoxXStar.setValue(x)
-                self.wnd.spinBoxYStar.setValue(y)
-                self.imageLabel.repaint()
-        return val
-    
-    #paintEvent callback for colorBar
-    def colorBarPaintEvent(self, obj):
-        val=self.wnd.colorBar.__paintEvent__(obj)
-
-        if self.current_image==None:
-            self.wnd.colorBar.setPixmap(Qt.QPixmap())
-            return val
-        
-        if self.wnd.colorBar.current_val!=None:
-            painter = Qt.QPainter(self.wnd.colorBar)
-            cb = self.wnd.colorBar
-            
-            _gpo=2 #geometric corrections
-            _gno=5 #geometric corrections
-            
-            fnt_size=10
-            painter.setFont(Qt.QFont("Arial", fnt_size))
-            y=(cb.height()+fnt_size/2)/2 + 2
-            max_txt=str(cb.max_val)
-            self.statusLabelMousePos.setText('position='+str(self.current_pixel)+' value='+str(cb.current_val))        
-            if cb._is_rgb == True:
-                cb.setPixmap(Qt.QPixmap.fromImage(self.rgb_colormap))
-                
-                try:
-                    xr = int((float(cb.current_val[0]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
-                except Exception:
-                    xr = -1
-                    
-                try:
-                    xg = int((float(cb.current_val[1]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
-                except Exception:
-                    xg = -1
-                
-                try:
-                    xb = int((float(cb.current_val[2]-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
-                except Exception:
-                    xb = -1
-                painter.setCompositionMode(22)
-                
-                painter.setPen(QtCore.Qt.red)
-                painter.drawLine(xr,4,xr,self.wnd.colorBar.height()-4)
-                
-                painter.setPen(QtCore.Qt.green)
-                painter.drawLine(xg,4,xg,self.wnd.colorBar.height()-4)
-                
-                painter.setPen(QtCore.Qt.blue)
-                painter.drawLine(xb,4,xb,self.wnd.colorBar.height()-4)
-                                
-                painter.setCompositionMode(0)
-                painter.setPen(QtCore.Qt.white)
-                painter.drawText(fnt_size-4,y,str(cb.min_val))
-                painter.setPen(QtCore.Qt.black)
-                painter.drawText(cb.width()-(fnt_size-2)*len(max_txt),y,max_txt)
-                
-            else:
-                painter.setPen(QtCore.Qt.white)
-
-                painter.setCompositionMode(0)
-                
-                cb.setPixmap(Qt.QPixmap.fromImage(self.bw_colormap))
-                
-                try:
-                    x = int((float(cb.current_val-cb.min_val)/float(cb.max_val-cb.min_val))*(cb.width()-_gno))+_gpo
-                except Exception:
-                    x = -1
-                
-                painter.setCompositionMode(22)
-                
-                painter.drawLine(x,4,x,self.wnd.colorBar.height()-4)
-
-                painter.drawText(fnt_size-4,y,str(cb.min_val))
-                painter.drawText(cb.width()-(fnt_size-2)*len(max_txt),y,max_txt)
-
-                painter.setCompositionMode(0)
-
-            del painter
-            
-        return val
-    
-    def histoViewPaintEvent(self, obj):
-        
-        bins=255
-        
-        painter = Qt.QPainter(self.levels_dlg.histoView)
-        
-        xmin,xmax = self.getLevelsClippingRange()
-        
-        painter.setBrush(QtCore.Qt.white)
-        painter.drawRect(painter.window())
-        
-        utils.drawHistograhm(painter, self._hst, xmin, xmax, logY=self.levels_dlg.histLogViewCheckBox.checkState())
-    
     def saveADUChart(self,clicked):
         self.saveChart( self.wnd.aduListWidget, 'adu_chart',name='ADU', y_inverted=False)
         
@@ -2320,7 +1426,7 @@ class theApp(Qt.QObject):
         fname=str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the chart"),
                                          os.path.join(self.current_dir,title+'.jpg'),
                                          "JPEG (*.jpg *.jpeg);;PNG (*.png);;PPM (*.ppm);;TIFF (*.tiff *.tif);;All files (*.*)",None,
-                                         self._dialog_options))
+                                         utils.DIALOG_OPTIONS))
         self.simplifiedLightCurvePaintEvent( widget,chart, name, y_inverted)
         chart.save(fname,quality=100)
         
@@ -2359,7 +1465,7 @@ class theApp(Qt.QObject):
             there_is_at_least_one_chart=False
             for i in range(listWidget.count()):
                 q = listWidget.item(i)
-                if q==None:
+                if q is None:
                     continue
                 if q.checkState()==2:
                     there_is_at_least_one_chart=True
@@ -2374,12 +1480,12 @@ class theApp(Qt.QObject):
                     if len(data_y.shape)>1:
                         data_y=data_y[:,q.listindex[2]]
                 
-                    if ymin==None:
+                    if ymin is None:
                         ymin=data_y.min()-emax
                     else:
                         ymin=min(ymin,data_y.min()-emax)
                 
-                    if ymax==None:
+                    if ymax is None:
                         ymax=data_y.max()+emax
                     else:
                         ymax=max(ymax,data_y.max()+emax)
@@ -2396,7 +1502,7 @@ class theApp(Qt.QObject):
             
             for i in range(listWidget.count()):
                 q = listWidget.item(i)
-                if q==None:
+                if q is None:
                     continue
                 if q.checkState()==2:
                     data_y=np.array(self.lightcurve[q.listindex[0]][q.listindex[1]]['data'])
@@ -2453,7 +1559,7 @@ class theApp(Qt.QObject):
     def setCurrentCurveColor(self, idx, listWidget, surface):
         q = listWidget.currentItem()
         
-        if q==None:
+        if q is None:
             return
         
         q.chart_properties['color']=self.getChartColor(idx)
@@ -2469,7 +1575,7 @@ class theApp(Qt.QObject):
     def setCurrentCurveLineType(self, idx, listWidget, surface):
         q = listWidget.currentItem()
 
-        if q==None:
+        if q is None:
             return
         
         try:
@@ -2490,7 +1596,7 @@ class theApp(Qt.QObject):
     def setCurrentCurvePointsType(self, idx, listWidget, surface):
         q = listWidget.currentItem()
 
-        if q==None:
+        if q is None:
             return
         try:
             pointstype=utils.POINTS_TYPE[idx]
@@ -2509,7 +1615,7 @@ class theApp(Qt.QObject):
     def setCurrentCurveBarsType(self, idx, listWidget, surface):
         q = listWidget.currentItem()
         
-        if q==None:
+        if q is None:
             return
         
         try:
@@ -2530,7 +1636,7 @@ class theApp(Qt.QObject):
     def setCurrentCurveSmooting(self, val, listWidget, surface):
         q = listWidget.currentItem()
         
-        if q==None:
+        if q is None:
             return
         
         q.chart_properties['smoothing']=val
@@ -2545,7 +1651,7 @@ class theApp(Qt.QObject):
     def setCurrentPointSize(self, val, listWidget, surface):
         q = listWidget.currentItem()
         
-        if q==None:
+        if q is None:
             return
         
         q.chart_properties['point_size']=val
@@ -2560,183 +1666,12 @@ class theApp(Qt.QObject):
     def setCurrentLineWidth(self, val, listWidget, surface):
         q = listWidget.currentItem()
         
-        if q==None:
+        if q is None:
             return
         
         q.chart_properties['line_width']=val
         surface.repaint()
-        
-    #mouseMoveEvent callback    
-    def imageLabelMouseMoveEvent(self, event):
-        val = self.imageLabel.__mouseMoveEvent__(event)
-        mx=event.x()
-        my=event.y()
-        x=Int(mx/self.actual_zoom)
-        y=Int(my/self.actual_zoom)
-
-        if (self.current_image != None) and (not self.manual_align):
-            if self.current_image._original_data != None:
-                imshape = self.current_image._original_data.shape
-                if ((y>=0) and (y < imshape[0]) and
-                    (x>=0) and (x < imshape[1])):
-                        pix_val=self.current_image._original_data[y,x]
-                        self.current_pixel=(x,y)
-                        self.wnd.colorBar.current_val=pix_val
-                        self.wnd.colorBar.repaint()
-            else:
-                pix_val=None
-                
-        if self.panning:            
-            sx = mx-self.panning_startig[0]
-            sy = my-self.panning_startig[1]           
             
-            self.viewHScrollBar.setValue(self.viewHScrollBar.value()-sx)
-            self.viewVScrollBar.setValue(self.viewVScrollBar.value()-sy)
-            
-        if (self.tracking_align_point and 
-            (self.image_idx>=0) and 
-            (self.point_idx>=0)
-           ):
-            pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
-            pnt[0]=x
-            pnt[1]=y
-            self.wnd.spinBoxXAlign.setValue(x)
-            self.wnd.spinBoxYAlign.setValue(y)
-            self.imageLabel.repaint()
-        elif (self.tracking_star_point and 
-             (self.star_idx>=0)
-           ):
-            pnt = self.starslist[self.star_idx]
-            pnt[0]=x
-            pnt[1]=y
-            self.wnd.spinBoxXStar.setValue(x)
-            self.wnd.spinBoxYStar.setValue(y)
-            self.imageLabel.repaint()
-        return val
-    
-    def previewLabelPaintEvent(self, obj):
-        val=self.levels_dlg.previewLabel.__paintEvent__(obj)
-        
-        if self._preview_data!=None:
-            w=float(self.levels_dlg.previewLabel.width())
-            h=float(self.levels_dlg.previewLabel.height())
-            ww=float(self._preview_image.width())
-            hh=float(self._preview_image.height())
-            
-            target_rect=Qt.QRectF(0,0,w,h)
-            
-            if (w/h) <= (ww/hh):
-                neww=hh*w/h
-                newh=hh
-            else:
-                newh=ww*h/w
-                neww=ww
-                
-            source_rect=Qt.QRectF((ww-neww)/2,(hh-newh)/2,neww,newh)
-            
-            painter = Qt.QPainter(self.levels_dlg.previewLabel)
-            painter.drawImage(target_rect,self._preview_image,source_rect)
-            
-            #painter.drawImage(0,0,self._preview_image,(ww-neww)/2,(hh-newh)/2,neww,newh)
-        return val
-    
-    #paintEvent callback
-    def imageLabelPaintEvent(self, obj):
-        val=self.imageLabel.__paintEvent__(obj)
-        
-        painter = Qt.QPainter(self.imageLabel)
-        
-        if self.current_image != None:
-            painter.scale(self.actual_zoom,self.actual_zoom)
-            painter.drawImage(0,0,self.current_image)
-        
-        if self.image_idx >=0:
-            #draw the stars selected for light curves generation        
-            self._drawStarPoints(painter)
-                
-        if (not self.manual_align):
-            if (self.current_align_method==0) and (self.is_aligning):
-                self._drawPhaseAlign(painter)
-            elif (self.current_align_method==1) and (self.image_idx>=0):
-                self._drawAlignPoints(painter)
-                            
-        else:
-            self._drawDifference(painter)
-        del painter
-        return val
-
-    def _drawStarPoints(self, painter):
-        if(not self.showStarPoints):
-            return False
-        painter.setFont(Qt.QFont("Arial", 8))  
-        
-        
-        cx = self.currentWidth/2.0
-        cy = self.currentHeight/2.0
-
-        img = self.framelist[self.image_idx]
-        an2=img.angle*math.pi/180.0
-            
-        for i in self.starslist:           
-                        
-            di = dist(cx,cy,i[0],i[1])
-            an = math.atan2((cy-i[1]),(cx-i[0]))
-                        
-            x = cx - di*math.cos(an+an2) + img.offset[0] + 0.5
-            y = cy - di*math.sin(an+an2) + img.offset[1] + 0.5
-            
-            r1=i[3]
-            r2=i[4]
-            r3=i[5]
-            
-            if i[6]==True:
-                painter.setCompositionMode(0)
-                painter.setBrush(QtCore.Qt.NoBrush)
-                painter.setPen(QtCore.Qt.green)
-            else:
-                painter.setCompositionMode(28)
-                painter.setBrush(QtCore.Qt.NoBrush)
-                painter.setPen(QtCore.Qt.white)
-                
-            painter.drawEllipse(Qt.QPointF(x,y),r1,r1)
-            painter.drawEllipse(Qt.QPointF(x,y),r2,r2)
-            painter.drawEllipse(Qt.QPointF(x,y),r3,r3)
-            
-            painter.setCompositionMode(0)
-            rect=Qt.QRectF(x+r3-2,y+r3-2,60,15)
-            painter.setBrush(QtCore.Qt.blue)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(rect)
-            
-            if i[6]==True:
-                painter.setPen(QtCore.Qt.green)
-            else:
-                painter.setPen(QtCore.Qt.yellow)
-                
-            painter.drawText(rect,QtCore.Qt.AlignCenter,i[2])
-
-    def _drawPhaseAlign(self, painter):
-                
-        painter.setCompositionMode(0)
-        painter.setPen(QtCore.Qt.white)
-
-
-        if self._phase_align_data!=None:
-            
-            cx = self._phase_align_data[2][1]/2.0
-            cy = self._phase_align_data[2][0]/2.0
-               
-            utils.drawMarker(painter, cx, cy,
-                             7.0/self.actual_zoom,2.0/self.actual_zoom, False)
-        
-            px = cx - self._phase_align_data[0][0]
-            py = cy - self._phase_align_data[0][1]
-        
-            painter.setPen(QtCore.Qt.red)
-            utils.drawMarker(painter, px, py,
-                             7.0/self.actual_zoom,2.0/self.actual_zoom, False)
-        
-        
     def _drawAlignPoints(self, painter):
         if(len(self.framelist) == 0) or (not self.showAlignPoints):
             return False
@@ -2763,37 +1698,12 @@ class theApp(Qt.QObject):
                            self.autoalign_rectangle[1])
             painter.setBrush(QtCore.Qt.NoBrush)
             painter.drawRect(rect)
-            
-    def _drawDifference(self,painter):
-        if (self.ref_image != None) and (self.current_image != None):
-            
-            ref = self.framelist[self.ref_image_idx]
-            img = self.framelist[self.dif_image_idx] 
-            
-            rot_center=(img.width/2.0,img.height/2.0)
-           
-            painter.drawImage(0,0,self.ref_image)
-            painter.setCompositionMode(22)
-                        
-            x = (img.offset[0]-ref.offset[0])
-            y = (img.offset[1]-ref.offset[1])
-            
-            #this is needed because the automatic aignment takes the first image available as
-            #reference to calculate derotation
-            alpha = self.framelist[self.wnd.listWidgetManualAlign.item(0).original_id].angle            
-            
-            cosa = math.cos(np.deg2rad(-alpha))
-            sina = math.sin(np.deg2rad(-alpha))
-            
-            xi = x*cosa + y*sina
-            yi = y*cosa - x*sina
-                        
-            painter.translate(rot_center[0]-xi,rot_center[1]-yi)
-            
-            painter.rotate(-img.angle+ref.angle)
-
-            painter.drawImage(-int(rot_center[0]),-int(rot_center[1]),self.current_image)
-            painter.setCompositionMode(0)
+    
+    def deselectAllListWidgetsItems(self):
+        self.wnd.lightListWidget.setCurrentItem(None)
+        self.wnd.biasListWidget.setCurrentItem(None)
+        self.wnd.darkListWidget.setCurrentItem(None)
+        self.wnd.flatListWidget.setCurrentItem(None)
     
     def setZoomMode(self, val, check=False):
         
@@ -2860,115 +1770,241 @@ class theApp(Qt.QObject):
     def setViewport(self,viewPoint):
         self.viewHScrollBar.setValue(viewPoint[0]*self.viewHScrollBar.maximum())
         self.viewVScrollBar.setValue(viewPoint[1]*self.viewVScrollBar.maximum())
-        
-    def updateResultImage(self):
-        if self._stk!=None:
-            img = utils.arrayToQImage(self._stk,bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels,levels_range=self.levels_range)
-            self.showImage(img)
-        else:
-            self.clearImage()
-        
-    def showImage(self, image):
-        del self.current_image
-        self.current_image = image
-        self.updateImage()
-            
-    def clearImage(self):
-        del self.current_image
-        self.current_image=None
-        self.imageLabel.setPixmap(Qt.QPixmap())
-        
-    def generateScaleMaps(self):
-        # bw or jet colormap
-        data1 = np.arange(0,self.wnd.colorBar.width())*255.0/self.wnd.colorBar.width()
-        data2 = np.array([data1]*(self.wnd.colorBar.height()-8))
-        qimg = utils.arrayToQImage(data2,bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels,levels_range=self.levels_range)
-        self.bw_colormap = qimg
-
-        #rgb colormap
-        data1 = np.arange(0,self.wnd.colorBar.width())*255.0/self.wnd.colorBar.width()
-        data2 = np.array([data1]*int((self.wnd.colorBar.height()-8)/3.0))
-        hh=len(data2)
-        data3 = np.zeros((3*hh,len(data1),3))
-       
-        data3[0:hh,0:,0]=data2
-        data3[hh:2*hh,0:,1]=data2
-        data3[2*hh:3*hh,0:,2]=data2
-        
-        qimg = utils.arrayToQImage(data3,bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels,levels_range=self.levels_range)
-        self.rgb_colormap = qimg
-
-    def updateImage(self, paint=True, overrided_image=None):
-        
-        if overrided_image != None:
-            current_image=overrided_image
-        elif self.current_image != None:
-            current_image=self.current_image
-        else:
+           
+    def setCurrentColorMap(self,cmapid):
+        if self.__updating_mdi_ctrls:
+            return
+        sw = self.mdi.activeSubWindow()        
+        if sw is None:
+            log.log("main_app.theApp","An operation that requires an active mdi window has been executed without any mdi windows opend!",level=logging.ERROR)
             return False
-        
-        imh = current_image.height()
-        imw = current_image.width()
-
-        try:
-            self.wnd.colorBar.current_val=current_image._original_data[self.current_pixel[1],self.current_pixel[0]]
-            self.wnd.colorBar.repaint()
-        except Exception as exc:
-            self.current_pixel=(0,0)
-
-        if self.zoom_enabled:
-            self.actual_zoom=self.zoom
-        elif self.zoom_fit:
-                        
-            self.actual_zoom=min(float(self.wnd.imageViewer.width()-10)/imw,
-                                 float(self.wnd.imageViewer.height()-10)/imh
-                                )
-                                
-            self.wnd.zoomDoubleSpinBox.setValue(self.zoom)
+        elif not sw in self.mdi_windows:
+            log.log("main_app.theApp","Untraced mdi window detected!",level=logging.ERROR)
+            return False
+        elif self.mdi_windows[sw]['type']!=guicontrols.IMAGEVIEWER:
+            log.log("main_app.theApp","Operation not permitted on current mdi window!",level=logging.ERROR)
+            return False
         else:
-            self.actual_zoom=1
+            cmap=cmaps.COLORMAPS[cmapid]
+            self.mdi_windows[sw]['widget'].setColorMap(cmap)
+        return True
             
-        if paint:
-            imh+=1
-            imw+=1
-            self.imageLabel.setMaximumSize(imw*self.actual_zoom,imh*self.actual_zoom)
-            self.imageLabel.setMinimumSize(imw*self.actual_zoom,imh*self.actual_zoom)
-            self.imageLabel.resize(imw*self.actual_zoom,imh*self.actual_zoom)
-            self.imageLabel.update()
-            if current_image._original_data != None:
-                self.wnd.colorBar.max_val=current_image._original_data.max()
-                self.wnd.colorBar.min_val=current_image._original_data.min()
-
-                if (self.wnd.colorBar.max_val <=1) or self.fit_levels:
-                    pass
-                elif self.wnd.colorBar.max_val <= 255:
-                    self.wnd.colorBar.max_val*=255.0/self.wnd.colorBar.max_val
-                elif self.wnd.colorBar.max_val <= 65536:
-                    self.wnd.colorBar.max_val*=65536.0/self.wnd.colorBar.max_val
-                    
-                if self.fit_levels:
-                    pass
-                elif self.wnd.colorBar.min_val > 0:
-                    self.wnd.colorBar.min_val*=0
-                
-                if not self.wnd.colorBar.isVisible():
-                    self.wnd.colorBar.show()
-            else:
-                self.wnd.colorBar.max_val=1
-                self.wnd.colorBar.max_val=0
-                if self.wnd.colorBar.isVisible():
-                    self.wnd.colorBar.hide()
-                
-            #this shuold avoid division by zero
-            if  self.wnd.colorBar.max_val ==  self.wnd.colorBar.min_val:
-                self.wnd.colorBar.max_val=self.wnd.colorBar.max_val+1
-                self.wnd.colorBar.min_val=self.wnd.colorBar.min_val-1
-                
-            #self.generateScaleMaps()
-        #else:
-            #return pix
+    def showResultImage(self, newtab=True):
+        if self._stk is not None:
+            self.showImage(self._stk,title="stacking result", newtab=newtab)
     
-    def setUpStatusBar(self):      
+    def clearImage(self):
+        #TODO
+        pass
+        
+    def updateImage(self, paint=True, overrided_image=None):
+        #TODO:
+        pass
+    
+    def showImage(self, image, title=None, newtab=False, mdisubwindow=None, activate_sw=True,override_cursor=True):
+        if override_cursor:
+            QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
+        
+        if title is None:
+            try:
+                title = image.tool_name
+            except:
+                title = ""
+                
+        if mdisubwindow is None:
+            sw=None
+            for swnd in self.mdi_windows:
+                if swnd.windowTitle() == title:
+                    sw = swnd
+                    break
+        else:
+            sw = mdisubwindow
+            newtab = False
+        
+        if ((sw is None) or (not (sw in self.mdi_windows.keys())) or
+            (self.mdi_windows[sw]['type'] != guicontrols.IMAGEVIEWER)):
+                newtab=True
+                
+        if newtab:
+            existing_titles=[]
+            for swnd in self.mdi_windows:
+                existing_titles.append(swnd.windowTitle())            
+            sw_title=title
+            title_idx=1            
+            while sw_title in existing_titles:
+                sw_title=title+" <"+str(title_idx)+">"
+                title_idx+=1                
+            sw = self.newMdiImageViewer(sw_title)            
+        elif activate_sw:
+            self.mdi.setActiveSubWindow(sw)
+        
+        iv = self.mdi_windows[sw]['widget']
+        
+        if type(image) == utils.Frame:
+            iv.showImage(self.debayerize(image.getData(asarray=True)))
+            self.mdi_windows[sw]['references']=[image,]
+            iv.image_features=image.alignpoints
+        else:
+            iv.showImage(image)
+                
+        self.mdi_windows[sw]['widget']= iv
+        if override_cursor:
+            QtGui.QApplication.instance().restoreOverrideCursor()
+        
+        return sw
+    
+    def showDifference(self, image=None, reference=None, newtab=False, mdisubwindow=None, reload_images=True):
+        QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
+        
+        if mdisubwindow is None:
+            swlist=self.getMdiWindowsByType(guicontrols.DIFFERENCEVIEWER)
+            if len(swlist)>0:
+                sw = swlist[0]
+            else:
+                sw = self.mdi.activeSubWindow()
+        else:
+            sw = mdisubwindow
+            newtab = False
+        
+        if ((not (sw in self.mdi_windows.keys())) or
+            (self.mdi_windows[sw]['type'] != guicontrols.DIFFERENCEVIEWER)):
+                newtab=True
+                
+        if (not newtab) and (sw is not None):
+            sw.setWindowTitle("manual alignment")
+        else:
+            sw = self.newMdiDifferenceViewer("manual alignment")
+        
+        iv = self.mdi_windows[sw]['widget']
+        
+        if (reference is None):
+            reference = self.framelist[self.ref_image_idx]
+        if (image is None):
+            image = self.framelist[self.dif_image_idx]
+            
+        if  reload_images:
+            iv.setRefImage(self.debayerize(reference.getData(asarray=True)))
+            iv.showImage(self.debayerize(image.getData(asarray=True)))
+        
+        try:
+            iv.setOffset(image.offset[0],image.offset[1],image.angle)
+            iv.setRefShift(reference.offset[0],reference.offset[1],reference.angle)
+        except:
+            pass
+        
+        self.mdi_windows[sw]['widget']= iv
+        self.mdi_windows[sw]['references']=[image,reference]
+        QtGui.QApplication.instance().restoreOverrideCursor()
+    
+    
+    #
+    # MDI CONTROL FUNCTIONS
+    #
+    
+    def updateMdiControls(self, mdisw):
+        
+        if mdisw is None:
+            return
+        
+        self.__updating_mdi_ctrls=True
+        
+        sw_type = self.mdi_windows[mdisw]['type']
+        
+        if sw_type == guicontrols.IMAGEVIEWER:
+            iv = self.mdi_windows[mdisw]['widget']
+            cmapid = cmaps.getColormapId(iv.getColorMap())
+            
+            self.deselectAllListWidgetsItems()
+            
+            try:
+                frametype = self.mdi_windows[mdisw]['references'][0].getProperty('frametype')
+                
+                if frametype == utils.LIGHT_FRAME_TYPE:
+                    listwidget=self.wnd.lightListWidget
+                elif frametype == utils.BIAS_FRAME_TYPE:
+                    listwidget=self.wnd.biasListWidget
+                elif frametype == utils.DARK_FRAME_TYPE:
+                    listwidget=self.wnd.darkListWidget
+                elif frametype == utils.FLAT_FRAME_TYPE:
+                    listwidget=self.wnd.flatListWidget
+                
+                try:
+                    listwidget.setCurrentItem(self.mdi_windows[mdisw]['references'][0].getProperty('listItem'))
+                except:
+                    listwidget.setCurrentItem(None)                    
+            except:
+                pass
+        else:
+            self.deselectAllListWidgetsItems()
+        
+        self.__updating_mdi_ctrls=False
+        
+    def newMdiWindow(self, widget=None, wtype='unknown', title=""):
+        sw = self.mdi.addSubWindow(widget)
+        sw.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        sw.setWindowTitle(str(title))
+        self.mdi_windows[sw]={}
+        self.mdi_windows[sw]['references']=[]
+        self.mdi_windows[sw]['widget']=widget
+        self.mdi_windows[sw]['type']=wtype
+        return sw    
+    
+    def getParentMdiWindow(self, widget):
+        for sw in self.mdi_windows.keys():
+            if self.mdi_windows[sw]['widget'] == widget:
+                return widget
+        
+        return None
+    
+    def getMdiWindowsByType(self, wtype):
+        swlist=[]
+        for sw in self.mdi_windows.keys():
+            if self.mdi_windows[sw]['type'] == wtype:
+                swlist.append(sw)
+        return swlist
+    
+    def showInMdiWindow(self, widget, wtype, title=""):
+        sw = self.newMdiWindow(widget, wtype, title)
+        sw.destroyed.connect(self.clearGenericMdiWindow)
+        sw.show()
+        return sw
+    
+    def closeAllMdiWindows(self, refwidget=None):
+        if refwidget is None:
+            self.mdi.closeAllSubWindows()
+        else:
+            for sw in self.mdi_windows.keys():
+                if refwidget in self.mdi_windows[sw]['references']:
+                    sw.close()
+    
+    
+    def newMdiImageViewer(self,title=""):
+        iv = guicontrols.ImageViewer(self.statusLabelMousePos)
+        sw = self.newMdiWindow(iv, guicontrols.IMAGEVIEWER, title)
+        sw.destroyed.connect(self.clearMdiImageViewer)
+        sw.show()
+        return sw
+    
+    def newMdiDifferenceViewer(self,title=""):
+        iv = guicontrols.DifferenceViewer()
+        sw = self.newMdiWindow(iv, guicontrols.DIFFERENCEVIEWER, title)
+        sw.destroyed.connect(self.clearMdiImageViewer)
+        sw.show()
+        return sw
+        
+    def clearGenericMdiWindow(self, swnd):
+        self.mdi_windows.pop(swnd)
+        
+    def clearMdiImageViewer(self, swnd):
+        return self.clearGenericMdiWindow(swnd)
+        
+    #
+    #
+    #
+    
+    
+    def setUpStatusBar(self):    
+        log.log("main_app.theApp","Setting up statusbar...",level=logging.DEBUG)
         self.progress = Qt.QProgressBar()
         self.progress.setRange(0,100)
         self.progress.setMaximumSize(400,25)
@@ -2981,8 +2017,251 @@ class theApp(Qt.QObject):
         self.cancelProgress.hide()
         self.statusBar.showMessage(tr('Welcome!'))
 
+    
+    def buildMenus(self):
+        
+        self.mainMenuBar = self.wnd.menuBar()
+        
+        if self.mainMenuBar is None:
+            log.log("main_app.theApp","Creating menu bar...",level=logging.DEBUG)
+            self.mainMenuBar = Qt.QMenuBar()
+            self.wnd.setMenuBar(self.mainMenuBar)
+        
+        log.log("main_app.theApp","Setting up menus...",level=logging.DEBUG)
+        
+        self.action_exit = QtGui.QAction(utils.getQIcon("application-exit"), tr('exit'), self)
+        self.action_exit.triggered.connect(self.wnd.close)
+        
+        self.action_load_project = QtGui.QAction(utils.getQIcon("document-open"), tr('Load project'), self)
+        self.action_load_project.triggered.connect(self.doLoadProject)
+        
+        self.action_new_project = QtGui.QAction(utils.getQIcon("document-new"), tr('New project'), self)
+        self.action_new_project.triggered.connect(self.doNewProject)
+        
+        self.action_save_project = QtGui.QAction(utils.getQIcon("document-save"), tr('Save project'), self)
+        self.action_save_project.triggered.connect(self.doSaveProject)
+        
+        self.action_save_project_as = QtGui.QAction(utils.getQIcon("document-save-as"), tr('Save project as'), self)
+        self.action_save_project_as.triggered.connect(self.doSaveProjectAs)
+        
+        self.action_add_files = QtGui.QAction(utils.getQIcon("insert-image"), tr('Add images/videos'), self)
+        self.action_add_files.triggered.connect(self.doLoadFiles)
+        
+        self.action_lock_toolbars = QtGui.QAction(utils.getQIcon(None), tr('Lock tool-bars'), self)
+        self.action_lock_toolbars.toggled.connect(self.setToolBarsLock)
+        self.action_lock_toolbars.setCheckable(True)
+                
+        self.action_show_preferences = QtGui.QAction(utils.getQIcon(), tr('Show preferences'), self)
+        self.action_show_preferences.triggered.connect(self.doSetPreferences)
+        
+        self.action_show_about = QtGui.QAction(utils.getQIcon("help-about"), tr('About lxnstack'), self)
+        self.action_show_about.triggered.connect(self.doShowAbout)
+        
+        self.action_show_manual = QtGui.QAction(utils.getQIcon("help-contents"), tr('Show User\'s Manual'), self)
+        self.action_show_manual.triggered.connect(self.doShowUserMan)
+        
+        self.action_align = QtGui.QAction(utils.getQIcon("align-images"), tr('Align images'), self)
+        self.action_align.triggered.connect(self.doAlign)
+        
+        self.action_stack = QtGui.QAction(utils.getQIcon("stack-images"), tr('Stack images'), self)
+        self.action_stack.triggered.connect(self.doStack)
+        
+        self.action_edit_select = QtGui.QAction(utils.getQIcon("edit-select"), tr('Select'), self)
+        #self.action_edit_select.triggered.connect(self.doSetModeSelect)
+        
+        self.action_edit_pan = QtGui.QAction(utils.getQIcon("edit-pan"), tr('Pan'), self)
+        #self.action_edit_pan.triggered.connect(self.doSetModePan)
+                
+        self.action_save_result = QtGui.QAction(utils.getQIcon("save-image"), tr('Save resulting image'), self)
+        self.action_save_result.triggered.connect(self.doSaveResult)
+        
+        self.action_save_video = QtGui.QAction(utils.getQIcon("video-x-generic"), tr('Export images sequence as a video'), self)
+        self.action_save_video.triggered.connect(self.doSaveVideo)
+        
+        self.action_gen_lightcurves = QtGui.QAction(utils.getQIcon("generate-lightcurves"), tr('Generate lightcurves'), self)
+        self.action_gen_lightcurves.triggered.connect(self.doGenerateLightCurves)
+
+        self.action_enable_rawmode = QtGui.QAction(utils.getQIcon("bayer-mode"), tr('Enable raw-mode'), self)
+        self.action_enable_rawmode.triggered.connect(self.updateBayerMatrix)
+        self.action_enable_rawmode.setCheckable(True)
+        
+        self.action_enable_video = QtGui.QAction(utils.getQIcon(""), tr('Enable preview'), self)
+        self.action_enable_video.setCheckable(True)
+        self.action_enable_video.toggled.connect(self.enableVideoPreview)
+        
+        self.action_start_capture = QtGui.QAction(utils.getQIcon("video-recording-start"), tr('Start capturing'), self)
+        self.action_start_capture.triggered.connect(self.startDirectVideoCapture)
+        self.action_start_capture.setEnabled(False)
+        
+        self.action_stop_capture = QtGui.QAction(utils.getQIcon("video-recording-stop"), tr('Stop capturing'), self)
+        self.action_stop_capture.triggered.connect(self.stopDirectVideoCapture)
+        self.action_stop_capture.setEnabled(False)
+        
+        self.action_sched_capture = QtGui.QAction(utils.getQIcon("video.scheduler"), tr('open scheduler'), self)
+        self.action_sched_capture.triggered.connect(self.videoCaptureScheduler.show)
+        
+        self.action_take_shot = QtGui.QAction(utils.getQIcon("video-single-shot"), tr('Take single shot'), self)
+        self.action_take_shot.triggered.connect(self.oneShot)
+        
+        log.log("main_app.theApp","Bulding menu trees...",level=logging.DEBUG)
+
+        menu_files = self.mainMenuBar.addMenu(tr("Files"))
+        menu_video = self.mainMenuBar.addMenu(tr("Video capture"))
+        menu_edit = self.mainMenuBar.addMenu(tr("Edit"))
+        menu_stacking = self.mainMenuBar.addMenu(tr("Stacking"))
+        menu_lightcurves = self.mainMenuBar.addMenu(tr("Lightcurves"))
+        menu_settings = self.mainMenuBar.addMenu(tr("Settings"))
+        menu_about = self.mainMenuBar.addMenu("?")
+        
+        #Files menu
+        menu_files.addAction(self.action_add_files)
+        menu_files.addSeparator()
+        menu_files.addAction(self.action_new_project)
+        menu_files.addAction(self.action_load_project)
+        menu_files.addAction(self.action_save_project)
+        menu_files.addAction(self.action_save_project_as)
+        menu_files.addSeparator()
+        menu_files.addAction(self.action_exit)
+        
+        #Video menu
+        menu_video.addAction(self.action_enable_video)
+        menu_video.addAction(self.action_sched_capture)
+        menu_video.addAction(self.action_take_shot)
+        menu_video.addAction(self.action_start_capture)
+        menu_video.addAction(self.action_stop_capture)
+        self.capture_devices_menu=menu_video.addMenu("capture devices")
+        
+        #Edit menu
+        menu_edit.addAction(self.action_edit_select)
+        menu_edit.addAction(self.action_edit_pan)
+        menu_edit.addSeparator()
+        
+        #Stacking menu
+        menu_stacking.addAction(self.action_align)
+        menu_stacking.addAction(self.action_stack)
+        menu_stacking.addAction(self.action_save_result)        
+        menu_stacking.addAction(self.action_save_video)
+        
+        #Ligthcurves menu
+        
+        menu_lightcurves.addAction(self.action_gen_lightcurves)
+        
+        #Settings menu
+        menu_settings.addAction(self.action_show_preferences)
+        menu_settings.addAction(self.action_lock_toolbars)
+        
+        #About menu
+        menu_about.addAction(self.action_show_manual)
+        menu_about.addSeparator()
+        menu_about.addAction(self.action_show_about)
+    
+    
+    def _setUpMainToolBar(self):
+        maintoolbar = Qt.QToolBar('Main')
+        
+        maintoolbar.setObjectName("Main ToolBar")
+        
+        #TODO: complete this seciton
+                                        
+        maintoolbar.addAction(self.action_new_project)
+        maintoolbar.addAction(self.action_load_project)
+        maintoolbar.addAction(self.action_add_files)
+        maintoolbar.addAction(self.action_save_project)
+        maintoolbar.addAction(self.action_save_project_as)
+        
+                                        
+        return maintoolbar
+    
+    def _setUpStackingToolBar(self):
+        toolbar = Qt.QToolBar('Stacking')
+        
+        toolbar.setObjectName("Stacking ToolBar")
+        
+        #TODO: complete this seciton
+                                
+        
+        toolbar.addAction(self.action_align)
+        toolbar.addAction(self.action_stack)
+        toolbar.addAction(self.action_save_result)
+                                        
+        return toolbar
+    
+    def _setUpMiscToolBar(self):
+        
+        toolbar = Qt.QToolBar('Misc')
+        
+        toolbar.setObjectName("Misc ToolBar")
+                
+        self.bayerComboBox=utils.ToolComboBox(tr("matrix type:"),tooltip=tr("Specify the type of bayer matrix used"))
+        self.bayerComboBox.setEnabled(False)
+        self.bayerComboBox.currentIndexChanged.connect(self.updateBayerMatrix)
+        
+        self.bayerComboBox.addItem(utils.getQIcon("bayer-rggb"),"RGGB")
+        self.bayerComboBox.addItem(utils.getQIcon("bayer-grgb"),"GRGB")
+        self.bayerComboBox.addItem(utils.getQIcon("bayer-gbrg"),"GBRG")
+        self.bayerComboBox.addItem(utils.getQIcon("bayer-bggr"),"BGGR")
+        
+        toolbar.addAction(self.action_enable_rawmode)
+        self.action_bayer=toolbar.addWidget(self.bayerComboBox)
+        
+        self.action_bayer.setVisible(self.action_enable_rawmode.isChecked())
+        
+        self.action_enable_rawmode.toggled.connect(self.action_bayer.setVisible)
+        
+        return toolbar
+    
+    def _setUpVideoCaptureToolBar(self):
+        toolbar = Qt.QToolBar('Video')
+        
+        toolbar.setObjectName("VideoCapture ToolBar")
+        
+        devices_button = QtGui.QToolButton()
+        devices_button.setMenu(self.capture_devices_menu)
+        devices_button.setPopupMode(QtGui.QToolButton.InstantPopup)
+        
+        toolbar.addWidget(devices_button)
+        
+        toolbar.addAction(self.action_enable_video)
+        toolbar.addAction(self.action_start_capture)
+        toolbar.addAction(self.action_stop_capture)        
+        
+        self.directVideoCaptureTypeComboBox=utils.ToolComboBox(tr("output:"),tooltip=tr("Specify how to save the captured images"))
+        self.directVideoCaptureTypeComboBox.addItem(utils.getQIcon("type-video-file"),"video file")
+        self.directVideoCaptureTypeComboBox.addItem(utils.getQIcon("type-frame-sequence"),"frame sequence")
+        self.directVideoCaptureTypeComboBox.setEnabled(False)
+        toolbar.addWidget(self.directVideoCaptureTypeComboBox)
+        
+        return toolbar
+    
+    
+    def addToolBar(self,toolbar,area=QtCore.Qt.TopToolBarArea,newline=False):
+        self.wnd.addToolBar(area,toolbar)
+        self.toolbars.append(toolbar)
+        
+        if newline:
+            self.wnd.insertToolBarBreak(toolbar)
+    
+    def setUpToolBars(self):
+        
+        log.log("main_app.theApp","Setting up toolbars...",level=logging.DEBUG)
+        
+        self.toolbars=[]
+        
+        self.addToolBar(self._setUpMainToolBar())
+        self.addToolBar(self._setUpMiscToolBar())
+        self.addToolBar(self._setUpVideoCaptureToolBar(),True)
+        self.addToolBar(self._setUpStackingToolBar())
+        
+        self.setToolBarsLock(self.action_lock_toolbars.isChecked())
+                            
+    def setToolBarsLock(self,locked):
+
+        for tb in self.toolbars:
+            tb.setFloatable(False)
+            tb.setMovable(not locked)
+            
     def lock(self, show_cancel = True):
-        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
+        QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
         self.statusLabelMousePos.setText('')
         self.progress.show()
         
@@ -2992,7 +2271,9 @@ class theApp(Qt.QObject):
             self.cancelProgress.hide()
             
         self.wnd.toolBox.setEnabled(False)
-        self.wnd.MainFrame.setEnabled(False)
+        for tb in self.toolbars:
+            tb.setEnabled(False)
+        #self.wnd.MainFrame.setEnabled(False)
         self.wnd.menubar.setEnabled(False)
         
     def unlock(self):
@@ -3001,32 +2282,27 @@ class theApp(Qt.QObject):
         self.cancelProgress.hide()
         self.progress.reset()
         self.wnd.toolBox.setEnabled(True)
-        self.wnd.MainFrame.setEnabled(True)
+        for tb in self.toolbars:
+            tb.setEnabled(True)
+        #self.wnd.MainFrame.setEnabled(True)
         self.wnd.menubar.setEnabled(True)
-        self.qapp.restoreOverrideCursor()
+        QtGui.QApplication.instance().restoreOverrideCursor()
 
     def canceled(self):
         self.wasCanceled=True
-
-    def stopped(self):
-        self.wasStopped=True
-
-    def started(self):
-        self.wasStarted=True
-        self.wasStopped=False
     
     def loadFiles(self, newlist=None):
 
         oldlist=self.framelist[:]
 
-        if newlist==None:
+        if newlist is None:
             open_str=tr("All supported images")+self.images_extensions+";;"+tr("All files *.* (*.*)")
             newlist=list(Qt.QFileDialog.getOpenFileNames(self.wnd,
                                                          tr("Select one or more files"),
                                                          self.current_dir,
                                                          open_str,
                                                          None,
-                                                         self._dialog_options)
+                                                         utils.DIALOG_OPTIONS)
                         )
 
         self.statusBar.showMessage(tr('Loading files, please wait...'))
@@ -3056,8 +2332,6 @@ class theApp(Qt.QObject):
             self.currentHeight=imh
             self.currentDepht=dep
             
-            self.updateBayerComponents()
-
             if self.dlg.autoSizeCheckBox.checkState()==2:
                 r_w=int(self.currentWidth/10)
                 r_h=int(self.currentHeight/10)
@@ -3065,16 +2339,7 @@ class theApp(Qt.QObject):
                 self.autoalign_rectangle=(r_l,r_h)
                 self.dlg.rWSpinBox.setValue(r_l)
                 self.dlg.rHSpinBox.setValue(r_l)
-            
-            if 'RGB' in dep:
-                self.wnd.colorBar._is_rgb=True
-                self.wnd.colorBar.current_val=(0.0,0.0,0.0)
-            else:
-                self.wnd.colorBar._is_rgb=False
-                self.wnd.colorBar.current_val=0.0
-                
-            self.wnd.colorBar.max_val=1.0
-            self.wnd.colorBar.min_val=0.0        
+               
         
         self.current_dir=os.path.dirname(str(newlist[0]))
         rejected=''
@@ -3119,9 +2384,12 @@ class theApp(Qt.QObject):
                         q.setToolTip(img.long_tool_name)
                         listitemslist.append(q)
                         img.addProperty('listItem',q)
+                        img.addProperty('frametype',utils.LIGHT_FRAME_TYPE)
                         self.framelist.append(img)
                     page+=1
                     img=utils.Frame(str(i),page,  **self.frame_open_args)
+                    if self.progressWasCanceled():
+                        break
                     
             self.progress.setValue(count)
             if self.progressWasCanceled():
@@ -3130,13 +2398,13 @@ class theApp(Qt.QObject):
         self.unlock()
         
         for item in listitemslist:
-            self.wnd.listWidget.addItem(item)
+            self.wnd.lightListWidget.addItem(item)
             
         newlist=[]
 
         if warnings:
             msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("Some imagese have different sizes or number of channels and will been ignored.\n"))
+            msgBox.setText(tr("Some images have different size or number of channels and will been ignored.\n"))
             msgBox.setInformativeText(tr("All images must have the same size and number of channels.\n\n")+
                                       tr("Click the \'Show Details' button for more information.\n"))
             msgBox.setDetailedText (rejected)
@@ -3162,7 +2430,7 @@ class theApp(Qt.QObject):
         self.statusBar.showMessage(tr('DONE'))
         
         if (len(self.framelist)>0):
-            self._unlock_cap_ctrls()
+            self.unlockSidebar()
 
         self.statusBar.showMessage(tr('Ready'))
 
@@ -3176,21 +2444,24 @@ class theApp(Qt.QObject):
         self.addFlatFiles()
         
     def addBiasFiles(self, directory=None, ignoreErrors=False):
-        self.addFrameFiles(self.wnd.biasListWidget,
+        self.addFrameFiles(utils.BIAS_FRAME_TYPE,
+                           self.wnd.biasListWidget,
                            self.biasframelist,
                            self.wnd.biasClearPushButton,
                            directory=directory,
                            ignoreErrors=ignoreErrors)
         
     def addDarkFiles(self, directory=None, ignoreErrors=False):
-        self.addFrameFiles(self.wnd.darkListWidget,
+        self.addFrameFiles(utils.DARK_FRAME_TYPE,
+                           self.wnd.darkListWidget,
                            self.darkframelist,
                            self.wnd.darkClearPushButton,
                            directory=directory,
                            ignoreErrors=ignoreErrors)
         
     def addFlatFiles(self, directory=None, ignoreErrors=False):
-        self.addFrameFiles(self.wnd.flatListWidget,
+        self.addFrameFiles(utils.FLAT_FRAME_TYPE,
+                           self.wnd.flatListWidget,
                            self.flatframelist,
                            self.wnd.flatClearPushButton,
                            directory=directory,
@@ -3211,15 +2482,16 @@ class theApp(Qt.QObject):
                               self.flatframelist,
                               self.wnd.flatClearPushButton)
 
-    def doClearFrameList(self, framelistwidget, framelist, clearbutton):
-        # foce memory release
-        while len(framelist) > 0:
-            i = framelist.pop()
-            del i
-        framelistwidget.clear()
+    def doClearFrameList(self, listwidget, framelist, clearbutton):        
+        while listwidget.count()>0:
+            q = listwidget.takeItem(0)
+            self.closeAllMdiWindows(framelist.pop(listwidget.currentRow()))
+            del q
+        framelist=[]
+        listwidget.clear()
         clearbutton.setEnabled(False)
 
-    def addFrameFiles(self, framelistwidget, framelist, clearbutton, directory=None, ignoreErrors=False):
+    def addFrameFiles(self, frametype, framelistwidget, framelist, clearbutton, directory=None, ignoreErrors=False):
         if directory is None:
             open_str=tr("All supported images")+self.images_extensions+";;"+tr("All files *.* (*.*)")
             files = list(Qt.QFileDialog.getOpenFileNames(self.wnd,
@@ -3227,7 +2499,7 @@ class theApp(Qt.QObject):
                                                          self.current_dir,
                                                          open_str,
                                                          None,
-                                                         self._dialog_options)
+                                                         utils.DIALOG_OPTIONS)
                         )
         elif os.path.exists(directory) and os.path.isdir(directory):
             files = []
@@ -3245,35 +2517,37 @@ class theApp(Qt.QObject):
         
         for fn in files:
 
-            self.qapp.processEvents()
+            QtGui.QApplication.instance().processEvents()
             self.progress.setValue(count)
             
             
             if (os.path.isfile(str(fn))): #TODO: check for duplicates
 
-               page=0
-               i=utils.Frame(str(fn),page, **self.frame_open_args)
-               if not i.is_good:
+                page=0
+                i=utils.Frame(str(fn),page, **self.frame_open_args)
+                if not i.is_good:
                     if not ignoreErrors:
                         msgBox = Qt.QMessageBox(self.wnd)
                         msgBox.setText(tr("Cannot open image")+" \""+str(fn)+"\"")
                         msgBox.setIcon(Qt.QMessageBox.Critical)
                         msgBox.exec_()
                     continue
-               while i.is_good:
-                   if ((self.currentWidth == i.width) and
-                       (self.currentHeight == i.height) and
-                       (self.currentDepht == i.mode)):
-                       framelist.append(i)
-                       q=Qt.QListWidgetItem(i.tool_name,framelistwidget)
-                       q.setToolTip(i.long_tool_name)
-                   else:
+                while i.is_good:
+                    if ((self.currentWidth == i.width) and
+                        (self.currentHeight == i.height) and
+                        (self.currentDepht == i.mode)):
+                        framelist.append(i)
+                        q=Qt.QListWidgetItem(i.tool_name,framelistwidget)
+                        q.setToolTip(i.long_tool_name)
+                        i.addProperty('listItem',q)
+                        i.addProperty('frametype',str(frametype))
+                    else:
                         warnings=True
                         rejected+=(i.url+"\n")
                         break
-                   page+=1
-                   i=utils.Frame(str(fn),page, **self.frame_open_args)
-
+                    page+=1
+                    i=utils.Frame(str(fn),page, **self.frame_open_args)
+                    
             if self.progressWasCanceled():
                 return False
             count+=1
@@ -3282,7 +2556,7 @@ class theApp(Qt.QObject):
         
         if warnings:
             msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("Some imagese have different sizes or number of channels and will been ignored.\n"))
+            msgBox.setText(tr("Some images have different size or number of channels and will been ignored.\n"))
             msgBox.setInformativeText(tr("All images must have the same size and number of channels.\n\n")+
                                       tr("Click the \'Show Details' button for more information.\n"))
             msgBox.setDetailedText (rejected)
@@ -3296,37 +2570,32 @@ class theApp(Qt.QObject):
             clearbutton.setEnabled(True)
         return True
 
-    def clearList(self):
+    def clearLightList(self):
+        for frame in self.framelist:
+            self.closeAllMdiWindows(frame)
+        
         self.framelist=[]
-            
-        self.wnd.listWidget.clear()
-        self.clearExifTable()
+        self.wnd.lightListWidget.clear()
+        self.ref_image_idx=-1
+        self.dif_image_idx=-1
+        self.wnd.lightListWidget.clear()
         self.wnd.alignPointsListWidget.clear()
-        self.wnd.remPushButton.setEnabled(False)
-        self.wnd.clrPushButton.setEnabled(False)
-        self.wnd.listCheckAllBtn.setEnabled(False)
-        self.wnd.listUncheckAllBtn.setEnabled(False)
-        self.wnd.avrPushButton.setEnabled(False)
-        self.wnd.alignPushButton.setEnabled(False)
-        self.wnd.saveVideoPushButton.setEnabled(False)
-        self.wnd.genADUPushButton.setEnabled(False)
-        self.deactivateResultControls()
-        self.wnd.rawGroupBox.setChecked(False)
-        self.wnd.rawGroupBox.setEnabled(False)
-        self.clearResult()
-
+        self.wnd.manualAlignGroupBox.setEnabled(False)
+        self.lockSidebar()
+    
     def removeImage(self, clicked):
-        q = self.wnd.listWidget.takeItem(self.wnd.listWidget.currentRow())
-        self.framelist.pop(self.wnd.listWidget.currentRow())
-        del q
         
         self.clearResult()
-
+        
+        q = self.wnd.lightListWidget.takeItem(self.wnd.lightListWidget.currentRow())
+        self.closeAllMdiWindows(self.framelist.pop(self.wnd.lightListWidget.currentRow()))
+        del q
+                
         if (len(self.framelist)==0):
-            self.clearList()
+            self.clearLightList()
         elif self.image_idx >= len(self.framelist):
-            self.wnd.listWidget.setCurrentRow(len(self.framelist)-1)
-            self.listItemChanged(self.wnd.listWidget.currentRow())
+            self.wnd.lightListWidget.setCurrentRow(len(self.framelist)-1)
+            self.listItemChanged(self.wnd.lightListWidget.currentRow())
 
     def checkAllListItems(self):
         self.setAllListItemsCheckState(2)
@@ -3340,36 +2609,39 @@ class theApp(Qt.QObject):
         
     def clearAlignPoinList(self):
         for frm in self.framelist:
-           frm.alignpoints=[]
+           while len(frm.alignpoints) > 0: # flush the list and
+               frm.alignpoints.pop()       # force the deletion
         self.wnd.alignPointsListWidget.clear()
         self.wnd.removePointPushButton.setEnabled(False)
         self.updateImage()
         
     def clearStarsList(self):
-        self.starslist=[]
+        while len(self.starslist) > 0:       # flush the list and
+            self.starslist.alignpoints.pop() # force the deletion
         self.wnd.starsListWidget.clear()
         self.wnd.removeStarPushButton.setEnabled(False)
+        self.action_gen_lightcurves.setEnabled(False)
         self.updateImage()
 
     def setAllListItemsCheckState(self, state):
-        for i in range(self.wnd.listWidget.count()):
-            self.wnd.listWidget.item(i).setCheckState(state)
+        for i in range(self.wnd.lightListWidget.count()):
+            self.wnd.lightListWidget.item(i).setCheckState(state)
 
     def isBayerUsed(self):
-        if (self.currentDepht == 'L') and self.wnd.rawGroupBox.isChecked():
+        if (self.currentDepht == 'L') and self.action_enable_rawmode.isChecked():
             return True
         else:
             return False
 
     def debayerize(self, data):
-        if (data!=None) and (len(data.shape)==2) and self.isBayerUsed():
+        if (data is not None) and (len(data.shape)==2) and self.isBayerUsed():
             
-            bayer = self.wnd.bayerComboBox.currentIndex()
+            bayer = self.bayerComboBox.currentIndex()
             
             correction_factors=[1.0,1.0,1.0]
             
             #NOTE: Cv2 uses BRG images, so we must us the
-            #complementery bayer matrix type for example if
+            #complementery bayer matrix type. For example if
             #you want to convert form a RGGB matrix, the
             #BGGR model (BR2RGB) must be used.
             
@@ -3396,25 +2668,17 @@ class theApp(Qt.QObject):
         if len(self.framelist) == 0:
             return
         
-        self.updateBayerComponents()
-        
         img = self.framelist[self.image_idx]
         arr = self.debayerize(img.getData(asarray=True))
         
-        if self.wnd.rawGroupBox.isChecked():
-            self.wnd.colorBar._is_rgb=True
+        if self.action_enable_rawmode.isChecked():
+            self.bayerComboBox.setEnabled(True)
         else:
-            self.wnd.colorBar._is_rgb = img.isRGB()
+            self.bayerComboBox.setEnabled(False)
+        
+        self.showImage(arr)
         
         
-        qimg=utils.arrayToQImage(arr,bw_jet=self.use_colormap_jet,fit_levels=self.fit_levels,levels_range=self.levels_range)
-        self.showImage(qimg)
-        
-    
-    def clearExifTable(self):
-        self.wnd.exifTableWidget.clearContents()
-        self.wnd.exifTableWidget.setRowCount(0)
-    
     def updateADUlistItemChanged(self, idx):
         
         if idx < 0:
@@ -3522,48 +2786,51 @@ class theApp(Qt.QObject):
         self.wnd.pointSizeMagDoubleSpinBox.setValue(pointsize)
         self.wnd.lineWidthMagDoubleSpinBox.setValue(linewidth)
     
-    def listItemChanged(self, idx):
-        if self.wasStarted:
-            return
-        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.image_idx = self.wnd.listWidget.currentRow()
+    def showFrameItemInNewTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, True)
+    
+    def showDarkFrameItemInNewTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, True)
+    
+    def showFlatFrameItemInNewTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, True)
+    
+    def showBiasFrameItemInNewTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, True)
+    
+    def showFrameItemInCurrentTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, False)
+    
+    def showDarkFrameItemInCurrentTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, False)
+    
+    def showFlatFrameItemInCurrentTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, False)
+    
+    def showBiasFrameItemInCurrentTab(self, item, *arg):
+        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, False)    
+    
+    def showItemInMdiTab(self, item, framelist, listwidget, innewtab):
+        if not self.__updating_mdi_ctrls:
+            row = listwidget.row(item)
+            if (row >= 0) and (len(framelist)>0):
+                frame = framelist[row]
+                self.updateMdiControls(self.showImage(frame, newtab=innewtab))
         
-        if idx >= 0:
-            img = self.framelist[idx]
-            qimg=utils.arrayToQImage(self.debayerize(img.getData(asarray=True)),
-                                     bw_jet=self.use_colormap_jet,
-                                     fit_levels=self.fit_levels,
-                                     levels_range=self.levels_range)
-            self.showImage(qimg)
-            
+    def listItemChanged(self, idx):
+        if self.__video_capture_started:
+            return
+        
+        self.image_idx = self.wnd.lightListWidget.currentRow()
+        
+        if idx >= 0:            
             self.wnd.alignGroupBox.setEnabled(True)
             self.wnd.alignDeleteAllPushButton.setEnabled(True)
             self.updateAlignPointList()
-            self.wnd.manualAlignGroupBox.setEnabled(True)
-
-            try:            
-                props=self.wnd.listWidget.currentItem().exif_properties
-            except:
-                pass
-            else:            
-                self.clearExifTable()
-                self.wnd.exifTableWidget.setSortingEnabled(False) # See Qt doc to undertand why this is needed
-                for k,v in props.items():
-                    if type(v) != Qt.QListWidgetItem:
-                        self.wnd.exifTableWidget.insertRow(0)
-                        key_item=Qt.QTableWidgetItem(str(k))
-                        value_item=Qt.QTableWidgetItem(str(v))
-                        self.wnd.exifTableWidget.setItem(0,0,key_item)
-                        self.wnd.exifTableWidget.setItem(0,1,value_item)
-                self.wnd.exifTableWidget.setSortingEnabled(True)    
         else:
             self.clearImage()
             self.wnd.alignGroupBox.setEnabled(False)
-            self.wnd.alignDeleteAllPushButton.setEnabled(False)
-            self.wnd.manualAlignGroupBox.setEnabled(False)
-            
-        self.wnd.colorBar.repaint()
-        self.qapp.restoreOverrideCursor()
+            self.wnd.alignDeleteAllPushButton.setEnabled(False)            
         
     def manualAlignListItemChanged(self,idx):
         item = self.wnd.listWidgetManualAlign.item(idx)
@@ -3571,41 +2838,34 @@ class theApp(Qt.QObject):
             return        
         self.dif_image_idx=item.original_id
         img = self.framelist[item.original_id]
-        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.current_image=utils.arrayToQImage(img.getData(asarray=True),
-                                               bw_jet=self.use_colormap_jet,
-                                               fit_levels=self.fit_levels,
-                                               levels_range=self.levels_range)
+        QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
+
+        self.showDifference()
+        
         self.wnd.doubleSpinBoxOffsetX.setValue(img.offset[0])
         self.wnd.doubleSpinBoxOffsetY.setValue(img.offset[1])
         self.wnd.spinBoxOffsetT.setValue(img.angle)
         self.updateImage()
-        self.qapp.restoreOverrideCursor()
+        QtGui.QApplication.instance().restoreOverrideCursor()
 
     def currentManualAlignListItemChanged(self, cur_item):
-        if cur_item == None:
+        if cur_item is None:
             return False
         elif cur_item.checkState()==2:
-            if self.__operating!=True:
+            if not self.__operating:
                 self.__operating=True
                 self.ref_image_idx=cur_item.original_id
-                #self.ref_image = Qt.QImage(self.framelist[cur_item.original_id])
-                img = self.framelist[cur_item.original_id]
-                self.ref_image=utils.arrayToQImage(img.getData(asarray=True),
-                                                   bw_jet=self.use_colormap_jet,
-                                                   fit_levels=self.fit_levels,
-                                                   levels_range=self.levels_range)
                 for i in range(self.wnd.listWidgetManualAlign.count()):
                     item = self.wnd.listWidgetManualAlign.item(i)
                     if (item != cur_item) and (item.checkState() == 2):
                         item.setCheckState(0)
                 self.__operating=False
-                self.imageLabel.repaint()
         elif cur_item.checkState()==0:
             if not self.__operating:
                 cur_item.setCheckState(2)
-
-
+                
+        if not self.__operating:
+            self.showDifference()
             
     def updateAlignList(self):
         if self.ref_image_idx == -1:
@@ -3613,9 +2873,9 @@ class theApp(Qt.QObject):
         self.wnd.listWidgetManualAlign.clear()
         count=0
         self.__operating=True
-        for i in range(self.wnd.listWidget.count()):
-            if self.wnd.listWidget.item(i).checkState()==2:
-                item = self.wnd.listWidget.item(i)
+        for i in range(self.wnd.lightListWidget.count()):
+            if self.wnd.lightListWidget.item(i).checkState()==2:
+                item = self.wnd.lightListWidget.item(i)
                 if item.checkState()==2:
                     q=Qt.QListWidgetItem(item.text(),self.wnd.listWidgetManualAlign)
                     q.original_id=i
@@ -3625,7 +2885,7 @@ class theApp(Qt.QObject):
                         q.setCheckState(0)
                     count+=1
         self.__operating=False
-
+    
     def alignListItemChanged(self, idx):
         self.point_idx=idx
         if idx >= 0:
@@ -3633,21 +2893,32 @@ class theApp(Qt.QObject):
             self.wnd.spinBoxYAlign.setEnabled(True)
             self.wnd.removePointPushButton.setEnabled(True)
             pnt=self.framelist[self.image_idx].alignpoints[idx]
-            self.wnd.spinBoxXAlign.setValue(pnt[0])
-            self.wnd.spinBoxYAlign.setValue(pnt[1])
+            self.wnd.spinBoxXAlign.setValue(pnt.x)
+            self.wnd.spinBoxYAlign.setValue(pnt.y)
         else:
             self.wnd.spinBoxXAlign.setEnabled(False)
             self.wnd.spinBoxYAlign.setEnabled(False)
             self.wnd.removePointPushButton.setEnabled(False)
             self.wnd.spinBoxXAlign.setValue(0)
             self.wnd.spinBoxYAlign.setValue(0)
+    
+    def updateCurrentAlignPoint(self, pid, pname):
+        pntitem = self.wnd.alignPointsListWidget.findItems(pname,QtCore.Qt.MatchExactly)[0]
+        self.wnd.alignPointsListWidget.setCurrentItem(pntitem)
+        
+    def updateAlignPointPosition(self, x, y, pid, pname):
+        pntitem = self.wnd.alignPointsListWidget.findItems(pname,QtCore.Qt.MatchExactly)[0]
+        self.wnd.alignPointsListWidget.setCurrentItem(pntitem)
+        self.wnd.spinBoxXAlign.setValue(x)
+        self.wnd.spinBoxYAlign.setValue(y)
+                
 
     def starsListItemChanged(self,q):
         if q.checkState()==0:
-            self.starslist[q.original_id][6]=False
+            self.starslist[q.original_id].reference=False
             self.wnd.magDoubleSpinBox.setEnabled(False)
         else:
-            self.starslist[q.original_id][6]=True
+            self.starslist[q.original_id].reference=True
             self.wnd.magDoubleSpinBox.setEnabled(True)
         
         self.updateImage()
@@ -3670,12 +2941,12 @@ class theApp(Qt.QObject):
             else:
                 self.wnd.magDoubleSpinBox.setEnabled(False)
                 
-            self.wnd.spinBoxXStar.setValue(pnt[0])
-            self.wnd.spinBoxYStar.setValue(pnt[1])
-            self.wnd.innerRadiusDoubleSpinBox.setValue(pnt[3])
-            self.wnd.middleRadiusDoubleSpinBox.setValue(pnt[4])
-            self.wnd.outerRadiusDoubleSpinBox.setValue(pnt[5])
-            self.wnd.magDoubleSpinBox.setValue(pnt[7])
+            self.wnd.spinBoxXStar.setValue(pnt.x)
+            self.wnd.spinBoxYStar.setValue(pnt.y)
+            self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r1)
+            self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r2)
+            self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r3)
+            self.wnd.magDoubleSpinBox.setValue(pnt.magnitude)
         else:
             self.wnd.spinBoxXStar.setEnabled(False)
             self.wnd.spinBoxYStar.setEnabled(False)
@@ -3701,11 +2972,11 @@ class theApp(Qt.QObject):
             self.dlg.rWSpinBox.setValue(r_l)
             self.dlg.rHSpinBox.setValue(r_l)
         
-        imagename=self.wnd.listWidget.item(self.image_idx).text()
+        imagename=self.wnd.lightListWidget.item(self.image_idx).text()
         idx=1
         for i in range(self.wnd.alignPointsListWidget.count()):
             pname='#{0:05d}'.format(i+1)
-            if self.framelist[0].alignpoints[i][2] != pname:
+            if self.framelist[0].alignpoints[i].name != pname:
                 idx=i+1
                 break
             else:
@@ -3713,16 +2984,18 @@ class theApp(Qt.QObject):
                 
         pname='#{0:05d}'.format(idx)
         q=Qt.QListWidgetItem(pname)
-        q.setToolTip(tr('image') +imagename+tr('\nalign point ')+pname)
+        q.setToolTip(tr('image')+' '+imagename+" \n"+tr('alignment-point')+' '+pname)
         self.wnd.alignPointsListWidget.insertItem(idx-1,q)
         
         if(len(self.framelist[self.image_idx].alignpoints)==0):
             self.wnd.removePointPushButton.setEnabled(False)
             
         for frm in self.framelist:
-           frm.alignpoints.insert(idx-1,[0,0,pname,False])
+           alpnt = imgfeatures.AlignmentPoint(0,0,pname)
+           alpnt.moved.connect(self.updateAlignPointPosition)
+           frm.alignpoints.insert(idx-1, alpnt)
 
-        self.imageLabel.repaint()
+        self.updateImage()
         self.wnd.alignPointsListWidget.setCurrentRow(idx-1)
         return (idx-1)
     
@@ -3743,13 +3016,18 @@ class theApp(Qt.QObject):
         q.original_id=idx-1
         self.wnd.starsListWidget.insertItem(idx-1,q)
         
-        if(len(self.starslist)==0):
-            self.wnd.removeStarPushButton.setEnabled(False)
+        if(len(self.starslist)>0):
+            self.wnd.removeStarPushButton.setEnabled(True)
         
         self.starslist.insert(idx-1,[0,0,pname,7,10,15,False,0])
         
         self.imageLabel.repaint()
         self.wnd.starsListWidget.setCurrentRow(idx-1)
+        
+        if (not self.action_gen_lightcurves.isEnabled() and 
+            (self.wnd.starsListWidget.count()>0)):
+            self.action_gen_lightcurves.setEnabled(True)
+        
         return (idx-1)
     
     
@@ -3780,7 +3058,8 @@ class theApp(Qt.QObject):
         item = self.wnd.starsListWidget.takeItem(star_idx)
         
         if(len(self.starslist)==0):
-            self.wnd.removePointPushButton.setEnabled(False)
+            self.wnd.removeStarPushButton.setEnabled(False)
+            self.action_gen_lightcurves.setEnabled(False)
             
         del item
         
@@ -3789,112 +3068,91 @@ class theApp(Qt.QObject):
         
     def updateAlignPointList(self):
         self.wnd.alignPointsListWidget.clear()
-        imagename=self.wnd.listWidget.item(self.wnd.listWidget.currentRow()).text()
+        crow = self.wnd.lightListWidget.currentRow()
+        
+        if crow < 0: # no item selected!
+            return
+        
+        imagename=self.wnd.lightListWidget.item(crow).text()
         for pnt in self.framelist[self.image_idx].alignpoints:
-            pname=pnt[2]
-            q=Qt.QListWidgetItem(pname,self.wnd.alignPointsListWidget)
-            q.setToolTip(tr('image') +imagename+tr('\nalign point ')+pname)
+            q=Qt.QListWidgetItem(pnt.name,self.wnd.alignPointsListWidget)
+            q.setToolTip(tr('image')+' '+imagename+" \n"+tr('alignment-point')+' '+pnt.name)
 
     def shiftX(self,val):
         if (self.point_idx >= 0):
             pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
-            pnt[0]=val
-            if pnt[3]==True:
-                pnt[3]=False
-            self.imageLabel.repaint()
+            pnt.x=val
+            if pnt.aligned==True:
+                pnt.aligned=False
 
     def shiftY(self,val):
         if (self.point_idx >= 0):
             pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
-            pnt[1]=val
-            if pnt[3]==True:
-                pnt[3]=False
-            self.imageLabel.repaint()
-            
+            pnt.y=val
+            if pnt.aligned==True:
+                pnt.aligned=False            
     
     def shiftStarX(self,val):
         if (self.star_idx >= 0):
             pnt = self.starslist[self.star_idx]
-            pnt[0]=val
-            self.imageLabel.repaint()
+            pnt.x=val
             
     def shiftStarY(self,val):
         if (self.star_idx >= 0):
             pnt = self.starslist[self.star_idx]
-            pnt[1]=val
-            self.imageLabel.repaint()
+            pnt.yval
             
     def setInnerRadius(self,val):
         if (self.star_idx >= 0):
             pnt = self.starslist[self.star_idx]
-            pnt[3]=val
-            if (pnt[4]-pnt[3] < 2):
-                self.wnd.middleRadiusDoubleSpinBox.setValue(pnt[3]+2)
-            self.imageLabel.repaint()
+            pnt.r1=val
+            if (pnt.r2-pnt.r2 < 2):
+                self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r1+2)
             
     def setMiddleRadius(self,val):
         if (self.star_idx >= 0):
             pnt = self.starslist[self.star_idx]
-            pnt[4]=val
-            if (pnt[4]-pnt[3] < 2):
-                self.wnd.innerRadiusDoubleSpinBox.setValue(pnt[4]-2)
-            if (pnt[5]-pnt[4] < 2):
-                self.wnd.outerRadiusDoubleSpinBox.setValue(pnt[4]+2)
-            self.imageLabel.repaint()
+            pnt.r2=val
+            if (pnt.r2-pnt[3] < 2):
+                self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r2-2)
+            if (pnt.r3-pnt.r2 < 2):
+                self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r2+2)
             
     def setOuterRadius(self,val):
         if (self.star_idx >= 0):
             pnt = self.starslist[self.star_idx]
-            pnt[5]=val
-            if (pnt[5]-pnt[4] < 2):
-                self.wnd.middleRadiusDoubleSpinBox.setValue(pnt[5]-2)
-            self.imageLabel.repaint()
+            pnt.r3=val
+            if (pnt.r3-pnt.r2 < 2):
+                self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r3-2)
     
     def setMagnitude(self,val):
         self.starslist[self.star_idx][7]=val
     
     def shiftOffsetX(self,val):
         if (self.dif_image_idx >= 0):
-            self.framelist[self.dif_image_idx].offset[0]=val
-            self.imageLabel.repaint()
-    
+            img = self.framelist[self.dif_image_idx]
+            img.offset[0]=val
+            self.showDifference(reload_images=False)
+        
     def shiftOffsetY(self,val):
         if (self.dif_image_idx >= 0):
-            self.framelist[self.dif_image_idx].offset[1]=val
-            self.imageLabel.repaint()
-    
+            img = self.framelist[self.dif_image_idx]
+            img.offset[1]=val
+            self.showDifference(reload_images=False)
+            
     def rotateOffsetT(self, val):
         if (self.dif_image_idx >= 0):
-            self.framelist[self.dif_image_idx].angle=val
-            self.imageLabel.repaint()
-    
+            img = self.framelist[self.dif_image_idx]
+            img.angle=val
+            self.showDifference(reload_images=False)
+            
     def updateToolBox(self, idx):
         self.ref_image_idx=-1
-        self.qapp.setOverrideCursor(QtCore.Qt.WaitCursor)
-        if (idx<=1) and  (self._old_tab_idx==7) or (self._old_tab_idx==2):
-            try:
-                if self.image_idx>=0:
-                    img = self.framelist[self.image_idx]
-                    qimg=utils.arrayToQImage(self.debayerize(img.getData(asarray=True)),
-                                             bw_jet=self.use_colormap_jet,
-                                             fit_levels=self.fit_levels,
-                                             levels_range=self.levels_range)
-                    self.showImage(qimg)
-            except IndexError:
-                pass #maybe there are no images in the list yet?
-
+        QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
+        
         self.showAlignPoints=False
         self.showStarPoints=False
-        
-        if (idx==1) or (idx==6):
-            self.use_cursor = QtCore.Qt.CrossCursor
-            self.wnd.imageViewer.setCursor(QtCore.Qt.CrossCursor)
-            self.imageLabel.setCursor(QtCore.Qt.CrossCursor)
-        else:
-            self.use_cursor = QtCore.Qt.OpenHandCursor
-            self.wnd.imageViewer.setCursor(QtCore.Qt.OpenHandCursor)
-            self.imageLabel.setCursor(QtCore.Qt.OpenHandCursor)
-        
+                
         if idx==0:
             self.showStarPoints=True
         
@@ -3902,23 +3160,16 @@ class theApp(Qt.QObject):
             self.showAlignPoints=True
                     
         if idx==2:
-            self.trace("Setting up manual alignment controls")
+            log.log("main_app.theApp","Setting up manual alignment controls",level=logging.DEBUG)
             self.manual_align=True
-            self.trace("Updating list of available images")
+            log.log("main_app.theApp","Updating list of available images",level=logging.DEBUG)
             self.updateAlignList()
             if self.wnd.listWidgetManualAlign.count()>0:
-                img=self.framelist[self.wnd.listWidgetManualAlign.item(0).original_id]
-                self.trace("Loading reference image")
-                self.ref_image = utils.arrayToQImage(img.getData(asarray=True),
-                                                     bw_jet=self.use_colormap_jet,
-                                                     fit_levels=self.fit_levels,
-                                                     levels_range=self.levels_range)
-                self.trace("Selecting reference image")
+                
+                log.log("main_app.theApp","Selecting reference image",level=logging.DEBUG)
                 self.wnd.listWidgetManualAlign.setCurrentRow(0)
-                self.updateImage()
-        else:
-            self.manual_align=False
-            
+                self.showDifference()
+                            
         if (idx==6):
             self.showStarPoints=True
             try:
@@ -3928,34 +3179,26 @@ class theApp(Qt.QObject):
                         if self.framelist[i].isUsed():
                             self.image_idx=i
                             break
-                    self.wnd.listWidget.setCurrentRow(self.image_idx)
+                    self.wnd.lightListWidget.setCurrentRow(self.image_idx)
                     img = self.framelist[self.image_idx]
-                    qimg=utils.arrayToQImage(self.debayerize(img.getData(asarray=True)),
-                                             bw_jet=self.use_colormap_jet,
-                                             fit_levels=self.fit_levels,
-                                             levels_range=self.levels_range)
-                    self.showImage(qimg)
+                    self.showImage(self.debayerize(img.getData(asarray=True)))
             except IndexError:
                 pass #maybe there are no images in the list yet?             
         
             
         if (idx==7):
-            self.updateResultImage()
-            if (len(self.framelist)>0):
-                self.wnd.alignPushButton.setEnabled(True)
-                self.wnd.avrPushButton.setEnabled(True)
-                self.wnd.saveVideoPushButton.setEnabled(True)
-                self.wnd.genADUPushButton.setEnabled(True)
-
-        self.imageLabel.repaint()
+            pass #self.showResultImage()
+        
         self._old_tab_idx=idx
-        self.qapp.restoreOverrideCursor()
+        QtGui.QApplication.instance().restoreOverrideCursor()
         
     def newProject(self):
-                
+        
+        self.closeAllMdiWindows()
+        
         self.wnd.toolBox.setCurrentIndex(0)
-        self.wnd.captureGroupBox.setChecked(False)
-        self.wnd.bayerComboBox.setCurrentIndex(0)
+        self.action_enable_video.setChecked(False)
+        self.bayerComboBox.setCurrentIndex(0)
         
         self.wnd.setWindowTitle(str(paths.PROGRAM_NAME)+' [Untitled Project]')
         
@@ -3963,10 +3206,6 @@ class theApp(Qt.QObject):
         self.min_zoom = 0
         self.actual_zoom=1
         self.exposure=0
-        self.zoom_enabled=False
-        self.zoom_fit=False
-        self.current_image = None
-        self.ref_image=None
 
         self.image_idx=-1
         self.ref_image_idx=-1
@@ -4008,13 +3247,10 @@ class theApp(Qt.QObject):
         self.starslist=[]
         self.lightcurve={}
         
-        self.wnd.chartsTabWidget.setTabEnabled(1,False)
-        self.wnd.chartsTabWidget.setTabEnabled(2,False)
+        self.lockSidebar()
         
-        self.setZoom(1)
-        self.setZoomMode(1,True)
-        self.wnd.alignPushButton.setEnabled(False)
-        self.wnd.avrPushButton.setEnabled(False)
+        self.action_align.setEnabled(False)
+        self.action_stack.setEnabled(False)
         self.deactivateResultControls()
         self.wnd.alignGroupBox.setEnabled(False)
         self.wnd.manualAlignGroupBox.setEnabled(False)
@@ -4024,8 +3260,6 @@ class theApp(Qt.QObject):
         self.wnd.biasFramesGroupBox.setEnabled(True)
         self.wnd.darkFramesGroupBox.setEnabled(True)
         self.wnd.flatFramesGroupBox.setEnabled(True)
-        self.wnd.saveADUChartPushButton.setEnabled(False)
-        self.wnd.saveMagChartPushButton.setEnabled(False)
         self.wnd.masterDarkGroupBox.hide()
         self.wnd.masterFlatGroupBox.hide()
         self.wnd.masterBiasGroupBox.hide()
@@ -4038,31 +3272,23 @@ class theApp(Qt.QObject):
         self.wnd.biasMulDoubleSpinBox.setValue(1.0)
         self.wnd.darkMulDoubleSpinBox.setValue(1.0)
         self.wnd.flatMulDoubleSpinBox.setValue(1.0)
-        self.wnd.fitMinMaxCheckBox.setCheckState(0)
-        self.clearList()
+        self.wnd.alignPointsListWidget.clear()        
+        self.wnd.lightListWidget.clear()
         self.wnd.biasListWidget.clear()
         self.wnd.darkListWidget.clear()
         self.wnd.flatListWidget.clear()
         self.wnd.starsListWidget.clear()
-        self.wnd.aduListWidget.clear()
-        self.wnd.magListWidget.clear()
         self.wnd.masterBiasLineEdit.setText('')
         self.wnd.masterDarkLineEdit.setText('')
         self.wnd.masterFlatLineEdit.setText('')
         self.progress.reset()
         self.clearImage()
-        self.clearExifTable()
-        
-        self.setLevelsRange((0,100))
-        self.setDisplayLevelsFitMode(0)
-        
-        self.clearComponents()
         
     def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
                                          os.path.join(self.current_dir,'Untitled.lxn'),
                                          "Project (*.lxn);;All files (*.*)", None,
-                                         self._dialog_options))
+                                         utils.DIALOG_OPTIONS))
         if self.current_project_fname == '':
             self.current_project_fname=None
             return
@@ -4077,7 +3303,7 @@ class theApp(Qt.QObject):
     def corruptedMsgBox(self,info=None):
             msgBox = Qt.QMessageBox(self.wnd)
             msgBox.setText(tr("The project is invalid or corrupted!"))
-            if info!=None:
+            if info is not None:
                 msgBox.setInformativeText(str(info))
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
@@ -4089,8 +3315,8 @@ class theApp(Qt.QObject):
         self.progress.reset()
         self.statusBar.showMessage(tr('saving project, please wait...'))
         
-        if self.wnd.rawGroupBox.isChecked():
-            bayer_mode=self.wnd.bayerComboBox.currentIndex()
+        if self.action_enable_rawmode.isChecked():
+            bayer_mode=self.bayerComboBox.currentIndex()
         else:
             bayer_mode=-1
         
@@ -4254,10 +3480,11 @@ class theApp(Qt.QObject):
 
             for point in img.alignpoints:
                 point_node=doc.createElement('align-point')
-                point_node.setAttribute('x',str(int(point[0])))
-                point_node.setAttribute('y',str(int(point[1])))
-                point_node.setAttribute('id',str(point[2]))
-                point_node.setAttribute('aligned',str(point[3]))
+                point_node.setAttribute('x',str(int(point.x)))
+                point_node.setAttribute('y',str(int(point.y)))
+                point_node.setAttribute('id',str(point.id))
+                point_node.setAttribute('name',str(point.name))
+                point_node.setAttribute('aligned',str(point.aligned))
                 image_node.appendChild(point_node)
             
             offset_node=doc.createElement('offset')
@@ -4279,14 +3506,15 @@ class theApp(Qt.QObject):
             self.progress.setValue(count)
             count+=1
             star_node = doc.createElement('star')
-            star_node.setAttribute('x',str(int(s[0])))
-            star_node.setAttribute('y',str(int(s[1])))
-            star_node.setAttribute('name',str(s[2]))
-            star_node.setAttribute('inner_radius',str(float(s[3])))
-            star_node.setAttribute('middle_radius',str(float(s[4])))
-            star_node.setAttribute('outer_radius',str(float(s[5])))
-            star_node.setAttribute('reference',str(int(s[6])))
-            star_node.setAttribute('magnitude',str(float(s[7])))
+            star_node.setAttribute('x',str(int(s.x)))
+            star_node.setAttribute('y',str(int(s.y)))
+            star_node.setAttribute('name',str(s.name))
+            star_node.setAttribute('id',str(s.id))
+            star_node.setAttribute('inner_radius',str(float(s.r1)))
+            star_node.setAttribute('middle_radius',str(float(s.r2)))
+            star_node.setAttribute('outer_radius',str(float(s.r3)))
+            star_node.setAttribute('reference',str(int(s.reference)))
+            star_node.setAttribute('magnitude',str(float(s.magnitude)))
             star_node.setAttribute('idx',str(int(i)))
             photometry_node.appendChild(star_node)
             
@@ -4295,7 +3523,7 @@ class theApp(Qt.QObject):
             f.write(doc.toprettyxml(' ','\n'))
             f.close()
         except IOError as err:
-            self.trace("Cannot save the project: " + str(err))
+            log.log("main_app.theApp","Cannot save the project: " + str(err),level=logging.ERROR)
             msgBox = Qt.QMessageBox(self.wnd)
             msgBox.setText(tr("Cannot save the project: ")+ str(err))
             msgBox.setInformativeText(tr("Assure you have the permissions to write the file."))
@@ -4310,7 +3538,7 @@ class theApp(Qt.QObject):
     
     def loadProject(self,pname=None):
         
-        self.trace('\nloading project, please wait...\n')
+        log.log("main_app.theApp",'loading project, please wait...',level=logging.INFO)
         old_fname = self.current_project_fname
         
         if pname is None:
@@ -4318,21 +3546,21 @@ class theApp(Qt.QObject):
                                                             tr("Open a project"),
                                                             os.path.join(self.current_dir,'Untitled.lxn'),
                                                             "Project (*.lxn *.prj);;All files (*.*)", None,
-                                                            self._dialog_options)
+                                                            utils.DIALOG_OPTIONS)
                             )
         else:
             project_fname=pname
             
         if project_fname.replace(' ','') == '':
-            self.trace(' no project selected, retvert to previous state\n') 
+            log.log("main_app.theApp",' no project selected, retvert to previous state',level=logging.INFO) 
             return False
         else:
-            self.trace(' project name: \''+str(project_fname)+'\'') 
+            log.log("main_app.theApp",' project name: \''+str(project_fname)+'\'',level=logging.DEBUG) 
             
         try:
             dom = minidom.parse(project_fname)
         except Exception as err:
-            self.trace('failed to parse project, xml formatting error') 
+            log.log("main_app.theApp",'failed to parse project, xml formatting error',level=logging.ERROR) 
             return self.corruptedMsgBox(err)       
 
         self.statusBar.showMessage(tr('loading project, please wait...'))
@@ -4354,7 +3582,7 @@ class theApp(Qt.QObject):
                 master_bias_mul_factor=float(master_bias_node.getAttribute('mul'))
                 _bias_section=True
             except Exception as exc:
-                self.trace('no bias section')
+                log.log("main_app.theApp",'no bias section',level=logging.DEBUG)
                 total_bias=0
                 master_bias_node=None
                 _bias_section=False
@@ -4363,7 +3591,7 @@ class theApp(Qt.QObject):
                 photometry_node = root.getElementsByTagName('photometry')[0]
                 _fotometric_section=True
             except Exception as exc:
-                self.trace('no fotometric section, skipping star loading')
+                log.log("main_app.theApp",'no fotometric section, skipping star loading',level=logging.DEBUG)
                 _fotometric_section=False
                                 
             total_dark = len(dark_frames_node.getElementsByTagName('image'))
@@ -4374,7 +3602,7 @@ class theApp(Qt.QObject):
             self.progress.setMaximum(total_bias+total_dark+total_flat+total_imgs-1)
             count=0
             
-            self.trace('\nloading project information')
+            log.log("main_app.theApp",'loading project information',level=logging.DEBUG)
             
             current_dir_node = information_node.getElementsByTagName('current-dir')[0]
             current_row_node = information_node.getElementsByTagName('current-row')[0]
@@ -4424,7 +3652,7 @@ class theApp(Qt.QObject):
             biasframelist=[]
             biasListWidgetElements = []    
             if _bias_section:
-                self.trace('reading bias-frames section')
+                log.log("main_app.theApp",'reading bias-frames section',level=logging.DEBUG)
                 for node in bias_frames_node.getElementsByTagName('image'):
                     if self.progressWasCanceled():
                         return False
@@ -4445,9 +3673,11 @@ class theApp(Qt.QObject):
                     biasframelist.append(biasfrm)
                     q=Qt.QListWidgetItem(biasfrm.tool_name,None)
                     q.setToolTip(biasfrm.long_tool_name)
+                    biasfrm.addProperty('listItem',q)
+                    biasfrm.addProperty('frametype',utils.BIAS_FRAME_TYPE)
                     biasListWidgetElements.append(q)
             
-            self.trace('reading dark-frames section')
+            log.log("main_app.theApp",'reading dark-frames section',level=logging.DEBUG)
             
             darkframelist=[]
             darkListWidgetElements = []    
@@ -4471,9 +3701,11 @@ class theApp(Qt.QObject):
                 darkframelist.append(darkfrm)
                 q=Qt.QListWidgetItem(darkfrm.tool_name,None)
                 q.setToolTip(darkfrm.long_tool_name)
+                darkfrm.addProperty('listItem',q)
+                darkfrm.addProperty('frametype',utils.DARK_FRAME_TYPE)
                 darkListWidgetElements.append(q)
             
-            self.trace('reading flatfield-frames section')
+            log.log("main_app.theApp",'reading flatfield-frames section',level=logging.DEBUG)
             
             flatframelist=[]
             flatListWidgetElements = []    
@@ -4497,9 +3729,11 @@ class theApp(Qt.QObject):
                 flatframelist.append(flatfrm)
                 q=Qt.QListWidgetItem(flatfrm.tool_name,None)
                 q.setToolTip(flatfrm.long_tool_name)
+                flatfrm.addProperty('listItem',q)
+                flatfrm.addProperty('frametype',utils.FLAT_FRAME_TYPE)
                 flatListWidgetElements.append(q)
                 
-            self.trace('reading light-frames section')
+            log.log("main_app.theApp",'reading light-frames section',level=logging.DEBUG)
             
             framelist=[]  
             listWidgetElements=[]
@@ -4535,7 +3769,9 @@ class theApp(Qt.QObject):
                     point_x  = int(point.getAttribute('x'))
                     point_y  = int(point.getAttribute('y'))
                     point_al = bool(point.getAttribute('aligned')=='True')
-                    frm.alignpoints.append([point_x, point_y, point_id, point_al])
+                    pnt = imgfeatures.AlignmentPoint(point_x, point_y, point_id, point_id)
+                    pnt.aligned = point_al
+                    frm.alignpoints.append(pnt)
                 
                 offset_node=node.getElementsByTagName('offset')[0]
                 offset_x=float(offset_node.getAttribute('x'))
@@ -4558,30 +3794,31 @@ class theApp(Qt.QObject):
                 q.exif_properties=frm.properties
                 listWidgetElements.append(q)
                 frm.addProperty('listItem',q)
+                frm.addProperty('frametype',utils.LIGHT_FRAME_TYPE)
                 framelist.append(frm)
             
             starslist=[]
             starsListWidgetElements=[]
             if _fotometric_section:
-                self.trace('reading stars section')
+                log.log("main_app.theApp",'reading stars section',level=logging.DEBUG)
                 use_image_time=bool(int(photometry_node.getAttribute('time_type')))
                 #photometry section
                 for star_node in photometry_node.getElementsByTagName('star'):
                     if self.progressWasCanceled():
                         return False
-                    s0=int(star_node.getAttribute('x'))
-                    s1=int(star_node.getAttribute('y'))
-                    s2=str(star_node.getAttribute('name'))
-                    s3=float(star_node.getAttribute('inner_radius'))
-                    s4=float(star_node.getAttribute('middle_radius'))
-                    s5=float(star_node.getAttribute('outer_radius'))
-                    s6=bool(int(star_node.getAttribute('reference')))
-                    s7=float(star_node.getAttribute('magnitude'))
-                    oid=int(star_node.getAttribute('idx'))
-                    s=[s0,s1,s2,s3,s4,s5,s6,s7]
-                    
-                    q=Qt.QListWidgetItem(s2,None)
-                    q.setCheckState(int(2*s6))
+                    s= imgfeatures.Star()
+                    s.x=int(star_node.getAttribute('x'))
+                    s.y=int(star_node.getAttribute('y'))
+                    s.name=str(star_node.getAttribute('name'))
+                    s.r1=float(star_node.getAttribute('inner_radius'))
+                    s.r2=float(star_node.getAttribute('middle_radius'))
+                    s.r3=float(star_node.getAttribute('outer_radius'))
+                    s.reference=bool(int(star_node.getAttribute('reference')))
+                    s.magnitude=float(star_node.getAttribute('magnitude'))
+                    s.id=int(star_node.getAttribute('idx'))
+                                        
+                    q=Qt.QListWidgetItem(s.name,None)
+                    q.setCheckState(int(2*s.reference))
                     q.original_id=oid
                     starsListWidgetElements.append(q)
                     starslist.append(s)
@@ -4591,14 +3828,14 @@ class theApp(Qt.QObject):
         except Exception as exc:
             self.current_project_fname=old_fname
             self.unlock()
-            self.trace('An error has occurred while reading the project:\n\"'+str(exc)+'\"')
+            log.log("main_app.theApp",'An error has occurred while reading the project:\"'+str(exc)+'\"',level=logging.ERROR)
             return self.corruptedMsgBox(str(exc))
        
         self.newProject()
         
         self.current_project_fname=project_fname
                 
-        self.trace('setting up project environment')
+        log.log("main_app.theApp",'setting up project environment',level=logging.DEBUG)
         
         for item in starsListWidgetElements:
             self.wnd.starsListWidget.addItem(item)
@@ -4613,19 +3850,12 @@ class theApp(Qt.QObject):
             self.wnd.darkListWidget.addItem(item)
             
         for item in listWidgetElements:
-            self.wnd.listWidget.addItem(item)
-        
-        if 'RGB' in dep:
-            self.wnd.colorBar._is_rgb=True
-            self.wnd.colorBar.current_val=(0.0,0.0,0.0)
-        else:
-            self.wnd.colorBar._is_rgb=False
-            self.wnd.colorBar.current_val=0.0     
+            self.wnd.lightListWidget.addItem(item)
+         
         
         self.currentWidth=imw
         self.currentHeight=imh
         self.currentDepht=dep
-        self.updateBayerComponents()
         self.framelist=framelist
         self.biasframelist=biasframelist
         self.darkframelist=darkframelist
@@ -4635,7 +3865,7 @@ class theApp(Qt.QObject):
         self.master_bias_file=master_bias_url
         self.master_dark_file=master_dark_url
         self.master_flat_file=master_flat_url
-        self.wnd.listWidget.setCurrentRow(current_row)
+        self.wnd.lightListWidget.setCurrentRow(current_row)
         self.autoalign_rectangle=(ar_w, ar_h)
         self.max_points=max_points
         self.min_quality=min_quality
@@ -4644,13 +3874,13 @@ class theApp(Qt.QObject):
         self.current_dir=current_dir
         
         if (len(self.framelist)>0):
-            self._unlock_cap_ctrls()
+            self.unlockSidebar()
             
             if bayer_mode >= 0:
-                self.wnd.rawGroupBox.setChecked(True)
-                self.wnd.bayerComboBox.setCurrentIndex(bayer_mode)
+                self.action_enable_rawmode.setChecked(True)
+                self.bayerComboBox.setCurrentIndex(bayer_mode)
             else:
-                self.wnd.rawGroupBox.setChecked(False)
+                self.action_enable_rawmode.setChecked(False)
             
         if _bias_section:
             self.wnd.masterBiasCheckBox.setCheckState(master_bias_checked)
@@ -4670,7 +3900,7 @@ class theApp(Qt.QObject):
         self.wnd.flatMulDoubleSpinBox.setValue(master_flat_mul_factor)
         if (len(self.flatframelist)>0):
             self.wnd.flatClearPushButton.setEnabled(True)
-        self.trace('project fully loaded\n')
+        log.log("main_app.theApp",'project fully loaded',level=logging.INFO)
         self.wnd.setWindowTitle(str(paths.PROGRAM_NAME)+' ['+self.current_project_fname+']')    
         self.unlock()
         
@@ -4699,14 +3929,14 @@ class theApp(Qt.QObject):
             max_iteration=25
             while (len(points) < ((self.max_points/2)+1)) and (max_iteration>0):
                 points = cv2.goodFeaturesToTrack(g,self.max_points,self.min_quality,min_dist)
-                if points==None:
+                if points is None:
                     points=[]
                 self.min_quality*=0.75
                 max_iteration-=1
 
         else:
             points = cv2.goodFeaturesToTrack(g,self.max_points,self.min_quality,min_dist)
-            if points==None:
+            if points is None:
                 points=[]
             
         if len(points) > 0:            
@@ -4729,7 +3959,7 @@ class theApp(Qt.QObject):
             msgBox.exec_()
 
     def autoSetAlignPoint(self):
-        image_idx=self.wnd.listWidget.currentRow()
+        image_idx=self.wnd.lightListWidget.currentRow()
         current_point=self.wnd.alignPointsListWidget.currentRow()
         self.statusBar.showMessage(tr('detecting points, please wait...'))
         
@@ -4750,18 +3980,18 @@ class theApp(Qt.QObject):
         #if already detected and not moved
         skip=True   
         for i in range(len(self.framelist)):
-            skip &= self.framelist[i].alignpoints[point_idx][3]
+            skip &= self.framelist[i].alignpoints[point_idx].aligned
 
-        #then skip            
+        #then skip
         if skip:
             return True
 
         r_w=Int(self.autoalign_rectangle[0]/2)
         r_h=Int(self.autoalign_rectangle[1]/2)
-        x1=point[0]-r_w
-        x2=point[0]+r_w
-        y1=point[1]-r_h
-        y2=point[1]+r_h
+        x1=point.x-r_w
+        x2=point.x+r_w
+        y1=point.y-r_h
+        y2=point.y+r_h
         
         rawi = self.framelist[image_idx].getData(asarray=True)
         refi = rawi[y1:y2,x1:x2]
@@ -4780,9 +4010,7 @@ class theApp(Qt.QObject):
 
             if self.progressWasCanceled():
                 return False
-
-            frm.alignpoints[point_idx][3]=True                
-
+            
             if i == image_idx:
                 continue
             self.statusBar.showMessage(tr('detecting point ')+str(point_idx+1)+tr(' of ')+str(len(self.framelist[image_idx].alignpoints))+tr(' on image ')+str(i)+tr(' of ')+str(len(self.framelist)-1))
@@ -4803,24 +4031,24 @@ class theApp(Qt.QObject):
             minmax = cv2.minMaxLoc(res)
             del res            
             if self.auto_align_use_whole_image==2:
-                frm.alignpoints[point_idx][0]=minmax[2][0]+r_w
-                frm.alignpoints[point_idx][1]=minmax[2][1]+r_h
+                frm.alignpoints[point_idx].x=minmax[2][0]+r_w
+                frm.alignpoints[point_idx].y=minmax[2][1]+r_h
             else:
-                frm.alignpoints[point_idx][0]=minmax[2][0]+x1
-                frm.alignpoints[point_idx][1]=minmax[2][1]+y1
+                frm.alignpoints[point_idx].x=minmax[2][0]+x1
+                frm.alignpoints[point_idx].y=minmax[2][1]+y1
             
         self.unlock()
         
         return True
     
-    def doAlign(self, *arg, **args):
+    def doAlign(self, clicked):
         return self.align()
         
     def align(self,do_reset=None,do_align=None,do_derot=None):
         
         result=None
         
-        if (do_reset!=None) or (do_align!=None) or (do_derot!=None):
+        if (do_reset is not None) or (do_align is not None) or (do_derot is not None):
             align=(do_align==True)
             derotate=(do_derot==True)
             reset=(do_reset==True)
@@ -4833,7 +4061,7 @@ class theApp(Qt.QObject):
             return False
         
         if reset:
-            self.trace('Resetting alignment...')
+            log.log("main_app.theApp",'Resetting alignment...',level=logging.DEBUG)
             self.progress.setMaximum(len(self.framelist))
             self.lock()
             count=0
@@ -4841,12 +4069,12 @@ class theApp(Qt.QObject):
                 count+=1
                 self.progress.setValue(count)
                 if i.isUsed():
-                    self.trace(' Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0')
+                    log.log("main_app.theApp",'Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0',level=logging.INFO)
                     self.statusBar.showMessage(tr('Resetting alignment for image')+' '+i.name)
-                    i.angle=0
-                    i.offset=(0,0)
+                    i.setAngle(0)
+                    i.setOffset((0,0))
                 else:
-                    self.trace(' Skipping image ' + i.name)
+                    log.log("main_app.theApp",' Skipping image ' + i.name,level=logging.INFO)
             self.unlock()
         else:
             self.is_aligning = True
@@ -4866,7 +4094,7 @@ class theApp(Qt.QObject):
             _tmp = []
             
             for p in i.alignpoints:                
-                _tmp.append(np.array(p[0:2])-i.offset[0:2])
+                _tmp.append(np.array([p.x,p.y])-i.offset[0:2])
                 
             vecslist.append(_tmp)
             
@@ -4891,17 +4119,17 @@ class theApp(Qt.QObject):
                 rmod = (refs[i][0]**2 + refs[i][1]**2)**0.5
                 
                 if (vmod==0) or (rmod==0):
-                    w[i]=0
+                    continue
                 
                 cosa=((x1*x2+y1*y2)/(vmod*rmod))
                 sina=((x2*y1-x1*y2)/(vmod*rmod))
                 
                 if cosa>1:
-                    #this should never never never occurs
+                    #this should never never never occur
                     cosa=1.0
                     
                 if sina>1:
-                    #this should never never never occurs
+                    #this should never never never occur
                     sina=1.0
                     
                 angle+=(math.atan2(sina,cosa)*180.0/math.pi)*var_matrix[i]
@@ -4932,8 +4160,8 @@ class theApp(Qt.QObject):
             for i in range(total_images):
                 for j in range(total_points):
                     p = self.framelist[i].alignpoints[j]
-                    mat[i,j,0]=p[0]
-                    mat[i,j,1]=p[1]
+                    mat[i,j,0]=p.x
+                    mat[i,j,1]=p.y
             
             x_stk = mat[...,0].mean()
             y_stk = mat[...,1].mean()
@@ -4957,8 +4185,8 @@ class theApp(Qt.QObject):
                     x=0
                     y=0
                     for j in range(len(img.alignpoints)):
-                        x+=img.alignpoints[j][0]*w[j]
-                        y+=img.alignpoints[j][1]*w[j]
+                        x+=img.alignpoints[j].x*w[j]
+                        y+=img.alignpoints[j].y*w[j]
                     
                     img.offset[0]=(x/w.sum())
                     img.offset[1]=(y/w.sum())
@@ -5043,23 +4271,21 @@ class theApp(Qt.QObject):
                 
     def _alignPhaseCorrelation(self, align, derotate):
         
-        
-        old_state = self.wnd.zoomCheckBox.checkState()
-        self.wnd.zoomCheckBox.setCheckState(1)
-        self.wnd.zoomCheckBox.setEnabled(False)
-        
         self.statusBar.showMessage(tr('Computing phase correlation, please wait...'))
-        self.clearImage()
+        
+        sw = self.newMdiImageViewer("Phase correlation")
+        iv = self.mdi_windows[sw]['widget']
+        iv.setColorMap(cmaps.jet)
+        iv.forceDisplayLevelsFitMode(1)
+        
         ref_set=False
         self.lock()
         self.progress.setMaximum(len(self.framelist))
-        self.wnd.MainFrame.setEnabled(True)
+        
         ref = None
             
         mask = utils.generateCosBell(self.currentWidth,self.currentHeight)
-        old_rgb_mode = self.wnd.colorBar._is_rgb
-        self.wnd.colorBar._is_rgb=False
-        
+                
         count=0
         
         sharp1=self.wnd.sharp1DoubleSpinBox.value()
@@ -5071,7 +4297,6 @@ class theApp(Qt.QObject):
             count+=1
 
             if self.progressWasCanceled():
-                self.wnd.colorBar._is_rgb=old_rgb_mode
                 self.clearImage()
                 self.unlock()
                 self.wnd.zoomCheckBox.setEnabled(True)
@@ -5080,37 +4305,34 @@ class theApp(Qt.QObject):
                 return False
             
             if img.isUsed():
-                self.qapp.processEvents()
-                if ref == None:
+                QtGui.QApplication.instance().processEvents()
+                if ref is None:
                     ref = img
-                    self.trace('\n using image '+img.name+' as reference')
+                    log.log("main_app.theApp",'using image '+img.name+' as reference',level=logging.INFO)
                     ref_data = ref.getData(asarray=True)
                     if len(ref_data.shape)==3:
                         ref_data=ref_data.sum(2)
                     ref_data*=mask
                     ref.setOffset([0,0])
                 else:
-                    self.trace('\n registering image '+img.name)
+                    log.log("main_app.theApp",'registering image '+img.name,level=logging.INFO)
                     img_data=img.getData(asarray=True)
                     if len(img_data.shape)==3:
                         img_data=img_data.sum(2)
                     img_data*=mask
                     data=utils.register_image(ref_data,img_data,sharp1,sharp2,align,derotate,self.phase_interpolation_order)
-                    self._phase_align_data=(data[1],data[2],data[0].shape)
+                    self._phase_align_data=(data[1],data[2],data[0])
                     self.statusBar.showMessage(tr('shift: ')+str(data[1])+', '+
                                                tr('rotation: ')+str(data[2]))
                     del img_data
-                    if (data[0]!=None) and (self.checked_show_phase_img==2):
-                        self.showImage(utils.arrayToQImage(data[0]))
+                    if (data[0] is not None) and (self.checked_show_phase_img==2):
+                        iv.showImage(data[0])
                     img.setOffset(data[1])
                     img.setAngle(data[2])
                     
         del mask
         self._phase_align_data=None
-        self.wnd.colorBar._is_rgb=old_rgb_mode
-        self.clearImage()
-        self.wnd.zoomCheckBox.setEnabled(True)
-        self.wnd.zoomCheckBox.setCheckState(old_state)
+        sw.close()
         self.unlock()
         self.statusBar.showMessage(tr('DONE'))       
     
@@ -5157,11 +4379,10 @@ class theApp(Qt.QObject):
             return self.product(framelist, bias_image, dark_image, flat_image, **args)
         else:
             #this should never happen
-            self.trace("Something that sould never happen has just happened!")
-            self.trace("An unknonw stacking method has been selected")
+            log.log("main_app.theApp","Something that sould never happen has just happened: An unknonw stacking method has been selected!",level=logging.ERROR)
             return None
     
-    def doStack(self,*arg,**args):
+    def doStack(self, clicked):
         self.stack()
     
     def stack(self,method=None):
@@ -5187,7 +4408,7 @@ class theApp(Qt.QObject):
         else:
             self.stack_dlg.tabWidget.setTabEnabled(3,True)
         
-        if method!=None:
+        if method is not None:
             bias_method=method
             dark_method=method
             flat_method=method
@@ -5263,7 +4484,7 @@ class theApp(Qt.QObject):
         elif (len(self.biasframelist)>0):
             self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
             _bas=self.getStackingMethod(bias_method,self.biasframelist, None, None, None, **bias_args)
-            if _bas==None:
+            if _bas is None:
                 return False
             else:
                 self._bas=_bas
@@ -5284,7 +4505,7 @@ class theApp(Qt.QObject):
         elif (len(self.darkframelist)>0):
             self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
             _drk=self.getStackingMethod(dark_method,self.darkframelist, None, None, None, **dark_args)
-            if _drk==None:
+            if _drk is None:
                 return False
             else:
                 self._drk=_drk
@@ -5305,7 +4526,7 @@ class theApp(Qt.QObject):
         elif (len(self.flatframelist)>0):
             self.statusBar.showMessage(tr('Creating master-flat, please wait...'))
             _flt=self.getStackingMethod(flat_method,self.flatframelist, None, None, None,**flat_args)
-            if _flt==None:
+            if _flt is None:
                 return False
             else:
                 self._flt=_flt
@@ -5314,41 +4535,38 @@ class theApp(Qt.QObject):
         
         _stk=self.getStackingMethod(lght_method,self.framelist, self._bas, self._drk, self._flt,**lght_args)
         
-        if(_stk == None):
+        if(_stk is None):
             self.unlock()
             return False
         else:
             self._stk=_stk-_stk.min()
-            self.statusBar.showMessage(tr('Generating histograhms...'))
-            self._hst=utils.generateHistograhms(self._stk,256) #TODO:make a user's control?
-            self.qapp.processEvents()
-            self.statusBar.showMessage(tr('Generating preview...'))
-            self.qapp.processEvents()
-            self._preview_data=utils.generatePreview(self._stk,512)
-            self._preview_image=utils.arrayToQImage(self._preview_data,bw_jet=self.use_colormap_jet)
+            QtGui.QApplication.instance().processEvents()
             del _stk
-            self.updateResultImage()
+            self.showResultImage(newtab=True)
             self.activateResultControls()
             self.statusBar.showMessage(tr('DONE'))
         self.unlock()
         
-    def generateMasters(self, bias_image=None, dark_image=None, flat_image=None):
-        self.trace("generating master frames")
+        self.wnd.toolBox.setCurrentIndex(7)
         
-        if (bias_image != None):
-            
+    def generateMasters(self, bias_image=None, dark_image=None, flat_image=None):
+        log.log("main_app.theApp","generating master frames",level=logging.INFO)
+        
+        if (bias_image is not None):
+            log.log("main_app.theApp","generating master bias-frame",level=logging.DEBUG)
             master_bias=(bias_image*self.master_bias_mul_factor)
             
         else:
             master_bias=None
             
-        if (dark_image != None):
-            
-            if (master_bias != None):
+        if (dark_image is not None):
+            log.log("main_app.theApp","generating master dark-frame",level=logging.DEBUG)
+            if (master_bias is not None):
                 master_dark=(dark_image-master_bias)*self.master_dark_mul_factor
             else:
                 master_dark=dark_image*self.master_dark_mul_factor
             
+            log.log("main_app.theApp","generating dead-pixels map",level=logging.DEBUG)
             mean_dark=master_dark.mean()
             ddev_dark=master_dark.var()
             dmax=master_dark.max()
@@ -5370,14 +4588,14 @@ class theApp(Qt.QObject):
                     n+=1
                     hot_pixels=np.argwhere((master_dark-dmin)>n*fac)            
             
-            self.trace("Found "+str(len(hot_pixels))+" hot pixels")
+            log.log("main_app.theApp","Found "+str(len(hot_pixels))+" hot pixels",level=logging.INFO)
             
         else:
             master_dark=None
             hot_pixels=None
             
-        if (flat_image != None):
-            
+        if (flat_image is not None):
+            log.log("main_app.theApp","generating master flatfield",level=logging.DEBUG)
             # this should avoid division by zero
             zero_mask = ((flat_image == 0).astype(self.ftype))*flat_image.max()
             corrected = flat_image+zero_mask
@@ -5393,20 +4611,20 @@ class theApp(Qt.QObject):
     
     def calibrate(self, image, master_bias=None, master_dark=None, master_flat=None, hot_pixels=None, debayerize_result=False, **args):
                 
-        if (master_bias == None) and (master_dark == None) and (master_flat == None):
-            self.trace("skipping image calibration")
+        if (master_bias is None) and (master_dark is None) and (master_flat is None):
+            log.log("main_app.theApp","skipping image calibration",level=logging.INFO)
         else:
-            self.trace("calibrating image...")
-            if master_bias!=None:
-                self.trace("calibrating image: subtracting bias")
+            log.log("main_app.theApp","calibrating image...")
+            if master_bias is not None:
+                log.log("main_app.theApp","calibrating image: subtracting bias",level=logging.DEBUG)
                 image -=  master_bias
                                     
-            if master_dark!=None:
-                self.trace("calibrating image: subtracting master dark")
+            if master_dark is not None:
+                log.log("main_app.theApp","calibrating image: subtracting master dark",level=logging.DEBUG)
                 image -=  master_dark
             
-            if hot_pixels!=None:
-                self.trace("calibrating image: correcting for hot pixels")
+            if hot_pixels is not None:
+                log.log("main_app.theApp","calibrating image: correcting for hot pixels",level=logging.DEBUG)
                 
             
                 """
@@ -5447,11 +4665,11 @@ class theApp(Qt.QObject):
                 for hotp in hot_pixels:
                     hotp_x=hotp[1]
                     hotp_y=hotp[0]
-                    image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.wnd.rawGroupBox.isChecked()==2)
+                    image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
                 #self.traceTimeStop()    
                 
-            if master_flat!=None:
-                self.trace("calibrating image: dividing by master flat")
+            if master_flat is not None:
+                log.log("main_app.theApp","calibrating image: dividing by master flat",level=logging.DEBUG)
                 image /= master_flat  
                 
         
@@ -5464,11 +4682,11 @@ class theApp(Qt.QObject):
             
     def registerImages(self, img, img_data):
         if img.angle!=0:
-            
+            log.log("main_app.theApp","rotating of "+str(img.angle)+" degrees",level=logging.INFO)
             img_data = sp.ndimage.interpolation.rotate(img_data,img.angle,order=self.interpolation_order,reshape=False,mode='constant',cval=0.0)
             
         else:
-            self.trace("skipping rotation")
+            log.log("main_app.theApp","skipping rotation",level=logging.INFO)
         
         shift=np.zeros([len(img_data.shape)])
         shift[0]=-img.offset[1]
@@ -5476,11 +4694,11 @@ class theApp(Qt.QObject):
         
         if (shift[0]!=0) or (shift[1]!=0):
             
-            self.trace("shifting of "+str(shift[0:2]))
+            log.log("main_app.theApp","shifting of "+str(shift[0:2])+" pixels",level=logging.INFO)
             img_data = sp.ndimage.interpolation.shift(img_data,shift,order=self.interpolation_order,mode='constant',cval=0.0)
             
         else:
-            self.trace("skipping shift")
+            log.log("main_app.theApp","skipping shift",level=logging.INFO)
         del shift
 
         return img_data
@@ -5494,7 +4712,7 @@ class theApp(Qt.QObject):
         
         total = len(framelist)
         
-        self.trace('Computing ' + str(name) + ', please wait...')
+        log.log("main_app.theApp",'Computing ' + str(name) + ', please wait...',level=logging.INFO)
         
         self.progress.reset()
         self.progress.setMaximum(4*(total-1))
@@ -5518,10 +4736,10 @@ class theApp(Qt.QObject):
             
             if img.isUsed():
                 count+=1
-                self.trace('\nUsing image '+img.name)
+                log.log("main_app.theApp",'Using image '+img.name,level=logging.INFO)
             else:
                 progress_count+=3
-                self.trace('\nSkipping image '+img.name)
+                log.log("main_app.theApp",'Skipping image '+img.name,level=logging.INFO)
                 continue
             
             
@@ -5585,7 +4803,7 @@ class theApp(Qt.QObject):
         self.progress.setValue(4*(total-1))  
         self.statusBar.showMessage(tr('Computing final image...'))
         
-        if post_operation != None:
+        if post_operation is not None:
             result=post_operation(result,count)
             
         
@@ -5606,7 +4824,7 @@ class theApp(Qt.QObject):
         
         total_subs=(n_x_subs+1)*(n_y_subs+1)
         
-        self.trace("Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions")
+        log.log("main_app.theApp","Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions",level=logging.DEBUG)
         self.statusBar.showMessage(tr('Computing') +' '+ str(title) + ', ' + tr('please wait...'))
         self.progress.reset
         self.progress.setMaximum(total_subs*(len(filelist)+1))
@@ -5657,10 +4875,9 @@ class theApp(Qt.QObject):
                         sub=n[yst:ynd,xst:xnd].copy()
                         lst.append(sub)
                 count+=1
-                msg = tr('Computing ')+str(title)+tr(' on subregion ')+str(count)+tr(' of ')+str(total_subs)
-                self.trace(msg)
-                self.statusBar.showMessage(msg)
-                self.qapp.processEvents()
+                log.log("main_app.theApp",'Computing '+str(title)+' on subregion '+str(count)+' of '+str(total_subs),level=logging.INFO)
+                self.statusBar.showMessage(tr('Computing ')+str(title)+tr(' on subregion ')+str(count)+tr(' of ')+str(total_subs))
+                QtGui.QApplication.instance().processEvents()
                 
                 if len(args)>0:
                     try:
@@ -5821,7 +5038,7 @@ class theApp(Qt.QObject):
                 
             r = self.calibrate(r, master_bias, master_dark, master_flat, hot_pixels, **args)
             
-            if original_shape == None:
+            if original_shape is None:
                 original_shape = r.shape
             
             if self.progressWasCanceled():
@@ -5846,7 +5063,7 @@ class theApp(Qt.QObject):
         
         return mdn
     
-    def deGenerateLightCurves(self):
+    def doGenerateLightCurves(self):
         return self.generateLightCurves()
     
     def generateLightCurves(self,method=None):
@@ -5859,7 +5076,7 @@ class theApp(Qt.QObject):
         self._flt=None
         self._bas=None
         
-        self.trace('generating light curves, please wait...')
+        log.log("main_app.theApp",'generating light curves, please wait...',level=logging.INFO)
         
         """
         selecting method and setting options
@@ -5889,7 +5106,7 @@ class theApp(Qt.QObject):
         
         if (show1 or show2 or show3):
             self.stack_dlg.tabWidget.setTabEnabled(0,False)
-            if method!=None:
+            if method is not None:
                 bias_method=method
                 dark_method=method
                 flat_method=method
@@ -5954,7 +5171,7 @@ class theApp(Qt.QObject):
         self.wnd.chartsTabWidget.setTabEnabled(2,False)
         self.wnd.aduListWidget.clear()
         self.wnd.magListWidget.clear()
-        self.qapp.processEvents()
+        QtGui.QApplication.instance().processEvents()
         
         self.lock()
         
@@ -5967,7 +5184,7 @@ class theApp(Qt.QObject):
                 bsa=utils.Frame(self.master_bias_file, **self.frame_open_args)
                 self._bas=bas.getData(asarray=True, ftype=self.ftype)
             elif self.master_bias_file.replace(' ','').replace('\t','') == '':
-                self.trace('skipping bias-frame calibration')
+                log.log("main_app.theApp",'skipping bias-frame calibration',level=logging.INFO)
             else:
                 msgBox = Qt.QMessageBox()
                 msgBox.setText(tr("Cannot open \'"+self.master_bias_file+"\':"))
@@ -5978,38 +5195,38 @@ class theApp(Qt.QObject):
         elif (len(self.biasframelist)>0):
             self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
             _bas=self.getStackingMethod(bias_method,self.biasframelist, None, None, None, **dark_args)
-            if _das==None:
+            if _das is None:
                 return False
             else:
                 self._bas=_bas
         else:
-            self.trace('skipping bias-frame calibration')
+            log.log("main_app.theApp",'skipping bias-frame calibration',level=logging.INFO)
             
         if (self.wnd.masterDarkCheckBox.checkState() == 2):
             if os.path.isfile(self.master_dark_file):
                 drk=utils.Frame(self.master_dark_file, **self.frame_open_args)
                 self._drk=drk.getData(asarray=True, ftype=self.ftype)
             elif self.master_dark_file.replace(' ','').replace('\t','') == '':
-                self.trace('skipping dark-frame calibration')
+                log.log("main_app.theApp",'skipping dark-frame calibration',level=logging.INFO)
             else:
                 utils.showErrorMsgBox(tr("Cannot open")+" \'"+self.master_dark_file+"\':",tr("the file does not exist."))
                 return False
         elif (len(self.darkframelist)>0):
             self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
             _drk=self.getStackingMethod(dark_method,self.darkframelist, None, None, None, **dark_args)
-            if _drk==None:
+            if _drk is None:
                 return False
             else:
                 self._drk=_drk
         else:
-            self.trace('skipping dark-frame calibration')
+            log.log("main_app.theApp",'skipping dark-frame calibration',level=logging.INFO)
             
         if (self.wnd.masterFlatCheckBox.checkState() == 2):
             if os.path.isfile(self.master_flat_file):
                 flt=utils.Frame(self.master_flat_file, **self.frame_open_args)
                 self._flt=flt.getData(asarray=True, ftype=self.ftype)
             elif self.master_flat_file.replace(' ','').replace('\t','') == '':
-                self.trace('skipping flatfield calibration')
+                log.log("main_app.theApp",'skipping flatfield calibration',level=logging.INFO)
             else:
                 utils.showErrorMsgBox(tr("Cannot open")+" \'"+self.master_dark_file+"\':",tr("the file does not exist."))
                 return False
@@ -6017,12 +5234,12 @@ class theApp(Qt.QObject):
         elif (len(self.flatframelist)>0):
             self.statusBar.showMessage(tr('Creating master-flat, please wait...'))
             _flt=self.getStackingMethod(flat_method,self.flatframelist, None, self._drk, None,**flat_args)
-            if _flt==None:
+            if _flt is None:
                 return False
             else:
                 self._flt=_flt
         else:
-            self.trace('skipping flatfield calibration')
+            log.log("main_app.theApp",'skipping flatfield calibration',level=logging.INFO)
  
         
         #create empty lightcurve dict
@@ -6060,10 +5277,10 @@ class theApp(Qt.QObject):
         for img in self.framelist:
             count+=1
             if not (img.isUsed()):
-                self.trace('\nskipping image '+str(img.name))
+                log.log("main_app.theApp",'\nskipping image '+str(img.name),level=logging.INFO)
                 continue
             else:
-                self.trace('\nusing image '+str(img.name))
+                log.log("main_app.theApp",'\nusing image '+str(img.name),level=logging.INFO)
                 
             self.progress.setValue(count)
             r = img.getData(asarray=True, ftype=self.ftype)
@@ -6075,7 +5292,7 @@ class theApp(Qt.QObject):
                 self.lightcurve['time'].append(count)
             
             for i in self.starslist:
-                self.trace('computing adu value for star '+str(i[2]))
+                log.log("main_app.theApp",'computing adu value for star '+str(i[2]),level=logging.INFO)
                
                 di = dist(cx,cy,i[0],i[1])
                 an = math.atan2((cy-i[1]),(cx-i[0]))
@@ -6301,7 +5518,7 @@ class theApp(Qt.QObject):
         file_name = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
                                                 os.path.join(self.current_dir,'lightcurves.csv'),
                                                 "CSV *.csv (*.csv);;All files (*.*)",None,
-                                                self._dialog_options))
+                                                utils.DIALOG_OPTIONS))
         utils.exportTableCSV(self, self.wnd.numDataTableWidget, file_name, sep='\t', newl='\n')
         
     def addLightCurveListElement(self,name,obj_name,widget,index,points,smoothing=8,checked=False,component=0):
@@ -6315,222 +5532,9 @@ class theApp(Qt.QObject):
                             'smoothing':smoothing,
                             'point_size':2,
                             'line_width':1}
-        
-    def levelsDialogButtonBoxClickedEvent(self, button):
-        pushed = self.levels_dlg.buttonBox.standardButton(button)
-        
-        if pushed == self.levels_dlg.buttonBox.Reset:
-            self.levels_dlg.dataClippingGroupBox.setChecked(False)
-            self.resetLevels()
-        elif pushed == self.levels_dlg.buttonBox.Apply:
-            self.backUpLevels()
-            self._stk=self.getNewLevels(self._old_stk)
-            self.updateResultImage()
-        elif pushed == self.levels_dlg.buttonBox.Discard:
-            self.discardLevels()
-            
-    def resetLevels(self):
-        self.levels_dlg.curveTypeComboBox.setCurrentIndex(0)
-        self.levels_dlg.aDoubleSpinBox.setValue(0)
-        self.levels_dlg.bDoubleSpinBox.setValue(1)
-        self.levels_dlg.oDoubleSpinBox.setValue(1)
-        self.levels_dlg.mDoubleSpinBox.setValue(1)
-        self.levels_dlg.nDoubleSpinBox.setValue(np.e)
-        for name in self.MWB_CORRECTION_FACTORS:
-            self.MWB_CORRECTION_FACTORS[name]=[0,0.5,1]
-        self.updateMWBControls()
-        self.updateHistograhm2()
-
-    def discardLevels(self):
-        self.levels_dlg.curveTypeComboBox.setCurrentIndex(self._old_funcidx)
-        self.levels_dlg.aDoubleSpinBox.setValue(self._old_a)
-        self.levels_dlg.bDoubleSpinBox.setValue(self._old_b)
-        self.levels_dlg.oDoubleSpinBox.setValue(self._old_o)
-        self.levels_dlg.mDoubleSpinBox.setValue(self._old_m)
-        self.levels_dlg.nDoubleSpinBox.setValue(self._old_n)        
-        self.updateHistograhm2()
-
-        
-    def backUpLevels(self):
-        self._old_funcidx = self.levels_dlg.curveTypeComboBox.currentIndex()
-        self._old_a = float(self.levels_dlg.aDoubleSpinBox.value())
-        self._old_b = float(self.levels_dlg.bDoubleSpinBox.value())
-        self._old_o = float(self.levels_dlg.oDoubleSpinBox.value())
-        self._old_m = float(self.levels_dlg.mDoubleSpinBox.value())
-        self._old_n = float(self.levels_dlg.nDoubleSpinBox.value())
     
-    def editLevels(self):
-        
-        self.backUpLevels()
-
-        self.rebuildMWBControls()
-                
-        if self._old_stk == None:
-            self._oldhst=self._hst.copy()
-            self._old_stk=self._stk.copy()
-            self.resetLevels()
-        
-        self.updateHistograhm2()
-        
-        if self.levels_dlg.exec_()==1:
-            self._stk=self.getNewLevels(self._old_stk)
-        
-        self.clearMWBControls()
-        self.updateResultImage()
-        
-    def getLevelsClippingRange(self):
-        if self.levels_dlg.dataClippingGroupBox.isChecked():
-            if self.levels_dlg.dataClipping8BitRadioButton.isChecked():
-                data_max = 255
-                data_min = 0
-            elif self.levels_dlg.dataClipping16BitRadioButton.isChecked():
-                data_max = 65535
-                data_min = 0
-        else:
-            data_max = None
-            data_min = None
-        return (data_min,data_max)
-    
-    def getNewLevels(self, data):
-        
-        A = float(self.levels_dlg.aDoubleSpinBox.value())
-        B = float(self.levels_dlg.bDoubleSpinBox.value())
-        o = float(self.levels_dlg.oDoubleSpinBox.value())
-        m = float(self.levels_dlg.mDoubleSpinBox.value())
-        n = float(self.levels_dlg.nDoubleSpinBox.value())    
-        
-        cf=[]
-        
-        for i in self.component_table:
-            if self.levels_dlg.MWBGroupBox.isChecked():
-                cf.append(self.MWB_CORRECTION_FACTORS[self.component_table[i]])
-            else:
-                cf.append(1.0)
-        
-        if self.levels_dlg.MWBGroupBox.isChecked():
-            data=utils.applyWhiteBalance(data,
-                                         self.MWB_CORRECTION_FACTORS,
-                                         self.component_table)
-        
-        if self.levelfunc_idx == 0: #linear
-            data = A+B*data
-        elif self.levelfunc_idx == 1: #logarithmic
-            data = A+B*np.emath.logn(n,(o+m*data))
-        elif self.levelfunc_idx == 2: #power
-            data = A+B*((o+m*data)**n)
-        elif self.levelfunc_idx == 3: #exponential
-            data = A+B*(n**(o+m*data))
-
-        if self.levels_dlg.dataClippingGroupBox.isChecked():
-            if self.levels_dlg.dataClipping8BitRadioButton.isChecked():
-                data_max = 255
-                data_min = 0
-            elif self.levels_dlg.dataClipping16BitRadioButton.isChecked():
-                data_max = 65535
-                data_min = 0
-                
-            return data.clip(data_min,data_max)
-        else:
-            return data
-    
-    def updateHistograhm(self, curve_idx):
-        
-        if self._ignore_histogrham_update:
-            return
-        
-        scenablied = self.levels_dlg.dataClippingGroupBox.isChecked()
-        clipping   = scenablied and self.levels_dlg.dataClippingClipDataRadioButton.isChecked()
-        streching  = scenablied and self.levels_dlg.dataClippingFitDataRadioButton.isChecked()
-                
-        A = float(self.levels_dlg.aDoubleSpinBox.value())
-        B = float(self.levels_dlg.bDoubleSpinBox.value())
-        o = float(self.levels_dlg.oDoubleSpinBox.value())
-        m = float(self.levels_dlg.mDoubleSpinBox.value())
-        n = float(self.levels_dlg.nDoubleSpinBox.value())
-    
-        self.levelfunc_idx=curve_idx
-        
-        data_min,data_max = self.getLevelsClippingRange()
-        
-        if streching:
-            if curve_idx == 0: #linear
-                tmphst=self._oldhst[0,1]
-            elif curve_idx == 1: #logarithmic
-                tmphst=np.emath.logn(n,(o+m*self._oldhst[0,1]))
-            elif curve_idx == 2: #power
-                tmphst=((o+m*self._oldhst[0,1])**n)
-            elif curve_idx == 3: #exponential
-                tmphst=(n**(o+m*self._oldhst[0,1]))
-            
-            minh = min(tmphst)
-            maxh = max(tmphst)
-            
-            B = (data_max-data_min)/(maxh-minh)
-            A = -(data_max-data_min)*minh/(maxh-minh)
-            
-            self._ignore_histogrham_update = True
-            self.levels_dlg.aDoubleSpinBox.setValue(A)
-            self.levels_dlg.bDoubleSpinBox.setValue(B)
-            self._ignore_histogrham_update = False
-    
-        if self.levels_dlg.histoTabWidget.currentIndex() == 0:
-            self._hst[0,0]=np.zeros_like(self._hst[0,0])
-            
-            if self.levels_dlg.MWBGroupBox.isChecked():
-                _hst_wb=utils.applyHistWhiteBalance(self._oldhst,
-                                                    self.MWB_CORRECTION_FACTORS,
-                                                    self.component_table)
-            else:
-                _hst_wb=self._oldhst
-            
-            for i in range(len(self._hst)):
-                
-                if curve_idx == 0: #linear
-                    self._hst[i,1]=A+B*_hst_wb[i,1]
-                elif curve_idx == 1: #logarithmic
-                    self._hst[i,1]=A+B*np.emath.logn(n,(o+m*_hst_wb[i,1]))
-                elif curve_idx == 2: #power
-                    self._hst[i,1]=A+B*((o+m*_hst_wb[i,1])**n)
-                elif curve_idx == 3: #exponential
-                    self._hst[i,1]=A+B*(n**(o+m*_hst_wb[i,1]))
-                
-                if i > 0:
-                                            
-                    if clipping:
-                        mask = (self._hst[i,1]>=data_min)*(self._hst[i,1]<=data_max)
-                        self._hst[i,0]=_hst_wb[i,0]*mask[:-1]
-                    else:
-                        self._hst[i,0]=_hst_wb[i,0]
-                    
-                    for j in range(len(self._hst[i,0])):
-                        x = self._hst[i,1][j]
-                        try:
-                            k=np.argwhere(self._hst[0,1]>=x)[0,0]
-                            x1=self._hst[0,1][k-1]
-                            x2=self._hst[0,1][k]
-                            
-                            # x1 <= x < x2
-                            
-                            delta=x2-x1
-
-                            self._hst[0,0][k-1]+=self._hst[i,0][j]*(x2-x)/delta
-                            self._hst[0,0][k]+=self._hst[i,0][j]*(x-x1)/delta
-                        except:
-                            pass
-            
-        elif self.levels_dlg.histoTabWidget.currentIndex() == 1:
-            self._preview_image=utils.arrayToQImage(self.getNewLevels(self._preview_data),
-                                                    bw_jet=self.use_colormap_jet,
-                                                    levels_range=self.levels_range)
-            
-        self.levels_dlg.update()
-        
-        
-    def updateHistograhm2(self, *arg,**args):
-        self.updateHistograhm(self.levelfunc_idx)
-        
     def progressWasCanceled(self):
-        self.qapp.processEvents()
+        QtGui.QApplication.instance().processEvents()
 
         if self.wasCanceled:
             self.wasCanceled=False
@@ -6547,7 +5551,7 @@ class theApp(Qt.QObject):
         destdir = str(Qt.QFileDialog.getExistingDirectory(self.wnd,
                                                           tr("Choose the output folder"),
                                                           self.current_dir,
-                                                          self._dialog_options | Qt.QFileDialog.ShowDirsOnly ))
+                                                          utils.DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly ))
         self.save_dlg.lineEditDestDir.setText(str(destdir))
         
         
@@ -6557,10 +5561,10 @@ class theApp(Qt.QObject):
         file_name = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
                                                        os.path.join(self.current_dir,'Untitled.avi'),
                                                        "Video *.avi (*.avi);;All files (*.*)",None,
-                                                       self._dialog_options))
+                                                       utils.DIALOG_OPTIONS))
         
         if file_name.replace(' ','') == '':
-            self.trace('no video file selected for output') 
+            log.log("main_app.theApp",'no video file selected for output',level=logging.ERROR)
             return False
         
         
@@ -6596,16 +5600,14 @@ class theApp(Qt.QObject):
         except Exception as exc:
             estr=str(exc)
             if ('doesn\'t support this codec' in estr):
-                self.trace('\n It seems that opencv cannot handle this format.')
-                self.trace(' Try to use a lower resolution and assure you\nhave the permissions to write the file.')
                 
                 utils.showErrorMsgBox(tr("Cannot create the video file."),
                                       tr("Try to use a lower resolution and assure you\nhave the permissions to write the file."))                
         
-        self.trace('writing video to: \"'+file_name+'\"')
-        self.trace(' FPS : ' + str(fps))
-        self.trace(' FOURCC : ' + fcc_str)
-        self.trace(' FRAME SIZE : ' + str(size))
+        log.log("main_app.theApp",'writing video to: \"'+file_name+'\"',level=logging.INFO)
+        log.log("main_app.theApp",' FPS : ' + str(fps),level=logging.DEBUG)
+        log.log("main_app.theApp",' FOURCC : ' + fcc_str,level=logging.DEBUG)
+        log.log("main_app.theApp",' FRAME SIZE : ' + str(size),level=logging.DEBUG)
         
         
         
@@ -6618,12 +5620,12 @@ class theApp(Qt.QObject):
             
             for frm in self.framelist:
                 count+=1
-                self.qapp.processEvents()
+                QtGui.QApplication.instance().processEvents()
                 self.progress.setValue(count)
                 if frm.isUsed():
                     
-                    self.trace('\nusing frame '+str(frm.name))
-                    self.trace(' loading data...')
+                    log.log("main_app.theApp",'using frame '+str(frm.name),level=logging.INFO)
+                    log.log("main_app.theApp",'loading data...',level=logging.DEBUG)
                     
                     img = self.debayerize(frm.getData(asarray=True, asuint8=True, fit_levels=fitlvl)).astype(np.uint8)
                     
@@ -6633,7 +5635,7 @@ class theApp(Qt.QObject):
                         img = self.registerImages(frm,img)
                     
                     if custom_size:
-                        self.trace('resizing image to ' + str(size))
+                        log.log("main_app.theApp",'resizing image to ' + str(size),level=logging.DEBUG)
                         if _rgb:
                             img = sp.ndimage.interpolation.zoom(img,(fzoom,fzoom,1),order=self.interpolation_order)
                         else:
@@ -6641,41 +5643,38 @@ class theApp(Qt.QObject):
                     
                     if _rgb:
                         cv2img = np.empty_like(img)
-                        self.trace(' converting to BRG format...')
+                        log.log("main_app.theApp",' converting to BRG format...',level=logging.DEBUG)
                         cv2img[...,0]=img[...,2]
                         cv2img[...,1]=img[...,1]
                         cv2img[...,2]=img[...,0]
                     else:
-                        self.trace(' converting to BRG format...')
-                        if self.use_colormap_jet:
-                            img = utils.getJetColor(img,fitlvl)
-                            cv2img = np.empty((size[1],size[0],3),dtype=np.uint8)
-                            cv2img[...,0]=img[2]
-                            cv2img[...,1]=img[1]
-                            cv2img[...,2]=img[0]
-                        else:
-                            cv2img = np.empty((size[1],size[0],3),dtype=np.uint8)
-                            cv2img[...,0]=img[...]
-                            cv2img[...,1]=img[...]
-                            cv2img[...,2]=img[...]
+                        log.log("main_app.theApp",' converting to BRG format...',level=logging.DEBUG)
+                        img = utils.getColormappedImage(img,self.current_colormap,fitlvl)
+                        cv2img = np.empty((size[1],size[0],3),dtype=np.uint8)
+                        cv2img[...,0]=img[2]
+                        cv2img[...,1]=img[1]
+                        cv2img[...,2]=img[0]
                             
-                    self.trace(' pushing frame...')
+                    log.log("main_app.theApp",' pushing frame...',level=logging.DEBUG)
                     
                     vw.write(cv2img)
                     
                     del cv2img
                     
                 else:
-                    self.trace('\nskipping frame '+str(frm.name))
+                    log.log("main_app.theApp",'\nskipping frame '+str(frm.name),level=logging.INFO)
                     
             vw.release()
             self.unlock()
             self.statusBar.showMessage(tr('DONE'))
-            self.trace('\nDONE')
+            log.log("main_app.theApp",'DONE',level=logging.INFO)
             
         else:
-            self.trace('\nCannot open destination file')
-        
+            utils.showErrorMsgBox('\nCannot open destination file')
+    
+    def doSaveResult(self, clicked):
+        return self.saveResult()
+
     def saveResult(self):
         self.updateSaveOptions()
         if self.save_dlg.exec_() != 1:
@@ -6689,13 +5688,17 @@ class theApp(Qt.QObject):
             destdir=str(self.save_dlg.lineEditDestDir.text())
 
         self.lock()
-        self.qapp.processEvents()
+        QtGui.QApplication.instance().processEvents()
         name=str(self.save_dlg.lineEditFileName.text())
-
+        
+        flags=None
+        
         if self.save_dlg.radioButtonJpeg.isChecked():
             frmat='jpg'
+            flags=(cv2.cv.CV_IMWRITE_JPEG_QUALITY,int(self.save_dlg.spinBoxIQ.value()))
         elif self.save_dlg.radioButtonPng.isChecked():
             frmat='png'
+            flags=(cv2.cv.CV_IMWRITE_PNG_COMPRESSION,int(self.save_dlg.spinBoxIC.value()))
         elif self.save_dlg.radioButtonTiff.isChecked():
             frmat='tiff'
         elif self.save_dlg.radioButtonFits.isChecked():
@@ -6719,16 +5722,37 @@ class theApp(Qt.QObject):
                 dtype='int'
         elif self.save_dlg.radioButtonFloat.isChecked():
             dtype='float'
-            
-        if frmat=='fits':
-            self._save_fits(destdir,name,bits)
-        elif frmat=='numpy':
-            self._save_numpy(destdir,name,bits,dtype)
-        else:
-            self._save_cv2(destdir,name,frmat,bits)
+        
+        common_args={"force_overwrite":False,
+                     "filename":None,
+                     "save_dlg":False,
+                     "frmat":frmat,
+                     "bits":bits,
+                     "dtype":dtype,
+                     "flags":flags,
+                     "rgb_fits_mode":(self.save_dlg.rgbFitsCheckBox.checkState()==2),
+                     "fits_compressed":(self.save_dlg.comprFitsCheckBox.checkState()==2)}
+        
+        stk_frm = utils.Frame(os.path.join(destdir,name+"."+frmat))
+        stk_frm.saveData(data=self._stk,**common_args)
+        
+        if self.save_dlg.saveMastersCheckBox.checkState()==2:
+            if (self._bas is not None):
+                bas_frm = utils.Frame(os.path.join(destdir,name+"-master-bias."+frmat))
+                bas_frm.saveData(data=self._bas,**common_args)
+                
+            if (self._drk is not None):
+                drk_frm = utils.Frame(os.path.join(destdir,name+"-master-dark."+frmat))
+                drk_frm.saveData(data=self._flf,**common_args)
+                
+            if (self._flt is not None):
+                flt_frm = utils.Frame(os.path.join(destdir,name+"-master-flat."+frmat))
+                flt_frm.saveData(data=self._flf,**common_args)
         
         self.unlock()
         
+    #TODO: move all save functions to Frame class
+    #TODO: add save support for all images and colormaps
     def _save_fits(self,destdir, name, bits):
 
         rgb_mode = (self.save_dlg.rgbFitsCheckBox.checkState()==2)
@@ -6744,21 +5768,21 @@ class theApp(Qt.QObject):
             utils.showWarningMsgBox(tr("Cannot save compressed files with this version of pyfits")+":\n "+ tr("the image was saved as an uncompressed FITS file."))
             
         if self.save_dlg.saveMastersCheckBox.checkState()==2:
-            if (self._bas!=None):
+            if (self._bas is not None):
                 bas_name=os.path.join(destdir,name+"-master-bias")
                 frm = utils.Frame(bas_name)
                 try:
                     frm._imwrite_fits_(self._bas,rgb_mode,compressed=fits_compressed,outbits=bits)
                 except:
                     frm._imwrite_fits_(self._bas,rgb_mode,compressed=False,outbits=bits)
-            if (self._drk!=None):
+            if (self._drk is not None):
                 drk_name=os.path.join(destdir,name+"-master-dark")
                 frm = utils.Frame(drk_name)
                 try:
                     frm._imwrite_fits_(self._drk,rgb_mode,compressed=fits_compressed,outbits=bits)
                 except:
                     frm._imwrite_fits_(self._drk,rgb_mode,compressed=False,outbits=bits)
-            if (self._flt!=None):
+            if (self._flt is not None):
                 flt_name=os.path.join(destdir,name+"-master-flat")
                 frm = utils.Frame(flt_name)
                 try:
@@ -6769,8 +5793,6 @@ class theApp(Qt.QObject):
         
     def _save_numpy(self,destdir, name, bits):
 
-        #header = pyfits
-
         if bits==32:
             outbits=np.float32
         elif bits==64:
@@ -6780,15 +5802,15 @@ class theApp(Qt.QObject):
         np.save(avg_name,self._stk.astype(outbits))
         
         if self.save_dlg.saveMastersCheckBox.checkState()==2:
-            if (self._bas!=None):
+            if (self._bas is not None):
                 bas_name=os.path.join(destdir,name+"-master-bias")
                 np.save(bas_name,self._bas.astype(outbits))
                 
-            if (self._drk!=None):
+            if (self._drk is not None):
                 drk_name=os.path.join(destdir,name+"-master-dark")
                 np.save(drk_name,self._drk.astype(outbits))
             
-            if (self._flt!=None):
+            if (self._flt is not None):
                 flt_name=os.path.join(destdir,name+"-master-flat")
                 np.save(flt_name,self._flt.astype(outbits))
     
@@ -6825,17 +5847,17 @@ class theApp(Qt.QObject):
         
         
         if self.save_dlg.saveMastersCheckBox.checkState()==2:
-            if (self._bas!=None):
+            if (self._bas is not None):
                 bas_name=os.path.join(destdir,name+"-master-bias."+frmt)
                 frm = utils.Frame(bas_name)
                 frm._imwrite_cv2_(rawbas,flags)
                 
-            if (self._drk!=None):
+            if (self._drk is not None):
                 drk_name=os.path.join(destdir,name+"-master-dark."+frmt)
                 frm = utils.Frame(drk_name)
                 frm._imwrite_cv2_(rawdrk,flags)
             
-            if (self._flt!=None):
+            if (self._flt is not None):
                 flt_name=os.path.join(destdir,name+"-master-flat."+frmt)
                 frm = utils.Frame(flt_name)
                 frm._imwrite_cv2_(rawflt,flags)

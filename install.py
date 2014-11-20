@@ -99,10 +99,18 @@ def doInstallation():
         license_path = os.path.join(getPath(paths.DATA_PATH),'licenses',paths.PROGRAM_NAME.lower())
         if not(os.path.isdir(license_path)):
             os.makedirs(license_path)
-
+        
         shutil.copy('./src/main_app.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/utils.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/cr2plugin.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/colormaps.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/guicontrols.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/imgfeatures.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/log.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/mappedimage.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/v4l2_controls.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/videocapture.py', getPath(paths.RESOURCES_PATH))
+        shutil.copy('./src/videodev2.py', getPath(paths.RESOURCES_PATH))
         #shutil.copy('./src/paths.py', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/lxnstack.png', getPath(paths.RESOURCES_PATH))
         shutil.copy('./src/splashscreen.jpg', getPath(paths.RESOURCES_PATH))
@@ -137,6 +145,7 @@ def doInstallation():
         _copytree2('./src/ui', getPath(paths.UI_PATH))
         _copytree2('./src/doc', getPath(paths.DOCS_PATH))
         _copytree2('./src/lang', getPath(paths.LANG_PATH))
+        _copytree2('./src/icons', getPath(paths.ICONS_PATH))
                
         ln_bin_src=os.path.join(getPath(paths.RESOURCES_PATH),'lxnstack.py')
         ln_bin_dst=os.path.join(getPath(paths.BIN_PATH),'lxnstack')
