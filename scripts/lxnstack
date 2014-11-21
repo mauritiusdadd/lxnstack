@@ -22,10 +22,8 @@ import sys, os, time
 PROGRAM_VERSION="1.5.0"
 
 if __name__ == "__main__":
-
-    sys.path.append("@RESOURCES_PATH")
     
-    import log
+    import lxnstack
     
     batch_mode=False
 
@@ -47,18 +45,14 @@ if __name__ == "__main__":
         args=[]
         show_help = False
     
-    logger = log.createMainLogger()
+    logger = lxnstack.log.createMainLogger()
     
     #create main QApplication
     app = Qt.QApplication(sys.argv)
 
-    import paths
-    import utils
-
-    splash=utils.SplashScreen(os.path.join(paths.RESOURCES_PATH,"splashscreen.jpg"),app)
+    splash=lxnstack.guicontrols.SplashScreen()
     app.aboutToQuit.connect(splash.close)
     #import the main application
-    import main_app
 
     if ('--verbose' in sys.argv) or ('-d' in sys.argv):
         _VERBOSE=True
@@ -66,15 +60,15 @@ if __name__ == "__main__":
         _VERBOSE=False
 
     #set some informations
-    app.setOrganizationName(utils.PROGRAM)
-    app.setApplicationName(utils.PROGRAM_NAME)
+    app.setOrganizationName(lxnstack.utils.PROGRAM)
+    app.setApplicationName(lxnstack.utils.PROGRAM_NAME)
     splash.setValue(10)
     splash.showMessage('Loading qt environment...')
 
     #loading translations
     qtr = Qt.QTranslator()
     splash.setValue(10)
-    lang=utils.getLocale()
+    lang=lxnstack.utils.getLocale()
     splash.setValue(15)
     qtr.load(lang)
     splash.setValue(20)
@@ -83,7 +77,7 @@ if __name__ == "__main__":
     
     splash.showMessage('loading application settings...')
     #create the main application
-    mainApp = main_app.theApp(lang,args)
+    mainApp = lxnstack.main_app.theApp(lang,args)
     splash.setValue(90)
 
     if show_help:
@@ -93,12 +87,12 @@ if __name__ == "__main__":
     mainApp.wnd.show()
 
     try:
-        log.log("lxnstack",'loading application settings')
+        lxnstack.log.log("lxnstack",'loading application settings')
         mainApp.loadSettings()
     except Exception as exc:
         #probably the first execution
-        log.log("lxnstack",'an error has occured while loading the application settings:\n'+str(exc),level=logging.ERROR)
-        log.log("lxnstack",'Ignore this warning if it is the first execution after the installation/upgrade.',level=logging.ERROR)
+        lxnstack.log.log("lxnstack",'an error has occured while loading the application settings:\n'+str(exc),level=logging.ERROR)
+        lxnstack.log.log("lxnstack",'Ignore this warning if it is the first execution after the installation/upgrade.',level=logging.ERROR)
         pass
 
     splash.setValue(100)
@@ -111,6 +105,6 @@ if __name__ == "__main__":
             
     retval=app.exec_()
 
-    log.log("lxnstack",'Shutting down...')
+    lxnstack.log.log("lxnstack",'Shutting down...')
 
     sys.exit(retval)

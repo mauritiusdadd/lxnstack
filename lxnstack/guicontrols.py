@@ -29,10 +29,9 @@ DIFFERENCEVIEWER = "diffviewer"
 
 class SplashScreen(Qt.QObject):
     
-    def __init__(self,file_name,qapp=None):
+    def __init__(self):
         Qt.QObject.__init__(self)
-        self._qapp=qapp
-        self._pxm = Qt.QPixmap(os.path.join(paths.RESOURCES_PATH,"splashscreen.jpg"))
+        self._pxm = Qt.QPixmap(os.path.join(paths.DATA_PATH,"splashscreen.jpg"))
         self._qss = Qt.QSplashScreen(self._pxm, 
                                      (QtCore.Qt.WindowStaysOnTopHint |
                                       QtCore.Qt.X11BypassWindowManagerHint))
@@ -125,8 +124,9 @@ class SplashScreen(Qt.QObject):
         self._qss.finish(qwid)
     
     def processEvents(self):
-        if self._qapp is not None:
-            self._qapp.processEvents()
+        qapp=QtGui.QApplication.instance()
+        if qapp is not None:
+            qapp.processEvents()
 
 
 class ToolComboBox(Qt.QFrame):

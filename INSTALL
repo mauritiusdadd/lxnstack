@@ -69,27 +69,21 @@ NOTE: the package xdg-utils must be installed in order
       is the link to the project home-page:
       http://portland.freedesktop.org/xdg-utils-1.0/
 
-To install the program, open a terminal window and 
+This program uses Python Distutils for the installation
+process. For more informations take a look to the python
+documentation: http://portland.freedesktop.org/xdg-utils-1.0/
+
+To install the program, open a terminal window, 
 cd into the directory containing this file, type then
 the following command (without quotes) and press ENTER:
 
- "python2 ./install.py"
- 
-If no errors appear then the program is succesfully
-installed: the executable will be installed by default
-to the directory /usr/local/bin, while the program data
-and documentation will be installed by default in /usr/share
-and /usr/share/doc
-
-If you want to install the program in a different directory
-you have to manually edit the file paths.py located in then
-'src' directory or use the '--prefix="DESTINATION-DIRECTORY"'.
-For more information type "python2 ./install.py --help".
+ "python2 setup.py install"
 
 Finally, you can use the following command (without quotes)
-to associate the lxnstack project (*.lxn) with lxnstack:
+to install the application MIME data and associate the
+lxnstack project (*.lxn) with lxnstack:
 
-"xdg-mime default /usr/share/applications/lxnstack.desktop text/lxnproject"
+ "script/postinst.sh"
 
   [4]  EXECUTION
 To run the program open a terminal window, type the

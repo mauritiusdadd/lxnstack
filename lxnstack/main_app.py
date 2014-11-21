@@ -2192,7 +2192,7 @@ class theApp(Qt.QObject):
         
         toolbar.setObjectName("Misc ToolBar")
                 
-        self.bayerComboBox=utils.ToolComboBox(tr("matrix type:"),tooltip=tr("Specify the type of bayer matrix used"))
+        self.bayerComboBox=guicontrols.ToolComboBox(tr("matrix type:"),tooltip=tr("Specify the type of bayer matrix used"))
         self.bayerComboBox.setEnabled(False)
         self.bayerComboBox.currentIndexChanged.connect(self.updateBayerMatrix)
         
@@ -2225,7 +2225,7 @@ class theApp(Qt.QObject):
         toolbar.addAction(self.action_start_capture)
         toolbar.addAction(self.action_stop_capture)        
         
-        self.directVideoCaptureTypeComboBox=utils.ToolComboBox(tr("output:"),tooltip=tr("Specify how to save the captured images"))
+        self.directVideoCaptureTypeComboBox=guicontrols.ToolComboBox(tr("output:"),tooltip=tr("Specify how to save the captured images"))
         self.directVideoCaptureTypeComboBox.addItem(utils.getQIcon("type-video-file"),"video file")
         self.directVideoCaptureTypeComboBox.addItem(utils.getQIcon("type-frame-sequence"),"frame sequence")
         self.directVideoCaptureTypeComboBox.setEnabled(False)

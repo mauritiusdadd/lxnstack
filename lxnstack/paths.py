@@ -17,16 +17,17 @@
 
 #Paths used for installation process and program execution
 import os
+from pkg_resources import resource_filename
+
 
 PROGRAM_NAME = 'lxnstack'
-PREFIX="" #do not edit PREFIX value, use --prefix option instead.
-DATA_PATH=os.path.join(PREFIX,'share')
-RESOURCES_PATH=os.path.join(DATA_PATH,PROGRAM_NAME.lower())
-DOCS_PATH=os.path.join(DATA_PATH,'doc',PROGRAM_NAME.lower())
-ICONS_PATH=os.path.join(RESOURCES_PATH,'icons')
-LANG_PATH=os.path.join(RESOURCES_PATH,'lang')
-UI_PATH=os.path.join(RESOURCES_PATH,'ui')
+PREFIX='/usr'
+DATA_PATH=resource_filename('lxnstack', 'data')
+RESOURCES_PATH=os.path.join(PREFIX,'share',PROGRAM_NAME.lower())
+DOCS_PATH=os.path.join(RESOURCES_PATH,'doc',PROGRAM_NAME.lower())
+ICONS_PATH=os.path.join(DATA_PATH,'icons')
+LANG_PATH=os.path.join(DATA_PATH,'lang')
+UI_PATH=os.path.join(DATA_PATH,'ui')
 TEMP_PATH=os.path.join('/tmp',PROGRAM_NAME.lower())
-BIN_PATH=os.path.join(PREFIX,'bin')
 HOME_PATH=os.path.join(os.path.expandvars('$HOME'),PROGRAM_NAME.lower())
 CAPTURED_PATH=os.path.join(HOME_PATH,'captured')
