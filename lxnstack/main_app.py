@@ -2539,6 +2539,7 @@ class theApp(Qt.QObject):
                         framelist.append(i)
                         q=Qt.QListWidgetItem(i.tool_name,framelistwidget)
                         q.setToolTip(i.long_tool_name)
+                        q.setCheckState(2)
                         i.addProperty('listItem',q)
                         i.addProperty('frametype',str(frametype))
                     else:
@@ -3408,12 +3409,13 @@ class theApp(Qt.QObject):
 
             self.progress.setValue(count)
             count+=1
-            
-            im_bias_name = i.tool_name
+            im_bias_used = str(i.isUsed())
+            im_bias_name = str(i.tool_name)
             im_bias_url  = i.url
             im_bias_page = i.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_bias_name)
+            image_node.setAttribute('used',im_bias_used)
             
             bias_frames_node.appendChild(image_node)
             
@@ -3428,12 +3430,13 @@ class theApp(Qt.QObject):
 
             self.progress.setValue(count)
             count+=1
-            
-            im_dark_name = i.tool_name
+            im_dark_used = str(i.isUsed())
+            im_dark_name = str(i.tool_name)
             im_dark_url  = i.url
             im_dark_page = i.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_dark_name)
+            image_node.setAttribute('used',im_dark_used)
             
             dark_frames_node.appendChild(image_node)
             
@@ -3448,12 +3451,13 @@ class theApp(Qt.QObject):
             
             self.progress.setValue(count)
             count+=1
-
-            im_flat_name = i.tool_name
+            im_flat_used = str(i.isUsed())
+            im_flat_name = str(i.tool_name)
             im_flat_url  = i.url
             im_flat_page = i.page
             image_node = doc.createElement('image')
             image_node.setAttribute('name',im_flat_name)
+            image_node.setAttribute('used',im_flat_used)
             
             flat_frames_node.appendChild(image_node)
             
@@ -3659,6 +3663,20 @@ class theApp(Qt.QObject):
                     self.progress.setValue(count)
                     count+=1
                     im_bias_name = node.getAttribute('name')
+                    try:
+                        im_bias_used = int(node.getAttribute('used'))
+                    except Exception as exc:
+                        try:
+                            st_im_used=str(node.getAttribute('used')).lower()
+                            if st_im_used=='false':
+                                im_bias_used=0
+                            elif st_im_used=='true':
+                                im_bias_used=2
+                            else:
+                                raise exc
+                        except:
+                            im_bias_used=2
+                            
                     url_bias_node = node.getElementsByTagName('url')[0]
                     im_bias_url = url_bias_node.childNodes[0].data
                     if url_bias_node.attributes.has_key('page'):
@@ -3673,6 +3691,7 @@ class theApp(Qt.QObject):
                     biasframelist.append(biasfrm)
                     q=Qt.QListWidgetItem(biasfrm.tool_name,None)
                     q.setToolTip(biasfrm.long_tool_name)
+                    q.setCheckState(im_bias_used)
                     biasfrm.addProperty('listItem',q)
                     biasfrm.addProperty('frametype',utils.BIAS_FRAME_TYPE)
                     biasListWidgetElements.append(q)
@@ -3687,6 +3706,20 @@ class theApp(Qt.QObject):
                 self.progress.setValue(count)
                 count+=1
                 im_dark_name = node.getAttribute('name')
+                try:
+                    im_dark_used = int(node.getAttribute('used'))
+                except Exception as exc:
+                    try:
+                        st_im_used=str(node.getAttribute('used')).lower()
+                        if st_im_used=='false':
+                            im_dark_used=0
+                        elif st_im_used=='true':
+                            im_dark_used=2
+                        else:
+                            raise exc
+                    except:
+                        im_dark_used=2
+                        
                 url_dark_node = node.getElementsByTagName('url')[0]
                 im_dark_url = url_dark_node.childNodes[0].data
                 if url_dark_node.attributes.has_key('page'):
@@ -3701,6 +3734,7 @@ class theApp(Qt.QObject):
                 darkframelist.append(darkfrm)
                 q=Qt.QListWidgetItem(darkfrm.tool_name,None)
                 q.setToolTip(darkfrm.long_tool_name)
+                q.setCheckState(im_dark_used)
                 darkfrm.addProperty('listItem',q)
                 darkfrm.addProperty('frametype',utils.DARK_FRAME_TYPE)
                 darkListWidgetElements.append(q)
@@ -3715,6 +3749,20 @@ class theApp(Qt.QObject):
                 self.progress.setValue(count)
                 count+=1
                 im_flat_name = node.getAttribute('name')
+                try:
+                    im_flat_used = int(node.getAttribute('used'))
+                except Exception as exc:
+                    try:
+                        st_im_used=str(node.getAttribute('used')).lower()
+                        if st_im_used=='false':
+                            im_flat_name=0
+                        elif st_im_used=='true':
+                            im_flat_name=2
+                        else:
+                            raise exc
+                    except:
+                        im_flat_name=2
+                        
                 url_flat_node = node.getElementsByTagName('url')[0]
                 im_flat_url = url_flat_node.childNodes[0].data
                 if url_flat_node.attributes.has_key('page'):
@@ -3729,6 +3777,7 @@ class theApp(Qt.QObject):
                 flatframelist.append(flatfrm)
                 q=Qt.QListWidgetItem(flatfrm.tool_name,None)
                 q.setToolTip(flatfrm.long_tool_name)
+                q.setCheckState(im_flat_used)
                 flatfrm.addProperty('listItem',q)
                 flatfrm.addProperty('frametype',utils.FLAT_FRAME_TYPE)
                 flatListWidgetElements.append(q)
@@ -4385,7 +4434,7 @@ class theApp(Qt.QObject):
     def doStack(self, clicked):
         self.stack()
     
-    def stack(self,method=None):
+    def stack(self,method=None,skip_light=False):
         
         self.clearResult()
         """
@@ -4408,59 +4457,49 @@ class theApp(Qt.QObject):
         else:
             self.stack_dlg.tabWidget.setTabEnabled(3,True)
         
+        if skip_light:
+            self.stack_dlg.tabWidget.setTabEnabled(0,False)
+        else:
+            self.stack_dlg.tabWidget.setTabEnabled(0,True)
+            
         if method is not None:
             bias_method=method
             dark_method=method
             flat_method=method
             lght_method=method
-            
-            bias_args={'lk':self.stack_dlg.biasLKappa.value(),
-                        'hk':self.stack_dlg.biasHKappa.value(),
-                        'iterations':self.stack_dlg.biasKIters.value(),
-                        'debayerize_result':False}
-            
-            dark_args={'lk':self.stack_dlg.darkLKappa.value(),
-                       'hk':self.stack_dlg.darkHKappa.value(),
-                       'iterations':self.stack_dlg.darkKIters.value(),
-                       'debayerize_result':False}
-            
-            flat_args={'lk':self.stack_dlg.flatLKappa.value(),
-                       'hk':self.stack_dlg.flatHKappa.value(),
-                       'iterations':self.stack_dlg.flatKIters.value(),
-                       'debayerize_result':False}
-                       
-            lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
-                       'hk':self.stack_dlg.ligthHKappa.value(),
-                       'iterations':self.stack_dlg.ligthKIters.value(),
-                       'debayerize_result':True}
-            
+                        
         elif self.stack_dlg.exec_():
             bias_method=self.stack_dlg.biasStackingMethodComboBox.currentIndex()
             dark_method=self.stack_dlg.darkStackingMethodComboBox.currentIndex()
             flat_method=self.stack_dlg.flatStackingMethodComboBox.currentIndex()
             lght_method=self.stack_dlg.ligthStackingMethodComboBox.currentIndex()
             
-            bias_args={'lk':self.stack_dlg.biasLKappa.value(),
-                        'hk':self.stack_dlg.biasHKappa.value(),
-                        'iterations':self.stack_dlg.biasKIters.value(),
-                        'debayerize_result':False}
-            
-            dark_args={'lk':self.stack_dlg.darkLKappa.value(),
-                       'hk':self.stack_dlg.darkHKappa.value(),
-                       'iterations':self.stack_dlg.darkKIters.value(),
-                       'debayerize_result':False}
-            
-            flat_args={'lk':self.stack_dlg.flatLKappa.value(),
-                       'hk':self.stack_dlg.flatHKappa.value(),
-                       'iterations':self.stack_dlg.flatKIters.value(),
-                       'debayerize_result':False}
-                       
-            lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
-                       'hk':self.stack_dlg.ligthHKappa.value(),
-                       'iterations':self.stack_dlg.ligthKIters.value(),
-                       'debayerize_result':True}
         else:
             return False
+        
+        bias_args={'lk':self.stack_dlg.biasLKappa.value(),
+                   'hk':self.stack_dlg.biasHKappa.value(),
+                   'iterations':self.stack_dlg.biasKIters.value(),
+                   'debayerize_result':False}
+        
+        dark_args={'lk':self.stack_dlg.darkLKappa.value(),
+                   'hk':self.stack_dlg.darkHKappa.value(),
+                   'iterations':self.stack_dlg.darkKIters.value(),
+                   'debayerize_result':False}
+        
+        flat_args={'lk':self.stack_dlg.flatLKappa.value(),
+                   'hk':self.stack_dlg.flatHKappa.value(),
+                   'iterations':self.stack_dlg.flatKIters.value(),
+                   'debayerize_result':False}
+                    
+        lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
+                   'hk':self.stack_dlg.ligthHKappa.value(),
+                   'iterations':self.stack_dlg.ligthKIters.value(),
+                   'debayerize_result':True}
+        
+        hotp_args={'hp_smart':bool(self.stack_dlg.hotSmartGroupBox.isChecked()),
+                   'hp_global':bool(self.stack_dlg.hotGlobalRadioButton.isChecked()),
+                   'hp_trashold':self.stack_dlg.hotTrasholdDoubleSpinBox.value()}
         
         self.lock()
         
@@ -4482,8 +4521,8 @@ class theApp(Qt.QObject):
                 msgBox.exec_()
                 return False
         elif (len(self.biasframelist)>0):
-            self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
-            _bas=self.getStackingMethod(bias_method,self.biasframelist, None, None, None, **bias_args)
+            self.statusBar.showMessage(tr('Creating master-bias, please wait...'))
+            _bas=self.getStackingMethod(bias_method,self.biasframelist, None, None, None,**bias_args)
             if _bas is None:
                 return False
             else:
@@ -4504,7 +4543,7 @@ class theApp(Qt.QObject):
                 return False
         elif (len(self.darkframelist)>0):
             self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
-            _drk=self.getStackingMethod(dark_method,self.darkframelist, None, None, None, **dark_args)
+            _drk=self.getStackingMethod(dark_method,self.darkframelist, None, None, None,**dark_args)
             if _drk is None:
                 return False
             else:
@@ -4531,25 +4570,32 @@ class theApp(Qt.QObject):
             else:
                 self._flt=_flt
         
-        self.statusBar.showMessage(tr('Stacking images, please wait...'))
-        
-        _stk=self.getStackingMethod(lght_method,self.framelist, self._bas, self._drk, self._flt,**lght_args)
-        
-        if(_stk is None):
-            self.unlock()
-            return False
+        if skip_light:
+            self.statusBar.clearMessage()
         else:
-            self._stk=_stk-_stk.min()
-            QtGui.QApplication.instance().processEvents()
-            del _stk
-            self.showResultImage(newtab=True)
-            self.activateResultControls()
-            self.statusBar.showMessage(tr('DONE'))
+            self.statusBar.showMessage(tr('Stacking images, please wait...'))
+            
+            _stk=self.getStackingMethod(lght_method,self.framelist, self._bas, self._drk, self._flt,
+                                        hotpixel_options=hotp_args,**lght_args)
+            
+            if(_stk is None):
+                self.unlock()
+                return False
+            else:
+                self._stk=_stk-_stk.min()
+                QtGui.QApplication.instance().processEvents()
+                del _stk
+                self.showResultImage(newtab=True)
+                self.activateResultControls()
+                self.statusBar.showMessage(tr('DONE'))
+                
         self.unlock()
         
         self.wnd.toolBox.setCurrentIndex(7)
         
-    def generateMasters(self, bias_image=None, dark_image=None, flat_image=None):
+        return ((lght_method,lght_args), (bias_method,bias_args), (dark_method,dark_args), (flat_method,flat_args), hotp_args)
+        
+    def generateMasters(self, bias_image=None, dark_image=None, flat_image=None, hot_pixels_options=None):
         log.log("main_app.theApp","generating master frames",level=logging.INFO)
         
         if (bias_image is not None):
@@ -4566,30 +4612,33 @@ class theApp(Qt.QObject):
             else:
                 master_dark=dark_image*self.master_dark_mul_factor
             
-            log.log("main_app.theApp","generating dead-pixels map",level=logging.DEBUG)
-            mean_dark=master_dark.mean()
-            ddev_dark=master_dark.var()
-            dmax=master_dark.max()
-            dmin=master_dark.min()
-            delta=dmax-dmin
-            hot_pixels=[]
+            log.log("main_app.theApp","generating hot-pixels map",level=logging.DEBUG)
             
-            if ddev_dark>0:
-                fac=(ddev_dark)/(1-(mean_dark-dmin)/delta)
+            if hot_pixels_options['hp_smart']:
                 
-                max_number=int(0.005*np.array(master_dark.shape[0:2]).prod())
+                trashold=hot_pixels_options['hp_trashold']
                 
-                mm=master_dark.max(0)
+                if (len(master_dark.shape)==2) or hot_pixels_options['hp_global']:
+                    mean_dark=master_dark.mean()
+                    ddev_dark=master_dark.std()
+                    hot_pixels={'global':True,
+                                'data':np.argwhere(abs(master_dark-mean_dark)>=(trashold*ddev_dark))}
+                    log.log("main_app.theApp","Found "+str(len(hot_pixels['data']))+" hot pixels",level=logging.INFO)
+                elif len(master_dark.shape)==3:
+                    hot_pixels={'global':False,
+                                'data':[]}
+                    hp_count=0
+                    for c in range(master_dark.shape[2]):
+                        mean_dark=master_dark[...,c].mean()
+                        ddev_dark=master_dark[...,c].std()
+                        hp_tmp=np.argwhere(abs(master_dark[...,c]-mean_dark)>=(trashold*ddev_dark))
+                        hp_count=len(hp_tmp)
+                        hot_pixels['data'].append(hp_tmp)
+                        
+                    log.log("main_app.theApp","Found "+str(hp_count)+" hot pixels",level=logging.INFO)
                 
-                n=3
-                hot_pixels=np.argwhere((master_dark-dmin)>n*fac)
-                
-                while len(hot_pixels) > max_number:
-                    n+=1
-                    hot_pixels=np.argwhere((master_dark-dmin)>n*fac)            
-            
-            log.log("main_app.theApp","Found "+str(len(hot_pixels))+" hot pixels",level=logging.INFO)
-            
+            else:
+                hot_pixels=None
         else:
             master_dark=None
             hot_pixels=None
@@ -4660,14 +4709,34 @@ class theApp(Qt.QObject):
                 This is better than simply assign to it a ZERO value.
                 
                 """
-                
-                #self.traceTimeStart("Removing "+str(len(hot_pixels))+" hot pixels...")
-                for hotp in hot_pixels:
-                    hotp_x=hotp[1]
-                    hotp_y=hotp[0]
-                    image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
-                #self.traceTimeStop()    
-                
+                cnt=0
+                if hot_pixels['global']:
+                    self.progress_dialog.setLabelText(tr("Correcting for hotpixels..."))
+                    self.progress_dialog.setValue(0)
+                    self.progress_dialog.setMaximum(len(hot_pixels['data']))
+                    self.progress_dialog.show()
+                    for hotp in hot_pixels['data']:
+                        cnt+=1
+                        self.progress_dialog.setValue(cnt)
+                        hotp_x=hotp[1]
+                        hotp_y=hotp[0]
+                        image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
+                        QtGui.QApplication.instance().processEvents()
+                else:
+                    for c in range(len(hot_pixels['data'])):
+                        self.progress_dialog.setLabelText(tr("Correcting for hotpixels in component "+str(c)+"..."))
+                        self.progress_dialog.setValue(0)
+                        self.progress_dialog.setMaximum(len(hot_pixels['data'][c]))
+                        self.progress_dialog.show()
+                        for hotp in hot_pixels['data'][c]:
+                            cnt+=1
+                            self.progress_dialog.setValue(cnt)
+                            hotp_x=hotp[1]
+                            hotp_y=hotp[0]
+                            image[hotp_y,hotp_x,c]=utils.getNeighboursAverage(image[...,c],hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
+                            QtGui.QApplication.instance().processEvents()
+                            
+                self.progress_dialog.hide()
             if master_flat is not None:
                 log.log("main_app.theApp","calibrating image: dividing by master flat",level=logging.DEBUG)
                 image /= master_flat  
@@ -4708,7 +4777,12 @@ class theApp(Qt.QObject):
         
         result = None
         
-        master_bias, master_dark, master_flat, hot_pixels = self.generateMasters(bias_image,dark_image,flat_image)
+        if 'hotpixel_options' in args:
+            hotp_args=args['hotpixel_options']
+        else:
+            hotp_args=None
+        
+        master_bias, master_dark, master_flat, hot_pixels = self.generateMasters(bias_image,dark_image,flat_image,hotp_args)
         
         total = len(framelist)
         
@@ -4790,21 +4864,21 @@ class theApp(Qt.QObject):
                         result=operation(result,r)
 
             del r
-                    
         
-        if chunks_size>1 and len(chunks) > 1:
-            
-            if 'numpy_like' in args and args['numpy_like']==True:
-                result=operation(chunks, axis=0)
-            else:
-                result=operation(chunks)
-            
-            
         self.progress.setValue(4*(total-1))  
-        self.statusBar.showMessage(tr('Computing final image...'))
         
-        if post_operation is not None:
-            result=post_operation(result,count)
+        if result is not None:
+            if chunks_size>1 and len(chunks) > 1:
+                
+                if 'numpy_like' in args and args['numpy_like']==True:
+                    result=operation(chunks, axis=0)
+                else:
+                    result=operation(chunks)
+                
+            self.statusBar.showMessage(tr('Computing final image...'))
+            
+            if post_operation is not None:
+                result=post_operation(result,count)
             
         
         self.statusBar.clearMessage()
@@ -4818,7 +4892,10 @@ class theApp(Qt.QObject):
     """
     #TODO: make option to change subw and subh
     def _operationOnSubregions(self,operation, filelist, shape, title="", subw=256, subh=256, **args):
-
+        
+        if len(filelist) == 0:
+            return None
+        
         n_y_subs=shape[0]/subh
         n_x_subs=shape[1]/subw
         
@@ -5078,91 +5155,8 @@ class theApp(Qt.QObject):
         
         log.log("main_app.theApp",'generating light curves, please wait...',level=logging.INFO)
         
-        """
-        selecting method and setting options
-        before stacking
-        """
+        self.stack(skip_light=True)
         
-        if(self.wnd.masterBiasCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(1,False)
-            show1=False
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(1,True)
-            show1=True
-        
-        if(self.wnd.masterDarkCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(2,False)
-            show2=False
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(2,True)
-            show2=True
-            
-        if(self.wnd.masterFlatCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(3,False)
-            show3=False
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(3,True)
-            show3=True
-        
-        if (show1 or show2 or show3):
-            self.stack_dlg.tabWidget.setTabEnabled(0,False)
-            if method is not None:
-                bias_method=method
-                dark_method=method
-                flat_method=method
-                lght_method=method
-            
-                    
-                bias_args={'lk':self.stack_dlg.biasLKappa.value(),
-                            'hk':self.stack_dlg.biasHKappa.value(),
-                            'iterations':self.stack_dlg.biasKIters.value(),
-                            'debayerize_result':False}
-                
-                dark_args={'lk':self.stack_dlg.darkLKappa.value(),
-                        'hk':self.stack_dlg.darkHKappa.value(),
-                        'iterations':self.stack_dlg.darkKIters.value(),
-                        'debayerize_result':False}
-                
-                flat_args={'lk':self.stack_dlg.flatLKappa.value(),
-                        'hk':self.stack_dlg.flatHKappa.value(),
-                        'iterations':self.stack_dlg.flatKIters.value(),
-                        'debayerize_result':False}
-                        
-                lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
-                        'hk':self.stack_dlg.ligthHKappa.value(),
-                        'iterations':self.stack_dlg.ligthKIters.value(),
-                        'debayerize_result':True}
-            elif self.stack_dlg.exec_():
-                bias_method=self.stack_dlg.biasStackingMethodComboBox.currentIndex()
-                dark_method=self.stack_dlg.darkStackingMethodComboBox.currentIndex()
-                flat_method=self.stack_dlg.flatStackingMethodComboBox.currentIndex()
-                lght_method=self.stack_dlg.ligthStackingMethodComboBox.currentIndex()
-            
-                    
-                bias_args={'lk':self.stack_dlg.biasLKappa.value(),
-                            'hk':self.stack_dlg.biasHKappa.value(),
-                            'iterations':self.stack_dlg.biasKIters.value(),
-                            'debayerize_result':False}
-                
-                dark_args={'lk':self.stack_dlg.darkLKappa.value(),
-                        'hk':self.stack_dlg.darkHKappa.value(),
-                        'iterations':self.stack_dlg.darkKIters.value(),
-                        'debayerize_result':False}
-                
-                flat_args={'lk':self.stack_dlg.flatLKappa.value(),
-                        'hk':self.stack_dlg.flatHKappa.value(),
-                        'iterations':self.stack_dlg.flatKIters.value(),
-                        'debayerize_result':False}
-                        
-                lght_args={'lk':self.stack_dlg.ligthLKappa.value(),
-                        'hk':self.stack_dlg.ligthHKappa.value(),
-                        'iterations':self.stack_dlg.ligthKIters.value(),
-                        'debayerize_result':True}
-            else:
-                self.stack_dlg.tabWidget.setTabEnabled(0,True)
-                return False
-            self.stack_dlg.tabWidget.setTabEnabled(0,True)
-            
         self.wnd.tabWidget.setCurrentIndex(2)
         self.wnd.chartsTabWidget.setCurrentIndex(1)
         self.wnd.saveADUChartPushButton.setEnabled(False)
@@ -5174,74 +5168,7 @@ class theApp(Qt.QObject):
         QtGui.QApplication.instance().processEvents()
         
         self.lock()
-        
-        self.master_bias_file = str(self.wnd.masterBiasLineEdit.text())
-        self.master_dark_file = str(self.wnd.masterDarkLineEdit.text())
-        self.master_flat_file = str(self.wnd.masterFlatLineEdit.text())
-        
-        if (self.wnd.masterBiasCheckBox.checkState() == 2):
-            if os.path.isfile(self.master_bias_file):
-                bsa=utils.Frame(self.master_bias_file, **self.frame_open_args)
-                self._bas=bas.getData(asarray=True, ftype=self.ftype)
-            elif self.master_bias_file.replace(' ','').replace('\t','') == '':
-                log.log("main_app.theApp",'skipping bias-frame calibration',level=logging.INFO)
-            else:
-                msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("Cannot open \'"+self.master_bias_file+"\':"))
-                msgBox.setInformativeText(tr("the file does not exist."))
-                msgBox.setIcon(Qt.QMessageBox.Critical)
-                msgBox.exec_()
-                return False
-        elif (len(self.biasframelist)>0):
-            self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
-            _bas=self.getStackingMethod(bias_method,self.biasframelist, None, None, None, **dark_args)
-            if _das is None:
-                return False
-            else:
-                self._bas=_bas
-        else:
-            log.log("main_app.theApp",'skipping bias-frame calibration',level=logging.INFO)
-            
-        if (self.wnd.masterDarkCheckBox.checkState() == 2):
-            if os.path.isfile(self.master_dark_file):
-                drk=utils.Frame(self.master_dark_file, **self.frame_open_args)
-                self._drk=drk.getData(asarray=True, ftype=self.ftype)
-            elif self.master_dark_file.replace(' ','').replace('\t','') == '':
-                log.log("main_app.theApp",'skipping dark-frame calibration',level=logging.INFO)
-            else:
-                utils.showErrorMsgBox(tr("Cannot open")+" \'"+self.master_dark_file+"\':",tr("the file does not exist."))
-                return False
-        elif (len(self.darkframelist)>0):
-            self.statusBar.showMessage(tr('Creating master-dark, please wait...'))
-            _drk=self.getStackingMethod(dark_method,self.darkframelist, None, None, None, **dark_args)
-            if _drk is None:
-                return False
-            else:
-                self._drk=_drk
-        else:
-            log.log("main_app.theApp",'skipping dark-frame calibration',level=logging.INFO)
-            
-        if (self.wnd.masterFlatCheckBox.checkState() == 2):
-            if os.path.isfile(self.master_flat_file):
-                flt=utils.Frame(self.master_flat_file, **self.frame_open_args)
-                self._flt=flt.getData(asarray=True, ftype=self.ftype)
-            elif self.master_flat_file.replace(' ','').replace('\t','') == '':
-                log.log("main_app.theApp",'skipping flatfield calibration',level=logging.INFO)
-            else:
-                utils.showErrorMsgBox(tr("Cannot open")+" \'"+self.master_dark_file+"\':",tr("the file does not exist."))
-                return False
-            
-        elif (len(self.flatframelist)>0):
-            self.statusBar.showMessage(tr('Creating master-flat, please wait...'))
-            _flt=self.getStackingMethod(flat_method,self.flatframelist, None, self._drk, None,**flat_args)
-            if _flt is None:
-                return False
-            else:
-                self._flt=_flt
-        else:
-            log.log("main_app.theApp",'skipping flatfield calibration',level=logging.INFO)
- 
-        
+                
         #create empty lightcurve dict
         self.lightcurve={True:{},False:{},'time':[],'info':[],'magnitudes':{}}
         self.progress.reset()     

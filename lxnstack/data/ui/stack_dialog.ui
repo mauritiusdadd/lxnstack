@@ -137,8 +137,11 @@
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="ligthLKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -161,14 +164,17 @@
                    <item>
                     <widget class="QLabel" name="label_4">
                      <property name="text">
-                      <string>Higher clipping</string>
+                      <string>Upper clipping</string>
                      </property>
                     </widget>
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="ligthHKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -197,6 +203,9 @@
                    </item>
                    <item>
                     <widget class="QSpinBox" name="ligthKIters">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="minimum">
                       <number>1</number>
                      </property>
@@ -313,8 +322,11 @@
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="biasLKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -337,14 +349,17 @@
                    <item>
                     <widget class="QLabel" name="label_11">
                      <property name="text">
-                      <string>Higher clipping</string>
+                      <string>Upper clipping</string>
                      </property>
                     </widget>
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="biasHKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -373,6 +388,9 @@
                    </item>
                    <item>
                     <widget class="QSpinBox" name="biasKIters">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="minimum">
                       <number>1</number>
                      </property>
@@ -489,8 +507,11 @@
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="darkLKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -513,14 +534,17 @@
                    <item>
                     <widget class="QLabel" name="label_6">
                      <property name="text">
-                      <string>Higher clipping</string>
+                      <string>Upper clipping</string>
                      </property>
                     </widget>
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="darkHKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -549,12 +573,108 @@
                    </item>
                    <item>
                     <widget class="QSpinBox" name="darkKIters">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="minimum">
                       <number>1</number>
                      </property>
                     </widget>
                    </item>
                   </layout>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="tab_3">
+                <attribute name="title">
+                 <string>Hotpixels</string>
+                </attribute>
+                <layout class="QVBoxLayout" name="verticalLayout_14">
+                 <item>
+                  <widget class="QGroupBox" name="hotSmartGroupBox">
+                   <property name="title">
+                    <string>Smart detection</string>
+                   </property>
+                   <property name="flat">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checkable">
+                    <bool>true</bool>
+                   </property>
+                   <property name="checked">
+                    <bool>false</bool>
+                   </property>
+                   <layout class="QGridLayout" name="gridLayout">
+                    <item row="0" column="1">
+                     <widget class="QRadioButton" name="hotGlobalRadioButton">
+                      <property name="text">
+                       <string>global</string>
+                      </property>
+                      <property name="checked">
+                       <bool>true</bool>
+                      </property>
+                      <property name="autoExclusive">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="0" column="0">
+                     <widget class="QLabel" name="label_14">
+                      <property name="minimumSize">
+                       <size>
+                        <width>150</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>detection method</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="0" column="2">
+                     <widget class="QRadioButton" name="hotCompRadioButton">
+                      <property name="text">
+                       <string>per component</string>
+                      </property>
+                      <property name="autoExclusive">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QLabel" name="label_13">
+                      <property name="minimumSize">
+                       <size>
+                        <width>150</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>detection trashold</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1" colspan="2">
+                     <widget class="QDoubleSpinBox" name="hotTrasholdDoubleSpinBox">
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                      <property name="suffix">
+                       <string> σ</string>
+                      </property>
+                      <property name="minimum">
+                       <double>4.000000000000000</double>
+                      </property>
+                      <property name="singleStep">
+                       <double>0.500000000000000</double>
+                      </property>
+                      <property name="value">
+                       <double>5.000000000000000</double>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
                  </item>
                 </layout>
                </widget>
@@ -665,8 +785,11 @@
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="flatLKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -689,14 +812,17 @@
                    <item>
                     <widget class="QLabel" name="label_8">
                      <property name="text">
-                      <string>Higher clipping</string>
+                      <string>Upper clipping</string>
                      </property>
                     </widget>
                    </item>
                    <item>
                     <widget class="QDoubleSpinBox" name="flatHKappa">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="suffix">
-                      <string> sigma</string>
+                      <string> σ</string>
                      </property>
                      <property name="singleStep">
                       <double>0.010000000000000</double>
@@ -725,6 +851,9 @@
                    </item>
                    <item>
                     <widget class="QSpinBox" name="flatKIters">
+                     <property name="alignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="minimum">
                       <number>1</number>
                      </property>
@@ -770,8 +899,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>252</x>
-     <y>295</y>
+     <x>256</x>
+     <y>335</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -786,8 +915,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>320</x>
-     <y>295</y>
+     <x>324</x>
+     <y>335</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>

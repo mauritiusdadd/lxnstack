@@ -413,7 +413,7 @@ class Frame(Qt.QObject):
     def isUsed(self):
         
         check = self.getProperty('listItem')
-
+        
         if (check is None):
             return True
         elif check.checkState() == 2:

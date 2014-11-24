@@ -969,7 +969,7 @@ to compute master-dark file</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>151</width>
+         <width>198</width>
          <height>305</height>
         </rect>
        </property>
@@ -1694,8 +1694,8 @@ The checked stars will be used
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>100</width>
-         <height>30</height>
+         <width>94</width>
+         <height>24</height>
         </rect>
        </property>
        <attribute name="label">
