@@ -4717,24 +4717,30 @@ class theApp(Qt.QObject):
                     self.progress_dialog.show()
                     for hotp in hot_pixels['data']:
                         cnt+=1
-                        self.progress_dialog.setValue(cnt)
+                        if cnt % 100 == 0: # do not overload main application
+                            self.progress_dialog.setValue(cnt)
+                            QtGui.QApplication.instance().processEvents()
                         hotp_x=hotp[1]
                         hotp_y=hotp[0]
                         image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
-                        QtGui.QApplication.instance().processEvents()
                 else:
+                    total_progress=0
+                    for c in range(len(hot_pixels['data'])):
+                        total_progress=len(hot_pixels['data'][c])
+                    self.progress_dialog.setValue(0)
+                    self.progress_dialog.setMaximum(len(hot_pixels['data'][c]))
+                    self.progress_dialog.show()
                     for c in range(len(hot_pixels['data'])):
                         self.progress_dialog.setLabelText(tr("Correcting for hotpixels in component "+str(c)+"..."))
-                        self.progress_dialog.setValue(0)
-                        self.progress_dialog.setMaximum(len(hot_pixels['data'][c]))
-                        self.progress_dialog.show()
                         for hotp in hot_pixels['data'][c]:
                             cnt+=1
-                            self.progress_dialog.setValue(cnt)
+                            if cnt % 100 == 0: # do not overload main application
+                                self.progress_dialog.setValue(cnt)
+                                QtGui.QApplication.instance().processEvents()
                             hotp_x=hotp[1]
                             hotp_y=hotp[0]
                             image[hotp_y,hotp_x,c]=utils.getNeighboursAverage(image[...,c],hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
-                            QtGui.QApplication.instance().processEvents()
+                            
                             
                 self.progress_dialog.hide()
             if master_flat is not None:
