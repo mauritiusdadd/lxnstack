@@ -399,7 +399,30 @@ class Frame(Qt.QObject):
         self.angle=0
         self.offset=None
         self.setOffset([0,0])
-        
+    
+    def _setModeFromArray(self, arr):
+        if len(_tmp_data.shape) > 2:
+            dpth = _tmp_data.shape[2]
+            dtyp = _tmp_data.dtype
+            
+            if dpth == 1:
+                if np.issubdtype(dtyp,np.float):
+                    self.mode = 'F'
+                elif (dtyp is np.int8) or (dtyp is np.uint8):
+                    self.mode = 'L'
+                elif (np.issubdtype(dtyp,np.int) or np.issubdtype(dtyp,np.uint)
+                      or np.issubdtype(dtyp,np.uint16) or np.issubdtype(dtyp,np.uint32)
+                      or np.issubdtype(dtyp,np.uint6)):
+                    self.mode = 'I'
+                elif np.issubdtype(dtyp,np.bool):
+                    self.mode = '1'
+            elif dpth == 3:
+                self.mode = 'RGB'
+            elif dpth == 4:
+                self.mode = 'RGBA'
+            else:
+                return None
+    
     def setUrl(self, url, page):
         self.url=str(url)
         self.name=os.path.basename(self.url)
@@ -410,6 +433,32 @@ class Frame(Qt.QObject):
     def isRGB(self):
         return ('RGB' in self.mode)
     
+    
+    
+    def getNumeberOfComponents(self):
+        if '1' in self.mode:
+            return 1
+        elif 'L' in self.mode:
+            return 1
+        elif 'P' in self.mode:
+            return 1
+        elif 'RGBA' in self.mode:
+            return 4
+        elif 'RGB' in self.mode:
+            return 3
+        elif 'CMYK' in self.mode:
+            return 4
+        elif 'YCbCr' in self.mode:
+            return 3
+        elif 'LAB' in self.mode:
+            return 3
+        elif 'HSV' in self.mode:
+            return 3
+        elif 'I' in self.mode:
+            return 1
+        elif 'F' in self.mode:
+            return 1
+        
     def isUsed(self):
         
         check = self.getProperty('listItem')
@@ -1655,16 +1704,16 @@ def getNeighboursAverage(array,x0,y0,raw_mode=False):
     total1=0.0
     count1=0.0
     
-    if raw_mode == False:
-        x1=x0-1
-        x2=x0+1
-        y1=y0-1
-        y2=y0+1
-    else:
+    if raw_mode:
         x1=x0-2
         x2=x0+2
         y1=y0-2
         y2=y0+2
+    else:
+        x1=x0-1
+        x2=x0+1
+        y1=y0-1
+        y2=y0+1        
     
     if (x1 >= 0):
         total1+=array[y0,x1]

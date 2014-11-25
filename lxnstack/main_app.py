@@ -1801,7 +1801,7 @@ class theApp(Qt.QObject):
         #TODO:
         pass
     
-    def showImage(self, image, title=None, newtab=False, mdisubwindow=None, activate_sw=True,override_cursor=True):
+    def showImage(self, image, title=None, newtab=False, mdisubwindow=None, activate_sw=True,override_cursor=True,context_subtitle=None):
         if override_cursor:
             QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
         
@@ -1810,7 +1810,10 @@ class theApp(Qt.QObject):
                 title = image.tool_name
             except:
                 title = ""
-                
+        
+        if context_subtitle is not None:
+            title="["+str(context_subtitle)+"] "+title
+            
         if mdisubwindow is None:
             sw=None
             for swnd in self.mdi_windows:
@@ -2629,14 +2632,15 @@ class theApp(Qt.QObject):
             self.wnd.lightListWidget.item(i).setCheckState(state)
 
     def isBayerUsed(self):
-        if (self.currentDepht == 'L') and self.action_enable_rawmode.isChecked():
+        if (self.currentDepht in '1LPIF') and self.action_enable_rawmode.isChecked():
             return True
         else:
             return False
 
     def debayerize(self, data):
+        
         if (data is not None) and (len(data.shape)==2) and self.isBayerUsed():
-            
+            log.log("main_app.theApp","Debayering raw image",level=logging.INFO)
             bayer = self.bayerComboBox.currentIndex()
             
             correction_factors=[1.0,1.0,1.0]
@@ -2648,11 +2652,15 @@ class theApp(Qt.QObject):
             
             if bayer == 0:
                 mode = cv2.cv.CV_BayerBG2RGB
+                log.log("main_app.theApp","using bayer matrix RGGB",level=logging.DEBUG)
             elif bayer == 1:
                 mode = cv2.cv.CV_BayerGB2RGB
+                log.log("main_app.theApp","using bayer matrix GRGB",level=logging.DEBUG)
             elif bayer == 2:
                 mode = cv2.cv.CV_BayerRG2RGB
+                log.log("main_app.theApp","using bayer matrix BGGR",level=logging.DEBUG)
             else: # this shuold be only bayer == 3
+                log.log("main_app.theApp","using bayer matrix GBGR",level=logging.DEBUG)
                 mode = cv2.cv.CV_BayerGR2RGB
             
             #TODO: Create a native debayerizing algorithm
@@ -2661,6 +2669,7 @@ class theApp(Qt.QObject):
             
             return new_data
         else:
+            log.log("main_app.theApp","Skipping debayerig",level=logging.DEBUG)
             return data
 
     def updateBayerMatrix(self, *arg):
@@ -2668,18 +2677,12 @@ class theApp(Qt.QObject):
         # function is connected  to multiple signals
         if len(self.framelist) == 0:
             return
-        
-        img = self.framelist[self.image_idx]
-        arr = self.debayerize(img.getData(asarray=True))
-        
+                
         if self.action_enable_rawmode.isChecked():
             self.bayerComboBox.setEnabled(True)
         else:
             self.bayerComboBox.setEnabled(False)
-        
-        self.showImage(arr)
-        
-        
+            
     def updateADUlistItemChanged(self, idx):
         
         if idx < 0:
@@ -2788,35 +2791,35 @@ class theApp(Qt.QObject):
         self.wnd.lineWidthMagDoubleSpinBox.setValue(linewidth)
     
     def showFrameItemInNewTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, True)
+        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, True, 'light')
     
     def showDarkFrameItemInNewTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, True)
+        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, True, 'dark')
     
     def showFlatFrameItemInNewTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, True)
+        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, True, 'flat')
     
     def showBiasFrameItemInNewTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, True)
+        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, True, 'bias')
     
     def showFrameItemInCurrentTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, False)
+        return self.showItemInMdiTab(item, self.framelist, self.wnd.lightListWidget, False, 'light')
     
     def showDarkFrameItemInCurrentTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, False)
+        return self.showItemInMdiTab(item, self.darkframelist, self.wnd.darkListWidget, False, 'dark')
     
     def showFlatFrameItemInCurrentTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, False)
+        return self.showItemInMdiTab(item, self.flatframelist, self.wnd.flatListWidget, False, 'flat')
     
     def showBiasFrameItemInCurrentTab(self, item, *arg):
-        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, False)    
+        return self.showItemInMdiTab(item, self.biasframelist, self.wnd.biasListWidget, False, 'bias')
     
-    def showItemInMdiTab(self, item, framelist, listwidget, innewtab):
+    def showItemInMdiTab(self, item, framelist, listwidget, innewtab,context_label=None):
         if not self.__updating_mdi_ctrls:
             row = listwidget.row(item)
             if (row >= 0) and (len(framelist)>0):
                 frame = framelist[row]
-                self.updateMdiControls(self.showImage(frame, newtab=innewtab))
+                self.updateMdiControls(self.showImage(frame, newtab=innewtab,context_subtitle=context_label))
         
     def listItemChanged(self, idx):
         if self.__video_capture_started:
@@ -4722,7 +4725,7 @@ class theApp(Qt.QObject):
                             QtGui.QApplication.instance().processEvents()
                         hotp_x=hotp[1]
                         hotp_y=hotp[0]
-                        image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
+                        image[hotp_y,hotp_x]=utils.getNeighboursAverage(image,hotp_x,hotp_y,self.isBayerUsed())
                 else:
                     total_progress=0
                     for c in range(len(hot_pixels['data'])):
@@ -4739,7 +4742,7 @@ class theApp(Qt.QObject):
                                 QtGui.QApplication.instance().processEvents()
                             hotp_x=hotp[1]
                             hotp_y=hotp[0]
-                            image[hotp_y,hotp_x,c]=utils.getNeighboursAverage(image[...,c],hotp_x,hotp_y,self.action_enable_rawmode.isChecked()==2)
+                            image[hotp_y,hotp_x,c]=utils.getNeighboursAverage(image[...,c],hotp_x,hotp_y,self.isBayerUsed())
                             
                             
                 self.progress_dialog.hide()
