@@ -966,26 +966,26 @@ class theApp(Qt.QObject):
             return False
             
     def unlockSidebar(self):
-        self.wnd.remPushButton.setEnabled(True)
-        self.wnd.clrPushButton.setEnabled(True)
-        self.wnd.listCheckAllBtn.setEnabled(True)
-        self.wnd.listUncheckAllBtn.setEnabled(True)
-        self.wnd.biasAddPushButton.setEnabled(True)
-        self.wnd.darkAddPushButton.setEnabled(True)
-        self.wnd.flatAddPushButton.setEnabled(True)
-        self.wnd.masterBiasCheckBox.setEnabled(True)
-        self.wnd.masterDarkCheckBox.setEnabled(True)
-        self.wnd.masterFlatCheckBox.setEnabled(True)
-        self.action_enable_rawmode.setChecked(False)
+        if len(self.framelist)>0:
+            self.wnd.remPushButton.setEnabled(True)
+            self.wnd.clrPushButton.setEnabled(True)
+            self.wnd.listCheckAllBtn.setEnabled(True)
+            self.wnd.listUncheckAllBtn.setEnabled(True)
+            self.wnd.biasAddPushButton.setEnabled(True)
+            self.wnd.darkAddPushButton.setEnabled(True)
+            self.wnd.flatAddPushButton.setEnabled(True)
+            self.wnd.masterBiasCheckBox.setEnabled(True)
+            self.wnd.masterDarkCheckBox.setEnabled(True)
+            self.wnd.masterFlatCheckBox.setEnabled(True)
         
-        self.wnd.addStarPushButton.setEnabled(True)
+            self.wnd.addStarPushButton.setEnabled(True)
         
-        self.action_align.setEnabled(True)
-        self.action_stack.setEnabled(True)
-        self.action_save_video.setEnabled(True)
+            self.action_align.setEnabled(True)
+            self.action_stack.setEnabled(True)
+            self.action_save_video.setEnabled(True)
         
-        for i in xrange(self.wnd.toolBox.count()):
-            self.wnd.toolBox.setItemEnabled(i,True)
+            for i in xrange(self.wnd.toolBox.count()):
+                self.wnd.toolBox.setItemEnabled(i,True)
             
         if len(self.framelist) == 0:
             self.action_enable_rawmode.setEnabled(False)
@@ -1088,7 +1088,9 @@ class theApp(Qt.QObject):
         
         self.videoCaptureScheduler.deleteAllJobs()
         
-        direct_video_capture_job = self.videoCaptureScheduler.getJob(self.videoCaptureScheduler.addJob(jobid="Direct Video Capturing"))
+        jid="direct-video-capturing-"+time.strftime("%Y%m%d-%H%M%S")
+        
+        direct_video_capture_job = self.videoCaptureScheduler.getJob(self.videoCaptureScheduler.addJob(jobid=jid))
         self.lockRecording()
         
         direct_video_capture_job.setType(self.directVideoCaptureTypeComboBox.currentIndex())
@@ -1122,7 +1124,7 @@ class theApp(Qt.QObject):
                 log.log("main_app.theApp","Starting live preview from device "+str(self.current_cap_device),level=logging.INFO)
                 
                 # preview main loop
-                self.lockSidebar
+                self.lockSidebar()
                 
                 while (self.isPreviewing):
                     QtGui.QApplication.instance().processEvents()
