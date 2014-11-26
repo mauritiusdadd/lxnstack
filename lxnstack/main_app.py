@@ -1774,7 +1774,7 @@ class theApp(Qt.QObject):
     def setCurrentColorMap(self,cmapid):
         if self.__updating_mdi_ctrls:
             return
-        sw = self.mdi.activeSubWindow()        
+        sw = self.mdi.activeSubWindow()
         if sw is None:
             log.log("main_app.theApp","An operation that requires an active mdi window has been executed without any mdi windows opend!",level=logging.ERROR)
             return False
@@ -1793,14 +1793,6 @@ class theApp(Qt.QObject):
         if self._stk is not None:
             self.showImage(self._stk,title="stacking result", newtab=newtab)
     
-    def clearImage(self):
-        #TODO
-        pass
-        
-    def updateImage(self, paint=True, overrided_image=None):
-        #TODO:
-        pass
-    
     def showImage(self, image, title=None, newtab=False, mdisubwindow=None, activate_sw=True,override_cursor=True,context_subtitle=None):
         if override_cursor:
             QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
@@ -1810,6 +1802,8 @@ class theApp(Qt.QObject):
                 title = image.tool_name
             except:
                 title = ""
+        
+        original_title=title
         
         if context_subtitle is not None:
             title="["+str(context_subtitle)+"] "+title
@@ -1827,7 +1821,9 @@ class theApp(Qt.QObject):
         if ((sw is None) or (not (sw in self.mdi_windows.keys())) or
             (self.mdi_windows[sw]['type'] != guicontrols.IMAGEVIEWER)):
                 newtab=True
-                
+        else:
+            self.mdi_windows[sw]['status']  = guicontrols.UPDATED
+            
         if newtab:
             existing_titles=[]
             for swnd in self.mdi_windows:
@@ -1837,7 +1833,8 @@ class theApp(Qt.QObject):
             while sw_title in existing_titles:
                 sw_title=title+" <"+str(title_idx)+">"
                 title_idx+=1                
-            sw = self.newMdiImageViewer(sw_title)            
+            sw = self.newMdiImageViewer(sw_title)
+            self.mdi_windows[sw]['status']  = guicontrols.READY
         elif activate_sw:
             self.mdi.setActiveSubWindow(sw)
         
@@ -1850,7 +1847,10 @@ class theApp(Qt.QObject):
         else:
             iv.showImage(image)
                 
-        self.mdi_windows[sw]['widget']= iv
+        self.mdi_windows[sw]['widget']  = iv
+        self.mdi_windows[sw]['context'] = context_subtitle
+        self.mdi_windows[sw]['name']    = original_title
+                
         if override_cursor:
             QtGui.QApplication.instance().restoreOverrideCursor()
         
@@ -1895,11 +1895,13 @@ class theApp(Qt.QObject):
         except:
             pass
         
-        self.mdi_windows[sw]['widget']= iv
-        self.mdi_windows[sw]['references']=[image,reference]
+        self.mdi_windows[sw]['widget']     = iv
+        self.mdi_windows[sw]['references'] = [image,reference]
+        self.mdi_windows[sw]['context']    = None
+        self.mdi_windows[sw]['name']       = "manual alignment"
+        
         QtGui.QApplication.instance().restoreOverrideCursor()
-    
-    
+        
     #
     # MDI CONTROL FUNCTIONS
     #
@@ -1912,6 +1914,8 @@ class theApp(Qt.QObject):
         self.__updating_mdi_ctrls=True
         
         sw_type = self.mdi_windows[mdisw]['type']
+        
+        log.log("main_app.theApp","Updating mdi subwindow "+str(mdisw)+" type="+str(sw_type),level=logging.DEBUG)
         
         if sw_type == guicontrols.IMAGEVIEWER:
             iv = self.mdi_windows[mdisw]['widget']
@@ -1934,7 +1938,13 @@ class theApp(Qt.QObject):
                 try:
                     listwidget.setCurrentItem(self.mdi_windows[mdisw]['references'][0].getProperty('listItem'))
                 except:
-                    listwidget.setCurrentItem(None)                    
+                    listwidget.setCurrentItem(None)
+                else:
+                    if self.mdi_windows[mdisw]['status']==guicontrols.NEEDSUPDATE:
+                        self.showImage(image=self.mdi_windows[mdisw]['references'][0],
+                                       title=self.mdi_windows[mdisw]['name'],
+                                       mdisubwindow=mdisw,
+                                       context_subtitle=self.mdi_windows[mdisw]['context'])
             except:
                 pass
         else:
@@ -2617,7 +2627,6 @@ class theApp(Qt.QObject):
                frm.alignpoints.pop()       # force the deletion
         self.wnd.alignPointsListWidget.clear()
         self.wnd.removePointPushButton.setEnabled(False)
-        self.updateImage()
         
     def clearStarsList(self):
         while len(self.starslist) > 0:       # flush the list and
@@ -2625,7 +2634,6 @@ class theApp(Qt.QObject):
         self.wnd.starsListWidget.clear()
         self.wnd.removeStarPushButton.setEnabled(False)
         self.action_gen_lightcurves.setEnabled(False)
-        self.updateImage()
 
     def setAllListItemsCheckState(self, state):
         for i in range(self.wnd.lightListWidget.count()):
@@ -2680,9 +2688,20 @@ class theApp(Qt.QObject):
                 
         if self.action_enable_rawmode.isChecked():
             self.bayerComboBox.setEnabled(True)
+            log.log("main_app.theApp","RAW-bayer mode ebabled",level=logging.DEBUG)
         else:
             self.bayerComboBox.setEnabled(False)
-            
+            log.log("main_app.theApp","RAW-bayer mode disabled",level=logging.DEBUG)
+        
+        log.log("main_app.theApp","Forcing update of displayed images",level=logging.DEBUG)
+        for sw in self.mdi_windows:
+            self.mdi_windows[sw]['status']=guicontrols.NEEDSUPDATE
+        
+        # update the current mdi subwindow
+        curr_mdsw=self.mdi.activeSubWindow()
+        if curr_mdsw is not None:
+            self.updateMdiControls(curr_mdsw)
+        
     def updateADUlistItemChanged(self, idx):
         
         if idx < 0:
@@ -2832,7 +2851,6 @@ class theApp(Qt.QObject):
             self.wnd.alignDeleteAllPushButton.setEnabled(True)
             self.updateAlignPointList()
         else:
-            self.clearImage()
             self.wnd.alignGroupBox.setEnabled(False)
             self.wnd.alignDeleteAllPushButton.setEnabled(False)            
         
@@ -2849,7 +2867,7 @@ class theApp(Qt.QObject):
         self.wnd.doubleSpinBoxOffsetX.setValue(img.offset[0])
         self.wnd.doubleSpinBoxOffsetY.setValue(img.offset[1])
         self.wnd.spinBoxOffsetT.setValue(img.angle)
-        self.updateImage()
+        
         QtGui.QApplication.instance().restoreOverrideCursor()
 
     def currentManualAlignListItemChanged(self, cur_item):
@@ -2925,7 +2943,6 @@ class theApp(Qt.QObject):
             self.starslist[q.original_id].reference=True
             self.wnd.magDoubleSpinBox.setEnabled(True)
         
-        self.updateImage()
         
     def currentStarsListItemChanged(self, idx):
         self.star_idx=idx
@@ -2995,11 +3012,10 @@ class theApp(Qt.QObject):
             self.wnd.removePointPushButton.setEnabled(False)
             
         for frm in self.framelist:
-           alpnt = imgfeatures.AlignmentPoint(0,0,pname)
-           alpnt.moved.connect(self.updateAlignPointPosition)
-           frm.alignpoints.insert(idx-1, alpnt)
-
-        self.updateImage()
+            alpnt = imgfeatures.AlignmentPoint(0,0,pname)
+            alpnt.moved.connect(self.updateAlignPointPosition)
+            frm.alignpoints.insert(idx-1, alpnt)
+        
         self.wnd.alignPointsListWidget.setCurrentRow(idx-1)
         return (idx-1)
     
@@ -3048,9 +3064,7 @@ class theApp(Qt.QObject):
         if(len(self.framelist[self.image_idx].alignpoints)==0):
             self.wnd.removePointPushButton.setEnabled(False)
             
-        del item
-        
-        self.updateImage()
+        del item        
 
     def removeStar(self):
         
@@ -3066,9 +3080,6 @@ class theApp(Qt.QObject):
             self.action_gen_lightcurves.setEnabled(False)
             
         del item
-        
-        self.updateImage()
-
         
     def updateAlignPointList(self):
         self.wnd.alignPointsListWidget.clear()
@@ -3286,7 +3297,6 @@ class theApp(Qt.QObject):
         self.wnd.masterDarkLineEdit.setText('')
         self.wnd.masterFlatLineEdit.setText('')
         self.progress.reset()
-        self.clearImage()
         
     def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(self.wnd, tr("Save the project"),
@@ -4349,7 +4359,6 @@ class theApp(Qt.QObject):
             count+=1
 
             if self.progressWasCanceled():
-                self.clearImage()
                 self.unlock()
                 self.wnd.zoomCheckBox.setEnabled(True)
                 self.wnd.zoomCheckBox.setCheckState(old_state)

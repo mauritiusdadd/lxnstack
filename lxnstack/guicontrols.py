@@ -27,6 +27,11 @@ import log
 IMAGEVIEWER = "imageviewer"
 DIFFERENCEVIEWER = "diffviewer"
 
+READY        = 0x0001
+UPDATED      = 0x0002
+NEEDSUPDATE  = 0x0004
+
+
 class SplashScreen(Qt.QObject):
     
     def __init__(self):
@@ -646,7 +651,7 @@ class ImageViewer(QtGui.QWidget):
     def setViewport(self,viewPoint):
         self.viewHScrollBar.setValue(viewPoint[0]*self.viewHScrollBar.maximum())
         self.viewVScrollBar.setValue(viewPoint[1]*self.viewVScrollBar.maximum())
-        
+            
     def showImage(self, image):
         if isinstance(image,mappedimage.MappedImage):
             del self.mapped_image
