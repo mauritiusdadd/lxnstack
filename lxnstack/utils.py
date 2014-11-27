@@ -88,14 +88,14 @@ def showYesNoCancelMsgBox(text,informative_text="",parent=None):
                       Qt.QMessageBox.Question)
 
 def showErrorMsgBox(text,informative_text="",parent=None):
-    log.log("utils","MessageBox: "+str(text)+": "+informative_text,level=logging.ERROR)
+    log.log("<lxnstack.utils module>","MessageBox: "+str(text)+": "+informative_text,level=logging.ERROR)
     return showMsgBox(tr("Error")+": "+str(text),
                       informative_text,
                       parent,
                       icon=Qt.QMessageBox.Critical)
 
 def showWarningMsgBox(text,informative_text="",parent=None):
-    log.log("utils","MessageBox: "+str(text)+": "+informative_text,level=logging.WARN)
+    log.log("<lxnstack.utils module>","MessageBox: "+str(text)+": "+informative_text,level=logging.WARN)
     return showMsgBox(tr("Warning")+": "+str(text),
                       informative_text,
                       parent,
@@ -103,7 +103,7 @@ def showWarningMsgBox(text,informative_text="",parent=None):
 try:
     import numpy as np
 except ImportError:
-    log.log("utils",'\'numpy\' python module not found! exiting program.',level=logging.ERROR)
+    log.log("<lxnstack.utils module>",'\'numpy\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'numpy\' python module not found!"),tr("Please install numpy."))
     sys.exit(1)
 
@@ -111,14 +111,14 @@ try:
     import scipy as sp
     from scipy import signal, ndimage
 except ImportError:
-    log.log("utils",'\'scipy\' python module not found! exiting program.',level=logging.ERROR)
+    log.log("<lxnstack.utils module>",'\'scipy\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'scipy\' python module not found!"),tr("Please install scipy."))
     sys.exit(1)
 
 try:
     import cv2
 except ImportError:
-    log.log("utils",'\'opencv (cv2)\' python module not found! exiting program.',level=logging.ERROR)
+    log.log("<lxnstack.utils module>",'\'opencv (cv2)\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'opencv2\' python module not found!"),tr("Please install opencv2 python bindings."))
     sys.exit(1)
 
@@ -128,25 +128,25 @@ try:
     from PIL import Image, ExifTags
     Image.init()
 except ImportError:
-    log.log("utils",'\'PIL\' python module not found! exiting program.',level=logging.ERROR)
+    log.log("<lxnstack.utils module>",'\'PIL\' python module not found! exiting program.',level=logging.ERROR)
     showErrorMsgBox(tr("\'PIL\' python module not found!"),tr("Please install the python imaging library (PIL/Pillow)."))
     sys.exit(1)
 
 try:
     import astropy.io.fits as pyfits
     FITS_SUPPORT=True
-    log.log("utils","FITS support enabled",level=logging.INFO)
+    log.log("<lxnstack.utils module>","FITS support enabled",level=logging.INFO)
     
 except ImportError:
     #if you have pyfits
     try:
         import pyfits
         FITS_SUPPORT=True
-        log.log("utils","FITS support enabled",level=logging.INFO)
-        log.log("utils","The pyFITS package will be soon fully replaced by 'astropy'!\nYou can find it at http://www.astropy.org/",level=logging.WARN)
+        log.log("<lxnstack.utils module>","FITS support enabled",level=logging.INFO)
+        log.log("<lxnstack.utils module>","The pyFITS package will be soon fully replaced by 'astropy'!\nYou can find it at http://www.astropy.org/",level=logging.WARN)
 
     except ImportError:
-        log.log("utils","FITS support not enabled:\nto enable FITS support please install the 'astropy' python package!",level=logging.WARN)
+        log.log("<lxnstack.utils module>","FITS support not enabled:\nto enable FITS support please install the 'astropy' python package!",level=logging.WARN)
 
         FITS_SUPPORT=False
         FORMAT_BLACKLIST.append('FITS')
@@ -168,11 +168,11 @@ if FITS_SUPPORT:
 try:
     import cr2plugin
     CR2_SUPPORT=True
-    log.log("utils","CR2 support enabled",level=logging.INFO)
+    log.log("<lxnstack.utils module>","CR2 support enabled",level=logging.INFO)
     for ext in cr2plugin.EXTENSION.keys():
         CUSTOM_EXTENSIONS[ext]=cr2plugin.EXTENSION[ext]
 except Exception as exc:
-    log.log("utils","WARNING: CR2 support not enabled:\n"+str(exc),level=logging.WARNING)
+    log.log("<lxnstack.utils module>","WARNING: CR2 support not enabled:\n"+str(exc),level=logging.WARNING)
     FORMAT_BLACKLIST.append('CR2')
 
 # it seems that kde's native dialogs work correctly while, on the contrary,
@@ -287,13 +287,13 @@ def getQIcon(name="",verbose=False):
     
     if QtGui.QIcon.hasThemeIcon(name):
 
-        log.log("utils","Found icon form Theme: \""+name+"\"",level=logging.DEBUG)
+        log.log("<lxnstack.utils module>","Found icon form Theme: \""+name+"\"",level=logging.DEBUG)
         return QtGui.QIcon.fromTheme(name)
     else:
         iconurl=os.path.join(paths.ICONS_PATH,name)
         
         if os.path.isfile(iconurl):
-            log.log("utils","Found icon: \""+name+"\"",level=logging.DEBUG)
+            log.log("<lxnstack.utils module>","Found icon: \""+name+"\"",level=logging.DEBUG)
             return QtGui.QIcon(iconurl)
         else:
             
@@ -304,10 +304,10 @@ def getQIcon(name="",verbose=False):
                 new_name = os.path.splitext(each_icon)[0]
                 
                 if root_name == new_name:
-                    log.log("utils","Found default icon: \""+os.path.join(paths.ICONS_PATH,each_icon)+"\"",level=logging.DEBUG)
+                    log.log("<lxnstack.utils module>","Found default icon: \""+os.path.join(paths.ICONS_PATH,each_icon)+"\"",level=logging.DEBUG)
                     return QtGui.QIcon(os.path.join(paths.ICONS_PATH,each_icon))
                 
-            log.log("utils","No icon found for: \""+name+"\"",level=logging.WARNING)
+            log.log("<lxnstack.utils module>","No icon found for: \""+name+"\"",level=logging.WARNING)
             return QtGui.QIcon("")
     
 class Frame(Qt.QObject):
@@ -330,7 +330,7 @@ class Frame(Qt.QObject):
         self.canceled.emit()
     
     def __del__(self):
-        log.log("utils.Fame","deleting Frame \'"+self.tool_name+"\'",level=logging.DEBUG)
+        log.log("lxnstack.utils.Fame","deleting Frame \'"+self.tool_name+"\'",level=logging.DEBUG)
     
     def __init__(self, file_name="", page=0, **args):
         Qt.QObject.__init__(self)
@@ -485,7 +485,7 @@ class Frame(Qt.QObject):
         if key in self.properties:
             return self.properties[key]
         else:
-            log.log("utils.Frame",'image '+str(self.name)+' has no property '+str(key),level=logging.WARNING)
+            log.log(repr(self),'image '+str(self.name)+' has no property '+str(key),level=logging.WARNING)
             return None
             
     """
@@ -542,8 +542,8 @@ class Frame(Qt.QObject):
             return None
         
         if page == 0:
-            log.log("utils.Frame","Opening file \'"+str(file_name)+"\'",level=logging.INFO)
-            log.log("utils.Frame","file format: \'"+str(file_type)+"\'",level=logging.DEBUG)
+            log.log(repr(self),"Opening file \'"+str(file_name)+"\'",level=logging.INFO)
+            log.log(repr(self),"file format: \'"+str(file_type)+"\'",level=logging.DEBUG)
             
         ctime = None
         exif_file_path = file_path+'.exif'
@@ -657,12 +657,12 @@ class Frame(Qt.QObject):
                             #this should work
                             naxis=len(imagehdu.data.shape)
                         except:
-                            log.log("utils.Frame","FITS: corrupted data", level=logging.ERROR)
+                            log.log(repr(self),"FITS: corrupted data", level=logging.ERROR)
                             return None
                     else:
                         if naxis <= 1:
                             #cannot handle 0-D or 1-D image data!
-                            log.log("utils.Frame","FITS: unsupported data format in HDU "+str(i),level=logging.WARNING)
+                            log.log(repr(self),"FITS: unsupported data format in HDU "+str(i),level=logging.WARNING)
                         else:
                             axis=imagehdu.data.shape[:-2] #number of image layers
                             imh,imw=imagehdu.data.shape[-2:] #image size
@@ -801,7 +801,7 @@ class Frame(Qt.QObject):
                 self.infoTextChanged.emit(tr('decoding image ')+self.name+', '+tr('please wait...'))
                                 
                 if notUpdated(self.url,data_file_name) or force_update==True:
-                    log.log("utils.Frame",'decoding raw data to file '+data_file_name,level=logging.INFO)
+                    log.log(repr(self),'decoding raw data to file '+data_file_name,level=logging.INFO)
                     self.infoTextChanged.emit(tr('decoding raw data to file')+'\n'+data_file_name)
                     
                     try:
@@ -830,7 +830,7 @@ class Frame(Qt.QObject):
                         image = img.astype(ftype)
 
                 else:
-                    log.log("utils.Frame",'loading raw data',level=logging.INFO)
+                    log.log(repr(self),'loading raw data',level=logging.INFO)
                     self.infoTextChanged.emit(tr('decoding image ')+self.name+', '+tr('please wait...'))
                     try:
                         image = self.open(data_file_name, page, asarray, asuint8, fit_levels, ftype, PIL_priority,**args)
@@ -844,7 +844,7 @@ class Frame(Qt.QObject):
                     self.infoTextChanged.emit(tr('decoding image')+', '+tr('please wait...'))
                      
                     if notUpdated(self.url,data_file_name):
-                        log.log("utils.Frame",'decoding raw data to file '+data_file_name,level=logging.INFO)
+                        log.log(repr(self),'decoding raw data to file '+data_file_name,level=logging.INFO)
                         self.infoTextChanged.emit(tr('decoding raw data to file')+'\n'+data_file_name)
                         
                         try:
@@ -879,12 +879,12 @@ class Frame(Qt.QObject):
             s=video.read()
             total_frames=video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
             if not s[0]:
-                log.log("utils.Frame","the video file is corrupted or have an unsupported format",level=logging.ERROR)
+                log.log(repr(self),"the video file is corrupted or have an unsupported format",level=logging.ERROR)
                 return None
             elif total_frames <=0:
-                log.log("utils.Frame","the video file may be corrupted",level=logging.ERROR)
+                log.log(repr(self),"the video file may be corrupted",level=logging.ERROR)
             elif page >= total_frames:
-                log.log("utils.Frame","video loading ended",level=logging.ERROR)
+                log.log(repr(self),"video loading ended",level=logging.ERROR)
                 self.hideProgress.emit()
                 return None
             else:
@@ -918,7 +918,7 @@ class Frame(Qt.QObject):
                 self.height = imh
                 self.mode = dep
 
-                log.log("utils.Frame","loading frame "+str(page)+" of video "+str(file_name),level=logging.INFO)
+                log.log(repr(self),"loading frame "+str(page)+" of video "+str(file_name),level=logging.INFO)
                 
                 if only_sizes:
                     return True
@@ -1075,7 +1075,7 @@ class Frame(Qt.QObject):
             cPickle.dump(self.properties,f)
             return True
         except Exception as exc:
-            log.log("utils.Frame",'Cannot create file '+url+':'+str(exc),level=logging.ERROR)
+            log.log(repr(self),'Cannot create file '+url+':'+str(exc),level=logging.ERROR)
             return False
         
     def importProperties(self,url):
@@ -1088,7 +1088,7 @@ class Frame(Qt.QObject):
             del f
             return True
         except Exception as exc:
-            log.log("utils.Frame",'Cannot read file '+url+':'+str(exc),level=logging.ERROR)
+            log.log(repr(self),'Cannot read file '+url+':'+str(exc),level=logging.ERROR)
             return False
 
     def _fits_secure_imwrite(self, hdulist, url, force=False):
@@ -1160,31 +1160,31 @@ class Frame(Qt.QObject):
             
             hdl = pyfits.HDUList([hdu,hdu_r,hdu_g,hdu_b])
                 
-            log.log("utils.Frame",'Saving to '+name+'-RGB.fits',level=logging.INFO)
+            log.log(repr(self),'Saving to '+name+'-RGB.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl,name+'-RGB.fits',force=force_overwrite)
-            log.log("utils.Frame",hdl.info(),level=logging.INFO)
+            log.log(repr(self),hdl.info(),level=logging.INFO)
             
         elif (len(data.shape) == 3):
             hdl_r=self._get_fits_hdl(name,data[...,0].copy(),header,compressed,outbits)
-            log.log("utils.Frame",'Saving to '+name+'-R.fits',level=logging.INFO)
+            log.log(repr(self),'Saving to '+name+'-R.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_r,name+'-R.fits',force=force_overwrite)
-            log.log("utils.Frame",hdl_r.info(),level=logging.INFO)
+            log.log(repr(self),hdl_r.info(),level=logging.INFO)
             
             hdl_g=self._get_fits_hdl(name,data[...,1].copy(),header,compressed,outbits)
-            log.log("utils.Frame",'Saving to '+name+'-G.fits',level=logging.INFO)
+            log.log(repr(self),'Saving to '+name+'-G.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_g,name+'-G.fits',force=force_overwrite)
-            log.log("utils.Frame",hdl_g.info(),level=logging.INFO)
+            log.log(repr(self),hdl_g.info(),level=logging.INFO)
             
             hdl_b=self._get_fits_hdl(name,data[...,2].copy(),header,compressed,outbits)
-            log.log("utils.Frame",'Saving to '+name+'-B.fits',level=logging.INFO)
+            log.log(repr(self),'Saving to '+name+'-B.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl_b,name+'-B.fits',force=force_overwrite)
-            log.log("utils.Frame",hdl_b.info(),level=logging.INFO)
+            log.log(repr(self),hdl_b.info(),level=logging.INFO)
             
         elif (len(data.shape) <= 2):  
             hdl=self._get_fits_hdl(name,data,header,compressed,outbits)
-            log.log("utils.Frame",'Saving to '+name+'.fits',level=logging.INFO)
+            log.log(repr(self),'Saving to '+name+'.fits',level=logging.INFO)
             self._fits_secure_imwrite(hdl,name+'.fits',force=force_overwrite)
-            log.log("utils.Frame",hdl.info(),level=logging.INFO)
+            log.log(repr(self),hdl.info(),level=logging.INFO)
         else:
             showErrorMsgBox("unsupported data format!")
             
@@ -1239,7 +1239,7 @@ class Frame(Qt.QObject):
                 #this should never happens
                 raise TypeError("Cannot save "+str(len(data.shape))+"-D images")
         except Exception as exc:
-            log.log("utils.Frame","Cannot save image due to cv2 exception: " + str(exc),level=logging.ERROR)
+            log.log(repr(self),"Cannot save image due to cv2 exception: " + str(exc),level=logging.ERROR)
             msgBox = Qt.QMessageBox()
             msgBox.setText(tr("Cannot save image due to cv2 exception:"))
             msgBox.setInformativeText(str(exc))
@@ -1307,7 +1307,7 @@ class Frame(Qt.QObject):
         use_dialog=True 
         
         if save_dlg is None:
-            log.log("utils.Frame","Creating a new standard save-dialog window",level=logging.DEBUG)
+            log.log(repr(self),"Creating a new standard save-dialog window",level=logging.DEBUG)
             self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,'save_dialog.ui'))
             external_save_dialog=False
             use_dialog=True
@@ -1331,14 +1331,14 @@ class Frame(Qt.QObject):
                 self.save_dlg.saveMastersCheckBox.hide()
 
             except Exception as exc:
-                log.log("utils.Frame","Unsupported dialog window: " + str(exc),level=logging.ERROR)
+                log.log(repr(self),"Unsupported dialog window: " + str(exc),level=logging.ERROR)
                 del self.save_dlg
         elif save_dlg == False:
             external_save_dialog=False
             use_dialog=False
-            log.log("utils.Frame","Using no save-dialog window",level=logging.DEBUG)
+            log.log(repr(self),"Using no save-dialog window",level=logging.DEBUG)
         else:
-            log.log("utils.Frame","Using an existing external save-dialog window: "+str(save_dlg),level=logging.DEBUG)
+            log.log(repr(self),"Using an existing external save-dialog window: "+str(save_dlg),level=logging.DEBUG)
             external_save_dialog=True
             use_dialog=True
             self.save_dlg=save_dlg #NOTE: external dialogs passed here,
@@ -1353,7 +1353,7 @@ class Frame(Qt.QObject):
                 pass
         
         if use_dialog:
-            log.log("utils.Frame","Running save-dialog window..." ,level=logging.DEBUG)
+            log.log(repr(self),"Running save-dialog window..." ,level=logging.DEBUG)
                         
             if filename == None:
                 self.save_dlg.lineEditFileName.setText(os.path.basename(self.url))
@@ -1378,7 +1378,7 @@ class Frame(Qt.QObject):
                         showWarningMsgBox(tr("The file name is not valid!"))
                         
                     if self.save_dlg.exec_() != 1:
-                        log.log("utils.Frame","Operation canceled: deleting save dialog window",level=logging.DEBUG)
+                        log.log(repr(self),"Operation canceled: deleting save dialog window",level=logging.DEBUG)
                         del self.save_dlg
                         return False                    
                     destdir=str(self.save_dlg.lineEditDestDir.text())
@@ -1433,22 +1433,22 @@ class Frame(Qt.QObject):
                 args["flags"]=flags
                                 
             if not external_save_dialog:
-                log.log("utils.Frame","Deleting save dialog window",level=logging.DEBUG)
+                log.log(repr(self),"Deleting save dialog window",level=logging.DEBUG)
                 del self.save_dlg
         
         if data is None:
             data=self.getData(asarray=True)
             
-        log.log("utils.Frame","Saving Frame data to file: "+self.url,level=logging.INFO)
-        log.log("utils.Frame","filename: "+str(filename),level=logging.DEBUG)
-        log.log("utils.Frame","frmat: "+str(frmat),level=logging.DEBUG)
-        log.log("utils.Frame","bits: "+str(bits),level=logging.DEBUG)
-        log.log("utils.Frame","dtype: "+str(dtype),level=logging.DEBUG)
-        log.log("utils.Frame","save_dlg: "+str(save_dlg),level=logging.DEBUG)
-        log.log("utils.Frame","rgb_fits_mode: "+str(rgb_fits_mode),level=logging.DEBUG)
-        log.log("utils.Frame","fits_compressed: "+str(fits_compressed),level=logging.DEBUG)
-        log.log("utils.Frame","flags: "+str(flags),level=logging.DEBUG)
-        log.log("utils.Frame","args: "+str(args),level=logging.DEBUG)
+        log.log(repr(self),"Saving Frame data to file: "+self.url,level=logging.INFO)
+        log.log(repr(self),"filename: "+str(filename),level=logging.DEBUG)
+        log.log(repr(self),"frmat: "+str(frmat),level=logging.DEBUG)
+        log.log(repr(self),"bits: "+str(bits),level=logging.DEBUG)
+        log.log(repr(self),"dtype: "+str(dtype),level=logging.DEBUG)
+        log.log(repr(self),"save_dlg: "+str(save_dlg),level=logging.DEBUG)
+        log.log(repr(self),"rgb_fits_mode: "+str(rgb_fits_mode),level=logging.DEBUG)
+        log.log(repr(self),"fits_compressed: "+str(fits_compressed),level=logging.DEBUG)
+        log.log(repr(self),"flags: "+str(flags),level=logging.DEBUG)
+        log.log(repr(self),"args: "+str(args),level=logging.DEBUG)
                 
         if frmat=='fits':
             try:
@@ -1458,7 +1458,7 @@ class Frame(Qt.QObject):
                 if use_dialog:
                     showWarningMsgBox(tr("Cannot save compressed files with this version of pyfits")+":\n "+ tr("the image was saved as an uncompressed FITS file."))
                 else:
-                    log.log("Cannot save compressed files with this version of pyfits: the image was saved as an uncompressed FITS file.",level=logging.WARNING)
+                    log.log(repr(self),"Cannot save compressed files with this version of pyfits: the image was saved as an uncompressed FITS file.",level=logging.WARNING)
                 
             
         elif frmat=='numpy':
@@ -1765,11 +1765,11 @@ def polar(input, wmul=1, hmul=1, clip=False):
 def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_order=0):
     
     if derotate:
-        log.log("utils",'computing image derotation...',level=logging.INFO)
+        log.log("<lxnstack.utils module>",'computing image derotation...',level=logging.INFO)
         d = _derotate_mono(ref, img, sharp1)    
         angle = d[1]
         dsize = d[0].shape
-        log.log("utils",'rotation angle = '+str(angle),level=logging.INFO)
+        log.log("<lxnstack.utils module>",'rotation angle = '+str(angle),level=logging.INFO)
     else:
         angle=0
     
@@ -1779,9 +1779,9 @@ def register_image(ref, img, sharp1=2, sharp2=2, align=True, derotate=True, int_
         derotated = img
     
     if align:
-        log.log("utils",'computing image shift...',level=logging.INFO)
+        log.log("<lxnstack.utils module>",'computing image shift...',level=logging.INFO)
         s = _correlate_mono(ref, derotated,sharp2)    
-        log.log("utils",'shift = '+str(s[1]),level=logging.INFO)
+        log.log("<lxnstack.utils module>",'shift = '+str(s[1]),level=logging.INFO)
         shift = s[1]
         s0 = s[0]
         
@@ -1884,7 +1884,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     
     if ((mean_1/mean_2)<0.2) and ((max_1*max_2)<max_1):
         #then probably the center is the only maximum present in the image
-        log.log("utils",' probably very small shift',level=logging.INFO)
+        log.log("<lxnstack.utils module>",' probably very small shift',level=logging.INFO)
         r[0,0]=r_0_0
         r[-1,0]=r_1_0
         r[0,-1]=r_0_1
@@ -1916,7 +1916,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     if ((rmax[0] < 10) or (rmax[0] > (r.shape[0]-10)) or
         (rmax[1] < 10) or (rmax[1] > (r.shape[1]-10))):
         #this is a very bad situation!
-        log.log("utils"," Shift is too big for sub-pixe alignment",level=logging.WARNING)
+        log.log("<lxnstack.utils module>"," Shift is too big for sub-pixe alignment",level=logging.WARNING)
         shift=[center[1]-rmax[1],center[0]-rmax[0]]
         return (r,shift)
     
@@ -2640,11 +2640,11 @@ def storeTmpArray(array, tmpdir=None, compressed=False):
     
     if compressed:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npz', dir=tmpdir)
-        log.log("utils"," saving to compressed temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
+        log.log("<lxnstack.utils module>"," saving to compressed temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
         np.savez_compressed(tmp.name,array)
     else:
         tmp = tempfile.NamedTemporaryFile(prefix="lxnstack-",suffix='.npy', dir=tmpdir)
-        log.log("utils"," saving to temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
+        log.log("<lxnstack.utils module>"," saving to temporary file "+str(tmp.name)+"\n",level=logging.DEBUG)
         np.save(tmp.name,array)
     tmp.seek(0)
     return tmp
@@ -2679,7 +2679,7 @@ def generatePreview(imgdata,max_dim):
         zoom_factor=max_dim/h
     
     if (zoom_factor >= 1):
-        log.log("utils","A preview bigger than/equal to the actual image was requested!",level=logging.WARNING)
+        log.log("<lxnstack.utils module>","A preview bigger than/equal to the actual image was requested!",level=logging.WARNING)
         return imgdata
     
     zoom=np.ones(len(imgdata.shape))

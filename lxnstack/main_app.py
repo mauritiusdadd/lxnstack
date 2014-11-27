@@ -65,7 +65,7 @@ class theApp(Qt.QObject):
         
         self.parseArguments(args)
 
-        log.log("main_app.theApp",'Starting lxnstack...',level=logging.INFO)
+        log.log(repr(self),'Starting lxnstack...',level=logging.INFO)
         
         self._old_tab_idx=0
         self.__operating=False          #this will be used to avoid recursion loop
@@ -370,7 +370,7 @@ class theApp(Qt.QObject):
         
         self.newProject()
                 
-        log.log("main_app.theApp",'Program started',level=logging.INFO)
+        log.log(repr(self),'Program started',level=logging.INFO)
     
     def setFullyLoaded(self):
         self._fully_loaded=True
@@ -518,7 +518,7 @@ class theApp(Qt.QObject):
         if msgbox:
             utils.showErrorMsgBox(msg)
         else:
-            log.log("main_app.theApp",msg,level=logging.ERROR)
+            log.log(repr(self),msg,level=logging.ERROR)
         sys.exit(1)
         
     def clearResult(self):
@@ -739,7 +739,7 @@ class theApp(Qt.QObject):
         elif idx==1:
             self.ftype=np.float64
         
-        log.log("main_app.theApp","setting float precision to " + str(self.ftype),level=logging.INFO)
+        log.log(repr(self),"setting float precision to " + str(self.ftype),level=logging.INFO)
         
     def showUserMan(self):
         webbrowser.open(os.path.join(paths.DOCS_PATH,'usermanual.html'))
@@ -1121,7 +1121,7 @@ class theApp(Qt.QObject):
                 self.dlg.refreshPushButton.setEnabled(False)
                 old_tooltip=str(self.dlg.refreshPushButton.toolTip())
                 self.dlg.refreshPushButton.setToolTip(tr("Cannot refresh devices list")+": "+tr("current device is in use"))
-                log.log("main_app.theApp","Starting live preview from device "+str(self.current_cap_device),level=logging.INFO)
+                log.log(repr(self),"Starting live preview from device "+str(self.current_cap_device),level=logging.INFO)
                 
                 # preview main loop
                 self.lockSidebar()
@@ -1142,7 +1142,7 @@ class theApp(Qt.QObject):
                 
             else:
                 self.isPreviewing=False
-                log.log("main_app.theApp","Stopping live preview",level=logging.INFO)
+                log.log(repr(self),"Stopping live preview",level=logging.INFO)
     
     def useMasterBias(self,state):        
         if state == 2:
@@ -1192,7 +1192,7 @@ class theApp(Qt.QObject):
                                                      
                del i
            except Exception as exc:
-               log.log("main_app.theApp",str(exc),level=logging.ERROR)
+               log.log(repr(self),str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
 
     def useMasterDark(self,state):        
@@ -1242,7 +1242,7 @@ class theApp(Qt.QObject):
                                          parent=self.wnd)
                del i
            except Exception as exc:
-               log.log("main_app.theApp",str(exc),level=logging.ERROR)
+               log.log(repr(self),str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
             
     def useMasterFlat(self,state):        
@@ -1292,7 +1292,7 @@ class theApp(Qt.QObject):
                                          parent=self.wnd)
                del i
            except Exception as exc:
-               log.log("main_app.theApp",str(exc),level=logging.ERROR)
+               log.log(repr(self),str(exc),level=logging.ERROR)
                utils.showErrorMsgBox("",exc)
                
         
@@ -1778,13 +1778,13 @@ class theApp(Qt.QObject):
             return
         sw = self.mdi.activeSubWindow()
         if sw is None:
-            log.log("main_app.theApp","An operation that requires an active mdi window has been executed without any mdi windows opend!",level=logging.ERROR)
+            log.log(repr(self),"An operation that requires an active mdi window has been executed without any mdi windows opend!",level=logging.ERROR)
             return False
         elif not sw in self.mdi_windows:
-            log.log("main_app.theApp","Untraced mdi window detected!",level=logging.ERROR)
+            log.log(repr(self),"Untraced mdi window detected!",level=logging.ERROR)
             return False
         elif self.mdi_windows[sw]['type']!=guicontrols.IMAGEVIEWER:
-            log.log("main_app.theApp","Operation not permitted on current mdi window!",level=logging.ERROR)
+            log.log(repr(self),"Operation not permitted on current mdi window!",level=logging.ERROR)
             return False
         else:
             cmap=cmaps.COLORMAPS[cmapid]
@@ -1917,7 +1917,7 @@ class theApp(Qt.QObject):
         
         sw_type = self.mdi_windows[mdisw]['type']
         
-        log.log("main_app.theApp","Updating mdi subwindow "+str(mdisw)+" type="+str(sw_type),level=logging.DEBUG)
+        log.log(repr(self),"Updating mdi subwindow "+str(mdisw)+" type="+str(sw_type),level=logging.DEBUG)
         
         if sw_type == guicontrols.IMAGEVIEWER:
             iv = self.mdi_windows[mdisw]['widget']
@@ -2019,7 +2019,7 @@ class theApp(Qt.QObject):
     
     
     def setUpStatusBar(self):    
-        log.log("main_app.theApp","Setting up statusbar...",level=logging.DEBUG)
+        log.log(repr(self),"Setting up statusbar...",level=logging.DEBUG)
         self.progress = Qt.QProgressBar()
         self.progress.setRange(0,100)
         self.progress.setMaximumSize(400,25)
@@ -2038,11 +2038,11 @@ class theApp(Qt.QObject):
         self.mainMenuBar = self.wnd.menuBar()
         
         if self.mainMenuBar is None:
-            log.log("main_app.theApp","Creating menu bar...",level=logging.DEBUG)
+            log.log(repr(self),"Creating menu bar...",level=logging.DEBUG)
             self.mainMenuBar = Qt.QMenuBar()
             self.wnd.setMenuBar(self.mainMenuBar)
         
-        log.log("main_app.theApp","Setting up menus...",level=logging.DEBUG)
+        log.log(repr(self),"Setting up menus...",level=logging.DEBUG)
         
         self.action_exit = QtGui.QAction(utils.getQIcon("application-exit"), tr('exit'), self)
         self.action_exit.triggered.connect(self.wnd.close)
@@ -2118,7 +2118,7 @@ class theApp(Qt.QObject):
         self.action_take_shot = QtGui.QAction(utils.getQIcon("video-single-shot"), tr('Take single shot'), self)
         self.action_take_shot.triggered.connect(self.oneShot)
         
-        log.log("main_app.theApp","Bulding menu trees...",level=logging.DEBUG)
+        log.log(repr(self),"Bulding menu trees...",level=logging.DEBUG)
 
         menu_files = self.mainMenuBar.addMenu(tr("Files"))
         menu_video = self.mainMenuBar.addMenu(tr("Video capture"))
@@ -2258,7 +2258,7 @@ class theApp(Qt.QObject):
     
     def setUpToolBars(self):
         
-        log.log("main_app.theApp","Setting up toolbars...",level=logging.DEBUG)
+        log.log(repr(self),"Setting up toolbars...",level=logging.DEBUG)
         
         self.toolbars=[]
         
@@ -2650,7 +2650,7 @@ class theApp(Qt.QObject):
     def debayerize(self, data):
         
         if (data is not None) and (len(data.shape)==2) and self.isBayerUsed():
-            log.log("main_app.theApp","Debayering raw image",level=logging.INFO)
+            log.log(repr(self),"Debayering raw image",level=logging.INFO)
             bayer = self.bayerComboBox.currentIndex()
             
             correction_factors=[1.0,1.0,1.0]
@@ -2662,15 +2662,15 @@ class theApp(Qt.QObject):
             
             if bayer == 0:
                 mode = cv2.cv.CV_BayerBG2RGB
-                log.log("main_app.theApp","using bayer matrix RGGB",level=logging.DEBUG)
+                log.log(repr(self),"using bayer matrix RGGB",level=logging.DEBUG)
             elif bayer == 1:
                 mode = cv2.cv.CV_BayerGB2RGB
-                log.log("main_app.theApp","using bayer matrix GRGB",level=logging.DEBUG)
+                log.log(repr(self),"using bayer matrix GRGB",level=logging.DEBUG)
             elif bayer == 2:
                 mode = cv2.cv.CV_BayerRG2RGB
-                log.log("main_app.theApp","using bayer matrix BGGR",level=logging.DEBUG)
+                log.log(repr(self),"using bayer matrix BGGR",level=logging.DEBUG)
             else: # this shuold be only bayer == 3
-                log.log("main_app.theApp","using bayer matrix GBGR",level=logging.DEBUG)
+                log.log(repr(self),"using bayer matrix GBGR",level=logging.DEBUG)
                 mode = cv2.cv.CV_BayerGR2RGB
             
             #TODO: Create a native debayerizing algorithm
@@ -2679,7 +2679,7 @@ class theApp(Qt.QObject):
             
             return new_data
         else:
-            log.log("main_app.theApp","Skipping debayerig",level=logging.DEBUG)
+            log.log(repr(self),"Skipping debayerig",level=logging.DEBUG)
             return data
 
     def updateBayerMatrix(self, *arg):
@@ -2690,12 +2690,12 @@ class theApp(Qt.QObject):
                 
         if self.action_enable_rawmode.isChecked():
             self.bayerComboBox.setEnabled(True)
-            log.log("main_app.theApp","RAW-bayer mode ebabled",level=logging.DEBUG)
+            log.log(repr(self),"RAW-bayer mode ebabled",level=logging.DEBUG)
         else:
             self.bayerComboBox.setEnabled(False)
-            log.log("main_app.theApp","RAW-bayer mode disabled",level=logging.DEBUG)
+            log.log(repr(self),"RAW-bayer mode disabled",level=logging.DEBUG)
         
-        log.log("main_app.theApp","Forcing update of displayed images",level=logging.DEBUG)
+        log.log(repr(self),"Forcing update of displayed images",level=logging.DEBUG)
         for sw in self.mdi_windows:
             self.mdi_windows[sw]['status']=guicontrols.NEEDSUPDATE
         
@@ -3177,13 +3177,13 @@ class theApp(Qt.QObject):
             self.showAlignPoints=True
                     
         if idx==2:
-            log.log("main_app.theApp","Setting up manual alignment controls",level=logging.DEBUG)
+            log.log(repr(self),"Setting up manual alignment controls",level=logging.DEBUG)
             self.manual_align=True
-            log.log("main_app.theApp","Updating list of available images",level=logging.DEBUG)
+            log.log(repr(self),"Updating list of available images",level=logging.DEBUG)
             self.updateAlignList()
             if self.wnd.listWidgetManualAlign.count()>0:
                 
-                log.log("main_app.theApp","Selecting reference image",level=logging.DEBUG)
+                log.log(repr(self),"Selecting reference image",level=logging.DEBUG)
                 self.wnd.listWidgetManualAlign.setCurrentRow(0)
                 self.showDifference()
                             
@@ -3542,7 +3542,7 @@ class theApp(Qt.QObject):
             f.write(doc.toprettyxml(' ','\n'))
             f.close()
         except IOError as err:
-            log.log("main_app.theApp","Cannot save the project: " + str(err),level=logging.ERROR)
+            log.log(repr(self),"Cannot save the project: " + str(err),level=logging.ERROR)
             msgBox = Qt.QMessageBox(self.wnd)
             msgBox.setText(tr("Cannot save the project: ")+ str(err))
             msgBox.setInformativeText(tr("Assure you have the permissions to write the file."))
@@ -3557,7 +3557,7 @@ class theApp(Qt.QObject):
     
     def loadProject(self,pname=None):
         
-        log.log("main_app.theApp",'loading project, please wait...',level=logging.INFO)
+        log.log(repr(self),'loading project, please wait...',level=logging.INFO)
         old_fname = self.current_project_fname
         
         if pname is None:
@@ -3571,15 +3571,15 @@ class theApp(Qt.QObject):
             project_fname=pname
             
         if project_fname.replace(' ','') == '':
-            log.log("main_app.theApp",' no project selected, retvert to previous state',level=logging.INFO) 
+            log.log(repr(self),' no project selected, retvert to previous state',level=logging.INFO) 
             return False
         else:
-            log.log("main_app.theApp",' project name: \''+str(project_fname)+'\'',level=logging.DEBUG) 
+            log.log(repr(self),' project name: \''+str(project_fname)+'\'',level=logging.DEBUG) 
             
         try:
             dom = minidom.parse(project_fname)
         except Exception as err:
-            log.log("main_app.theApp",'failed to parse project, xml formatting error',level=logging.ERROR) 
+            log.log(repr(self),'failed to parse project, xml formatting error',level=logging.ERROR) 
             return self.corruptedMsgBox(err)       
 
         self.statusBar.showMessage(tr('loading project, please wait...'))
@@ -3601,7 +3601,7 @@ class theApp(Qt.QObject):
                 master_bias_mul_factor=float(master_bias_node.getAttribute('mul'))
                 _bias_section=True
             except Exception as exc:
-                log.log("main_app.theApp",'no bias section',level=logging.DEBUG)
+                log.log(repr(self),'no bias section',level=logging.DEBUG)
                 total_bias=0
                 master_bias_node=None
                 _bias_section=False
@@ -3610,7 +3610,7 @@ class theApp(Qt.QObject):
                 photometry_node = root.getElementsByTagName('photometry')[0]
                 _fotometric_section=True
             except Exception as exc:
-                log.log("main_app.theApp",'no fotometric section, skipping star loading',level=logging.DEBUG)
+                log.log(repr(self),'no fotometric section, skipping star loading',level=logging.DEBUG)
                 _fotometric_section=False
                                 
             total_dark = len(dark_frames_node.getElementsByTagName('image'))
@@ -3621,7 +3621,7 @@ class theApp(Qt.QObject):
             self.progress.setMaximum(total_bias+total_dark+total_flat+total_imgs-1)
             count=0
             
-            log.log("main_app.theApp",'loading project information',level=logging.DEBUG)
+            log.log(repr(self),'loading project information',level=logging.DEBUG)
             
             current_dir_node = information_node.getElementsByTagName('current-dir')[0]
             current_row_node = information_node.getElementsByTagName('current-row')[0]
@@ -3671,7 +3671,7 @@ class theApp(Qt.QObject):
             biasframelist=[]
             biasListWidgetElements = []    
             if _bias_section:
-                log.log("main_app.theApp",'reading bias-frames section',level=logging.DEBUG)
+                log.log(repr(self),'reading bias-frames section',level=logging.DEBUG)
                 for node in bias_frames_node.getElementsByTagName('image'):
                     if self.progressWasCanceled():
                         return False
@@ -3711,7 +3711,7 @@ class theApp(Qt.QObject):
                     biasfrm.addProperty('frametype',utils.BIAS_FRAME_TYPE)
                     biasListWidgetElements.append(q)
             
-            log.log("main_app.theApp",'reading dark-frames section',level=logging.DEBUG)
+            log.log(repr(self),'reading dark-frames section',level=logging.DEBUG)
             
             darkframelist=[]
             darkListWidgetElements = []    
@@ -3754,7 +3754,7 @@ class theApp(Qt.QObject):
                 darkfrm.addProperty('frametype',utils.DARK_FRAME_TYPE)
                 darkListWidgetElements.append(q)
             
-            log.log("main_app.theApp",'reading flatfield-frames section',level=logging.DEBUG)
+            log.log(repr(self),'reading flatfield-frames section',level=logging.DEBUG)
             
             flatframelist=[]
             flatListWidgetElements = []    
@@ -3797,7 +3797,7 @@ class theApp(Qt.QObject):
                 flatfrm.addProperty('frametype',utils.FLAT_FRAME_TYPE)
                 flatListWidgetElements.append(q)
                 
-            log.log("main_app.theApp",'reading light-frames section',level=logging.DEBUG)
+            log.log(repr(self),'reading light-frames section',level=logging.DEBUG)
             
             framelist=[]  
             listWidgetElements=[]
@@ -3864,7 +3864,7 @@ class theApp(Qt.QObject):
             starslist=[]
             starsListWidgetElements=[]
             if _fotometric_section:
-                log.log("main_app.theApp",'reading stars section',level=logging.DEBUG)
+                log.log(repr(self),'reading stars section',level=logging.DEBUG)
                 use_image_time=bool(int(photometry_node.getAttribute('time_type')))
                 #photometry section
                 for star_node in photometry_node.getElementsByTagName('star'):
@@ -3892,14 +3892,14 @@ class theApp(Qt.QObject):
         except Exception as exc:
             self.current_project_fname=old_fname
             self.unlock()
-            log.log("main_app.theApp",'An error has occurred while reading the project:\"'+str(exc)+'\"',level=logging.ERROR)
+            log.log(repr(self),'An error has occurred while reading the project:\"'+str(exc)+'\"',level=logging.ERROR)
             return self.corruptedMsgBox(str(exc))
        
         self.newProject()
         
         self.current_project_fname=project_fname
                 
-        log.log("main_app.theApp",'setting up project environment',level=logging.DEBUG)
+        log.log(repr(self),'setting up project environment',level=logging.DEBUG)
         
         for item in starsListWidgetElements:
             self.wnd.starsListWidget.addItem(item)
@@ -3964,7 +3964,7 @@ class theApp(Qt.QObject):
         self.wnd.flatMulDoubleSpinBox.setValue(master_flat_mul_factor)
         if (len(self.flatframelist)>0):
             self.wnd.flatClearPushButton.setEnabled(True)
-        log.log("main_app.theApp",'project fully loaded',level=logging.INFO)
+        log.log(repr(self),'project fully loaded',level=logging.INFO)
         self.wnd.setWindowTitle(str(paths.PROGRAM_NAME)+' ['+self.current_project_fname+']')    
         self.unlock()
         
@@ -4125,7 +4125,7 @@ class theApp(Qt.QObject):
             return False
         
         if reset:
-            log.log("main_app.theApp",'Resetting alignment...',level=logging.DEBUG)
+            log.log(repr(self),'Resetting alignment...',level=logging.DEBUG)
             self.progress.setMaximum(len(self.framelist))
             self.lock()
             count=0
@@ -4133,12 +4133,12 @@ class theApp(Qt.QObject):
                 count+=1
                 self.progress.setValue(count)
                 if i.isUsed():
-                    log.log("main_app.theApp",'Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0',level=logging.INFO)
+                    log.log(repr(self),'Image ' + i.name +' -> shift = (0.0, 0.0)  angle=0.0',level=logging.INFO)
                     self.statusBar.showMessage(tr('Resetting alignment for image')+' '+i.name)
                     i.setAngle(0)
                     i.setOffset((0,0))
                 else:
-                    log.log("main_app.theApp",' Skipping image ' + i.name,level=logging.INFO)
+                    log.log(repr(self),' Skipping image ' + i.name,level=logging.INFO)
             self.unlock()
         else:
             self.is_aligning = True
@@ -4371,14 +4371,14 @@ class theApp(Qt.QObject):
                 QtGui.QApplication.instance().processEvents()
                 if ref is None:
                     ref = img
-                    log.log("main_app.theApp",'using image '+img.name+' as reference',level=logging.INFO)
+                    log.log(repr(self),'using image '+img.name+' as reference',level=logging.INFO)
                     ref_data = ref.getData(asarray=True)
                     if len(ref_data.shape)==3:
                         ref_data=ref_data.sum(2)
                     ref_data*=mask
                     ref.setOffset([0,0])
                 else:
-                    log.log("main_app.theApp",'registering image '+img.name,level=logging.INFO)
+                    log.log(repr(self),'registering image '+img.name,level=logging.INFO)
                     img_data=img.getData(asarray=True)
                     if len(img_data.shape)==3:
                         img_data=img_data.sum(2)
@@ -4442,7 +4442,7 @@ class theApp(Qt.QObject):
             return self.product(framelist, bias_image, dark_image, flat_image, **args)
         else:
             #this should never happen
-            log.log("main_app.theApp","Something that sould never happen has just happened: An unknonw stacking method has been selected!",level=logging.ERROR)
+            log.log(repr(self),"Something that sould never happen has just happened: An unknonw stacking method has been selected!",level=logging.ERROR)
             return None
     
     def doStack(self, clicked):
@@ -4610,23 +4610,23 @@ class theApp(Qt.QObject):
         return ((lght_method,lght_args), (bias_method,bias_args), (dark_method,dark_args), (flat_method,flat_args), hotp_args)
         
     def generateMasters(self, bias_image=None, dark_image=None, flat_image=None, hot_pixels_options=None):
-        log.log("main_app.theApp","generating master frames",level=logging.INFO)
+        log.log(repr(self),"generating master frames",level=logging.INFO)
         
         if (bias_image is not None):
-            log.log("main_app.theApp","generating master bias-frame",level=logging.DEBUG)
+            log.log(repr(self),"generating master bias-frame",level=logging.DEBUG)
             master_bias=(bias_image*self.master_bias_mul_factor)
             
         else:
             master_bias=None
             
         if (dark_image is not None):
-            log.log("main_app.theApp","generating master dark-frame",level=logging.DEBUG)
+            log.log(repr(self),"generating master dark-frame",level=logging.DEBUG)
             if (master_bias is not None):
                 master_dark=(dark_image-master_bias)*self.master_dark_mul_factor
             else:
                 master_dark=dark_image*self.master_dark_mul_factor
             
-            log.log("main_app.theApp","generating hot-pixels map",level=logging.DEBUG)
+            log.log(repr(self),"generating hot-pixels map",level=logging.DEBUG)
             
             if hot_pixels_options['hp_smart']:
                 
@@ -4637,7 +4637,7 @@ class theApp(Qt.QObject):
                     ddev_dark=master_dark.std()
                     hot_pixels={'global':True,
                                 'data':np.argwhere(abs(master_dark-mean_dark)>=(trashold*ddev_dark))}
-                    log.log("main_app.theApp","Found "+str(len(hot_pixels['data']))+" hot pixels",level=logging.INFO)
+                    log.log(repr(self),"Found "+str(len(hot_pixels['data']))+" hot pixels",level=logging.INFO)
                 elif len(master_dark.shape)==3:
                     hot_pixels={'global':False,
                                 'data':[]}
@@ -4649,7 +4649,7 @@ class theApp(Qt.QObject):
                         hp_count=len(hp_tmp)
                         hot_pixels['data'].append(hp_tmp)
                         
-                    log.log("main_app.theApp","Found "+str(hp_count)+" hot pixels",level=logging.INFO)
+                    log.log(repr(self),"Found "+str(hp_count)+" hot pixels",level=logging.INFO)
                 
             else:
                 hot_pixels=None
@@ -4658,7 +4658,7 @@ class theApp(Qt.QObject):
             hot_pixels=None
             
         if (flat_image is not None):
-            log.log("main_app.theApp","generating master flatfield",level=logging.DEBUG)
+            log.log(repr(self),"generating master flatfield",level=logging.DEBUG)
             # this should avoid division by zero
             zero_mask = ((flat_image == 0).astype(self.ftype))*flat_image.max()
             corrected = flat_image+zero_mask
@@ -4675,19 +4675,19 @@ class theApp(Qt.QObject):
     def calibrate(self, image, master_bias=None, master_dark=None, master_flat=None, hot_pixels=None, debayerize_result=False, **args):
                 
         if (master_bias is None) and (master_dark is None) and (master_flat is None):
-            log.log("main_app.theApp","skipping image calibration",level=logging.INFO)
+            log.log(repr(self),"skipping image calibration",level=logging.INFO)
         else:
-            log.log("main_app.theApp","calibrating image...")
+            log.log(repr(self),"calibrating image...")
             if master_bias is not None:
-                log.log("main_app.theApp","calibrating image: subtracting bias",level=logging.DEBUG)
+                log.log(repr(self),"calibrating image: subtracting bias",level=logging.DEBUG)
                 image -=  master_bias
                                     
             if master_dark is not None:
-                log.log("main_app.theApp","calibrating image: subtracting master dark",level=logging.DEBUG)
+                log.log(repr(self),"calibrating image: subtracting master dark",level=logging.DEBUG)
                 image -=  master_dark
             
             if hot_pixels is not None:
-                log.log("main_app.theApp","calibrating image: correcting for hot pixels",level=logging.DEBUG)
+                log.log(repr(self),"calibrating image: correcting for hot pixels",level=logging.DEBUG)
                 
             
                 """
@@ -4758,7 +4758,7 @@ class theApp(Qt.QObject):
                             
                 self.progress_dialog.hide()
             if master_flat is not None:
-                log.log("main_app.theApp","calibrating image: dividing by master flat",level=logging.DEBUG)
+                log.log(repr(self),"calibrating image: dividing by master flat",level=logging.DEBUG)
                 image /= master_flat  
                 
         
@@ -4771,11 +4771,11 @@ class theApp(Qt.QObject):
             
     def registerImages(self, img, img_data):
         if img.angle!=0:
-            log.log("main_app.theApp","rotating of "+str(img.angle)+" degrees",level=logging.INFO)
+            log.log(repr(self),"rotating of "+str(img.angle)+" degrees",level=logging.INFO)
             img_data = sp.ndimage.interpolation.rotate(img_data,img.angle,order=self.interpolation_order,reshape=False,mode='constant',cval=0.0)
             
         else:
-            log.log("main_app.theApp","skipping rotation",level=logging.INFO)
+            log.log(repr(self),"skipping rotation",level=logging.INFO)
         
         shift=np.zeros([len(img_data.shape)])
         shift[0]=-img.offset[1]
@@ -4783,11 +4783,11 @@ class theApp(Qt.QObject):
         
         if (shift[0]!=0) or (shift[1]!=0):
             
-            log.log("main_app.theApp","shifting of "+str(shift[0:2])+" pixels",level=logging.INFO)
+            log.log(repr(self),"shifting of "+str(shift[0:2])+" pixels",level=logging.INFO)
             img_data = sp.ndimage.interpolation.shift(img_data,shift,order=self.interpolation_order,mode='constant',cval=0.0)
             
         else:
-            log.log("main_app.theApp","skipping shift",level=logging.INFO)
+            log.log(repr(self),"skipping shift",level=logging.INFO)
         del shift
 
         return img_data
@@ -4806,7 +4806,7 @@ class theApp(Qt.QObject):
         
         total = len(framelist)
         
-        log.log("main_app.theApp",'Computing ' + str(name) + ', please wait...',level=logging.INFO)
+        log.log(repr(self),'Computing ' + str(name) + ', please wait...',level=logging.INFO)
         
         self.progress.reset()
         self.progress.setMaximum(4*(total-1))
@@ -4830,10 +4830,10 @@ class theApp(Qt.QObject):
             
             if img.isUsed():
                 count+=1
-                log.log("main_app.theApp",'Using image '+img.name,level=logging.INFO)
+                log.log(repr(self),'Using image '+img.name,level=logging.INFO)
             else:
                 progress_count+=3
-                log.log("main_app.theApp",'Skipping image '+img.name,level=logging.INFO)
+                log.log(repr(self),'Skipping image '+img.name,level=logging.INFO)
                 continue
             
             
@@ -4921,7 +4921,7 @@ class theApp(Qt.QObject):
         
         total_subs=(n_x_subs+1)*(n_y_subs+1)
         
-        log.log("main_app.theApp","Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions",level=logging.DEBUG)
+        log.log(repr(self),"Executing "+ str(title)+": splitting images in "+str(total_subs)+" sub-regions",level=logging.DEBUG)
         self.statusBar.showMessage(tr('Computing') +' '+ str(title) + ', ' + tr('please wait...'))
         self.progress.reset
         self.progress.setMaximum(total_subs*(len(filelist)+1))
@@ -4972,7 +4972,7 @@ class theApp(Qt.QObject):
                         sub=n[yst:ynd,xst:xnd].copy()
                         lst.append(sub)
                 count+=1
-                log.log("main_app.theApp",'Computing '+str(title)+' on subregion '+str(count)+' of '+str(total_subs),level=logging.INFO)
+                log.log(repr(self),'Computing '+str(title)+' on subregion '+str(count)+' of '+str(total_subs),level=logging.INFO)
                 self.statusBar.showMessage(tr('Computing ')+str(title)+tr(' on subregion ')+str(count)+tr(' of ')+str(total_subs))
                 QtGui.QApplication.instance().processEvents()
                 
@@ -5173,7 +5173,7 @@ class theApp(Qt.QObject):
         self._flt=None
         self._bas=None
         
-        log.log("main_app.theApp",'generating light curves, please wait...',level=logging.INFO)
+        log.log(repr(self),'generating light curves, please wait...',level=logging.INFO)
         
         self.stack(skip_light=True)
         
@@ -5224,10 +5224,10 @@ class theApp(Qt.QObject):
         for img in self.framelist:
             count+=1
             if not (img.isUsed()):
-                log.log("main_app.theApp",'\nskipping image '+str(img.name),level=logging.INFO)
+                log.log(repr(self),'\nskipping image '+str(img.name),level=logging.INFO)
                 continue
             else:
-                log.log("main_app.theApp",'\nusing image '+str(img.name),level=logging.INFO)
+                log.log(repr(self),'\nusing image '+str(img.name),level=logging.INFO)
                 
             self.progress.setValue(count)
             r = img.getData(asarray=True, ftype=self.ftype)
@@ -5239,7 +5239,7 @@ class theApp(Qt.QObject):
                 self.lightcurve['time'].append(count)
             
             for i in self.starslist:
-                log.log("main_app.theApp",'computing adu value for star '+str(i[2]),level=logging.INFO)
+                log.log(repr(self),'computing adu value for star '+str(i[2]),level=logging.INFO)
                
                 di = dist(cx,cy,i[0],i[1])
                 an = math.atan2((cy-i[1]),(cx-i[0]))
@@ -5511,7 +5511,7 @@ class theApp(Qt.QObject):
                                                        utils.DIALOG_OPTIONS))
         
         if file_name.replace(' ','') == '':
-            log.log("main_app.theApp",'no video file selected for output',level=logging.ERROR)
+            log.log(repr(self),'no video file selected for output',level=logging.ERROR)
             return False
         
         
@@ -5551,10 +5551,10 @@ class theApp(Qt.QObject):
                 utils.showErrorMsgBox(tr("Cannot create the video file."),
                                       tr("Try to use a lower resolution and assure you\nhave the permissions to write the file."))                
         
-        log.log("main_app.theApp",'writing video to: \"'+file_name+'\"',level=logging.INFO)
-        log.log("main_app.theApp",' FPS : ' + str(fps),level=logging.DEBUG)
-        log.log("main_app.theApp",' FOURCC : ' + fcc_str,level=logging.DEBUG)
-        log.log("main_app.theApp",' FRAME SIZE : ' + str(size),level=logging.DEBUG)
+        log.log(repr(self),'writing video to: \"'+file_name+'\"',level=logging.INFO)
+        log.log(repr(self),' FPS : ' + str(fps),level=logging.DEBUG)
+        log.log(repr(self),' FOURCC : ' + fcc_str,level=logging.DEBUG)
+        log.log(repr(self),' FRAME SIZE : ' + str(size),level=logging.DEBUG)
         
         
         
@@ -5571,8 +5571,8 @@ class theApp(Qt.QObject):
                 self.progress.setValue(count)
                 if frm.isUsed():
                     
-                    log.log("main_app.theApp",'using frame '+str(frm.name),level=logging.INFO)
-                    log.log("main_app.theApp",'loading data...',level=logging.DEBUG)
+                    log.log(repr(self),'using frame '+str(frm.name),level=logging.INFO)
+                    log.log(repr(self),'loading data...',level=logging.DEBUG)
                     
                     img = self.debayerize(frm.getData(asarray=True, asuint8=True, fit_levels=fitlvl)).astype(np.uint8)
                     
@@ -5582,7 +5582,7 @@ class theApp(Qt.QObject):
                         img = self.registerImages(frm,img)
                     
                     if custom_size:
-                        log.log("main_app.theApp",'resizing image to ' + str(size),level=logging.DEBUG)
+                        log.log(repr(self),'resizing image to ' + str(size),level=logging.DEBUG)
                         if _rgb:
                             img = sp.ndimage.interpolation.zoom(img,(fzoom,fzoom,1),order=self.interpolation_order)
                         else:
@@ -5590,31 +5590,31 @@ class theApp(Qt.QObject):
                     
                     if _rgb:
                         cv2img = np.empty_like(img)
-                        log.log("main_app.theApp",' converting to BRG format...',level=logging.DEBUG)
+                        log.log(repr(self),' converting to BRG format...',level=logging.DEBUG)
                         cv2img[...,0]=img[...,2]
                         cv2img[...,1]=img[...,1]
                         cv2img[...,2]=img[...,0]
                     else:
-                        log.log("main_app.theApp",' converting to BRG format...',level=logging.DEBUG)
+                        log.log(repr(self),' converting to BRG format...',level=logging.DEBUG)
                         img = utils.getColormappedImage(img,self.current_colormap,fitlvl)
                         cv2img = np.empty((size[1],size[0],3),dtype=np.uint8)
                         cv2img[...,0]=img[2]
                         cv2img[...,1]=img[1]
                         cv2img[...,2]=img[0]
                             
-                    log.log("main_app.theApp",' pushing frame...',level=logging.DEBUG)
+                    log.log(repr(self),' pushing frame...',level=logging.DEBUG)
                     
                     vw.write(cv2img)
                     
                     del cv2img
                     
                 else:
-                    log.log("main_app.theApp",'\nskipping frame '+str(frm.name),level=logging.INFO)
+                    log.log(repr(self),'\nskipping frame '+str(frm.name),level=logging.INFO)
                     
             vw.release()
             self.unlock()
             self.statusBar.showMessage(tr('DONE'))
-            log.log("main_app.theApp",'DONE',level=logging.INFO)
+            log.log(repr(self),'DONE',level=logging.INFO)
             
         else:
             utils.showErrorMsgBox('\nCannot open destination file')

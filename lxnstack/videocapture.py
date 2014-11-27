@@ -61,7 +61,7 @@ class GenericVideoDevice(Qt.QObject):
                              self._device_info['driver backend'],
                              self._device_info['driver version'])
     
-    def __repr__(self):
+    def shortinfo(self):
         
         if self._device_info['bus id'] != "":
             fmtstr="{0} ({1}) [{2}]"
@@ -131,8 +131,8 @@ class GenericVideoDevice(Qt.QObject):
     
     def requestLock(self):
         
-        log.log("videocapture."+self.__class__.__name__,
-                "Requesting exclusive lock for the device \'"+repr(self)+"\'",
+        log.log(repr(self),
+                "Requesting exclusive lock for the device \'"+self.shortinfo()+"\'",
                 level=logging.DEBUG)
         
         if utils.timeouted_loop(self.isLocked,timeout=1,t_step=0.1,c_val=False):
@@ -150,8 +150,8 @@ class GenericVideoDevice(Qt.QObject):
                 if fps_menu is not None:
                     fps_menu.setEnabled(False)
                     
-            log.log("videocapture."+self.__class__.__name__,
-                    "Exclusive lock established for the device \'"+repr(self)+"\'",
+            log.log(repr(self),
+                    "Exclusive lock established for the device \'"+self.shortinfo()+"\'",
                     level=logging.DEBUG)
             self._locked=True
             self.locked.emit()
@@ -160,15 +160,15 @@ class GenericVideoDevice(Qt.QObject):
         
         else:    
             
-            log.log("videocapture."+self.__class__.__name__,
-                    "Cannot establish exclusive lock for the device \'"+repr(self)+"\': device already locked",
+            log.log(repr(self),
+                    "Cannot establish exclusive lock for the device \'"+self.shortinfo()+"\': device already locked",
                     level=logging.WARNING)
         return False
         
     def requestUnlock(self):
         
-        log.log("videocapture."+self.__class__.__name__,
-                "Removing exclusive lock for the device \'"+repr(self)+"\'",
+        log.log(repr(self),
+                "Removing exclusive lock for the device \'"+self.shortinfo()+"\'",
                 level=logging.DEBUG)
         
         if self._control_ui is not None:
@@ -299,25 +299,25 @@ class V4l2VideoDevice(GenericVideoDevice):
             r,err = self._xioctl(v4l2.VIDIOC_QUERYCAP, cap)
             if (r == -1):
                 if (err == errno.EINVAL):
-                    log.log("videocapture.V4l2VideoDevice",self._device_filename+" is no V4L2 device",level=logging.WARNING)
+                    log.log(repr(self),self._device_filename+" is no V4L2 device",level=logging.WARNING)
                     return False
                 else:
                     return False
             
             if (not (cap.capabilities & v4l2.V4L2_CAP_VIDEO_CAPTURE)):
-                log.log("videocapture.V4l2VideoDevice",self._device_filename+" is no video capture device",level=logging.WARNING)
+                log.log(repr(self),self._device_filename+" is no video capture device",level=logging.WARNING)
                 return False
             
             
             if (not (cap.capabilities & v4l2.V4L2_CAP_READWRITE)):
-                log.log("videocapture.V4l2VideoDevice",self._device_filename+" does not support read i/o")
+                log.log(repr(self),self._device_filename+" does not support read i/o")
                 can_read=False
             else:
                 self._available_reading_modes[self.MEMORY_READ]='userspace char buffers'
                 can_read=True
             
             if (not (cap.capabilities & v4l2.V4L2_CAP_STREAMING)):
-                log.log("videocapture.V4l2VideoDevice",self._device_filename+" does not support streaming i/o")
+                log.log(repr(self),self._device_filename+" does not support streaming i/o")
                 can_stream=False
                 return False
             else:
@@ -351,7 +351,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 crop.c = cropcap.defrect # reset to default */
 
                 if (-1 == self._xioctl(v4l2.VIDIOC_S_CROP, crop)[0]):
-                    log.log("videocapture.V4l2VideoDevice","Cropping not supported")
+                    log.log(repr(self),"Cropping not supported")
                     self._device_info['support cropping']=False
                 else:
                     self._device_info['support cropping']=True
@@ -371,23 +371,23 @@ class V4l2VideoDevice(GenericVideoDevice):
                 if not self._init_device(pixfmt):
                     self._io=self.MEMORY_USERPTR
                     if not self._init_device(pixfmt):
-                        log.log("videocapture.V4l2VideoDevice","Error in device initializazion! (MEMORY_MMAP)",level=logging.ERROR)
+                        log.log(repr(self),"Error in device initializazion! (MEMORY_MMAP)",level=logging.ERROR)
                         return False
             elif can_read:
                 self._io=self.MEMORY_READ
                 if not self._init_device(pixfmt):
-                    log.log("videocapture.V4l2VideoDevice","Error in device initializazion! (MEMORY_READ)",level=logging.ERROR)
+                    log.log(repr(self),"Error in device initializazion! (MEMORY_READ)",level=logging.ERROR)
                     return False
             else:
-                log.log("videocapture.V4l2VideoDevice","Cannot open the device "+device+": wrong or not supported reading mode!",level=logging.ERROR)
+                log.log(repr(self),"Cannot open the device "+device+": wrong or not supported reading mode!",level=logging.ERROR)
                 return False
         elif mode in self._available_reading_modes:
             self._io=mode
             if not self._init_device(pixfmt):
-                log.log("videocapture.V4l2VideoDevice","Error in device initializazion! (PIXFMT)",level=logging.ERROR)
+                log.log(repr(self),"Error in device initializazion! (PIXFMT)",level=logging.ERROR)
                 return False
         else:
-            log.log("videocapture.V4l2VideoDevice","Cannot open the device "+device+": wrong or not supported reading mode!",level=logging.ERROR)
+            log.log(repr(self),"Cannot open the device "+device+": wrong or not supported reading mode!",level=logging.ERROR)
             return False
         
         self._reopening=False
@@ -518,7 +518,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 ival.denominator = ctypes.c_uint32(x[1][1])
                 return self._set_capture_param(frmival=ival)
         
-        log.log("videocapture.V4l2VideoDevice","Invalid frame rate",level=logging.WARNING)
+        log.log(repr(self),"Invalid frame rate",level=logging.WARNING)
         return False
     
     def getFrameSize(self):
@@ -960,7 +960,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                     continue
                 else:
                     return r,eno
-            #log.log("videocapture.V4l2VideoDevice","xioctl error: [{0:03d}] \"{1}\" request: 0x{2:08X} arg:{3}".format(eno,os.strerror(eno),request,str(arg)),level=logging.WARNING)
+            #log.log(repr(self),"xioctl error: [{0:03d}] \"{1}\" request: 0x{2:08X} arg:{3}".format(eno,os.strerror(eno),request,str(arg)),level=logging.WARNING)
             return r,eno
         else:
             while maxiter:
@@ -995,7 +995,7 @@ class V4l2VideoDevice(GenericVideoDevice):
             
     
     def _errno_exit(self, name):
-        log.log("videocapture.V4l2VideoDevice","Error while setting "+str(name),level=logging.ERROR)
+        log.log(repr(self),"Error while setting "+str(name),level=logging.ERROR)
     
     def _get_control_value(self,ctrlid):
         control=v4l2.v4l2_control()
@@ -1004,7 +1004,7 @@ class V4l2VideoDevice(GenericVideoDevice):
         r,err = self._xioctl(v4l2.VIDIOC_G_CTRL, control)
         if r == -1:
             if err == errno.EINVAL:
-                log.log("videocapture.V4l2VideoDevice","(_get_control_value) invalid control id: "+str(control.id),level=logging.ERROR)
+                log.log(repr(self),"(_get_control_value) invalid control id: "+str(control.id),level=logging.ERROR)
             else:
                 self._errno_exit("VIDIOC_G_CTRL")            
             return False
@@ -1021,7 +1021,7 @@ class V4l2VideoDevice(GenericVideoDevice):
         r,err = self._xioctl(v4l2.VIDIOC_S_CTRL, control)
         if r == -1:
             if err == errno.EINVAL:
-                log.log("videocapture.V4l2VideoDevice","(_set_control_value) invalid control id: "+str(control.id),level=logging.ERROR)
+                log.log(repr(self),"(_set_control_value) invalid control id: "+str(control.id),level=logging.ERROR)
             else:
                 self._errno_exit("VIDIOC_S_CTRL")
                 
@@ -1082,7 +1082,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 # NOTE: This will be handled by the ui constructor function
                 #
                 #if (queryctrl.flags & v4l2.V4L2_CTRL_FLAG_DISABLED):
-                #    log.log("videocapture.V4l2VideoDevice","disabled id: "+str(queryctrl.id))
+                #    log.log(repr(self),"disabled id: "+str(queryctrl.id))
                 
                 ctrldic={
                             'id'        : queryctrl.id,
@@ -1096,10 +1096,10 @@ class V4l2VideoDevice(GenericVideoDevice):
                             'menuitems' : {}
                         }
                 
-                log.log("videocapture.V4l2VideoDevice","Control :"+queryctrl.name,level=logging.DEBUG)
+                log.log(repr(self),"Control :"+queryctrl.name,level=logging.DEBUG)
 
                 if (queryctrl.type == v4l2.V4L2_CTRL_TYPE_MENU):
-                    log.log("videocapture.V4l2VideoDevice","this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
+                    log.log(repr(self),"this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
                     ctrldic['menuitems'] = self._enumerate_menu(queryctrl)
                 
                 ctrl_class = v4l2.V4L2_CTRL_ID2CLASS(queryctrl.id)
@@ -1121,7 +1121,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 r,err = self._xioctl(v4l2.VIDIOC_QUERYCTRL, queryctrl)
                 if r == -1:
                     if err == errno.EINVAL:
-                        log.log("videocapture.V4l2VideoDevice","invalid control id: "+str(queryctrl.id),level=logging.ERROR)
+                        log.log(repr(self),"invalid control id: "+str(queryctrl.id),level=logging.ERROR)
                         continue
                     else:
                         self._errno_exit("VIDIOC_QUERYCTRL")
@@ -1130,7 +1130,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 # NOTE: This will be handled by the ui constructor function
                 #
                 #if (queryctrl.flags & v4l2.V4L2_CTRL_FLAG_DISABLED):
-                #    log.log("videocapture.V4l2VideoDevice","disabled id: "+str(queryctrl.id))
+                #    log.log(repr(self),"disabled id: "+str(queryctrl.id))
                 
                 ctrldic={
                             'id'        : queryctrl.id,
@@ -1144,10 +1144,10 @@ class V4l2VideoDevice(GenericVideoDevice):
                             'menuitems' : {}
                         }
                 
-                log.log("videocapture.V4l2VideoDevice","Control "+queryctrl.name,level=logging.DEBUG)
+                log.log(repr(self),"Control "+queryctrl.name,level=logging.DEBUG)
 
                 if (queryctrl.type == v4l2.V4L2_CTRL_TYPE_MENU):
-                    log.log("videocapture.V4l2VideoDevice","this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
+                    log.log(repr(self),"this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
                     ctrldic['menuitems'] = self._enumerate_menu(queryctrl)
                 
                 controlslist[v4l2.V4L2_CTRL_CLASS_USER].append(ctrldic)
@@ -1157,7 +1157,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 r,err = self._xioctl(v4l2.VIDIOC_QUERYCTRL, queryctrl)
                 if r == -1:
                     if err == errno.EINVAL:
-                        log.log("videocapture.V4l2VideoDevice","invalid control id: "+str(queryctrl.id),level=logging.ERROR)
+                        log.log(repr(self),"invalid control id: "+str(queryctrl.id),level=logging.ERROR)
                         break
                     else:
                         self._errno_exit("VIDIOC_QUERYCTRL")
@@ -1176,10 +1176,10 @@ class V4l2VideoDevice(GenericVideoDevice):
                         }
                 
                 if (queryctrl.type == v4l2.V4L2_CTRL_TYPE_MENU):
-                    log.log("videocapture.V4l2VideoDevice","this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
+                    log.log(repr(self),"this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
                     ctrldic['menuitems'] = self._enumerate_menu(queryctrl,True)
                 elif (queryctrl.type == v4l2.V4L2_CTRL_TYPE_INTEGER_MENU):
-                    log.log("videocapture.V4l2VideoDevice","this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
+                    log.log(repr(self),"this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
                     ctrldic['menuitems'] = self._enumerate_menu(queryctrl,False)
                     
                 controlslist[v4l2.V4L2_CID_PRIVATE_BASE].append(ctrldic)
@@ -1193,26 +1193,26 @@ class V4l2VideoDevice(GenericVideoDevice):
         querymenu=v4l2.v4l2_querymenu()
         querymenu.id = queryctrl.id
         
-        log.log("videocapture.V4l2VideoDevice","menu items for "+str(querymenu.id)+":",level=logging.DEBUG)
+        log.log(repr(self),"menu items for "+str(querymenu.id)+":",level=logging.DEBUG)
         
         menudic={}
-        log.log("videocapture.V4l2VideoDevice","this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
+        log.log(repr(self),"this is a menu: "+str(queryctrl.id),level=logging.DEBUG)
         if use_name:
             for querymenu.index in xrange(queryctrl.minimum,queryctrl.maximum+1):
                 r,err = self._xioctl(v4l2.VIDIOC_QUERYMENU, querymenu)
                 if (r == -1):
-                    log.log("videocapture.V4l2VideoDevice","Error "+str(err)+": "+os.strerror(err),level=logging.ERROR)
+                    log.log(repr(self),"Error "+str(err)+": "+os.strerror(err),level=logging.ERROR)
                     continue
                 menudic[querymenu.index]=str(querymenu._u54.name)
-                log.log("videocapture.V4l2VideoDevice",str(querymenu.index)+":"+str(querymenu._u54.name),level=logging.DEBUG)
+                log.log(repr(self),str(querymenu.index)+":"+str(querymenu._u54.name),level=logging.DEBUG)
         else:
             for querymenu.index in xrange(queryctrl.minimum,queryctrl.maximum+1):
                 r,err = self._xioctl(v4l2.VIDIOC_QUERYMENU, querymenu)
                 if (r == -1):
-                    log.log("videocapture.V4l2VideoDevice","Error "+str(err)+": "+os.strerror(err),level=logging.ERROR)
+                    log.log(repr(self),"Error "+str(err)+": "+os.strerror(err),level=logging.ERROR)
                     continue
                 menudic[querymenu.index]=str(querymenu._u54.value)
-                log.log("videocapture.V4l2VideoDevice",str(querymenu.index)+":"+str(querymenu._u54.value),level=logging.DEBUG)
+                log.log(repr(self),str(querymenu.index)+":"+str(querymenu._u54.value),level=logging.DEBUG)
                 
         return menudic
     
@@ -1229,32 +1229,32 @@ class V4l2VideoDevice(GenericVideoDevice):
             return False
         
         if override_parm is None:
-            log.log("videocapture.V4l2VideoDevice","getting capture params...",level=logging.DEBUG)
+            log.log(repr(self),"getting capture params...",level=logging.DEBUG)
             parm = self._get_capture_param()
             if type(parm) != v4l2.v4l2_streamparm:
                 # There was an error reading capture parameters
-                log.log("videocapture.V4l2VideoDevice","failed to obtain capture params...",level=logging.ERROR)
+                log.log(repr(self),"failed to obtain capture params...",level=logging.ERROR)
                 return False
         elif type(override_parm) == v4l2.v4l2_streamparm:
             parm = override_parm
         else:
-            log.log("videocapture.V4l2VideoDevice","invalid parameter type",level=logging.ERROR)
+            log.log(repr(self),"invalid parameter type",level=logging.ERROR)
             return False
         
         if parm.type != v4l2.V4L2_BUF_TYPE_VIDEO_CAPTURE:
-            log.log("videocapture.V4l2VideoDevice",self._device_filename+" is not a capture device!",level=logging.ERROR)
+            log.log(repr(self),self._device_filename+" is not a capture device!",level=logging.ERROR)
             return False
         
         if frmival is not None:
-            log.log("videocapture.V4l2VideoDevice","setting frame interval",level=logging.DEBUG)
+            log.log(repr(self),"setting frame interval",level=logging.DEBUG)
             if type(frmival) != v4l2.v4l2_fract:
-                log.log("videocapture.V4l2VideoDevice","VIDIOC_S_PARM: Invalid frame interval type",level=logging.ERROR)
+                log.log(repr(self),"VIDIOC_S_PARM: Invalid frame interval type",level=logging.ERROR)
                 return False
             
             parm.parm.capture.timeperframe = frmival
             
         if (hiq is not None) and self.isHighQualityDevice():
-            log.log("videocapture.V4l2VideoDevice","setting frame high quality",level=logging.DEBUG)
+            log.log(repr(self),"setting frame high quality",level=logging.DEBUG)
             if hiq:
                 hiq=v4l2.V4L2_MODE_HIGHQUALITY
             else:
@@ -1266,9 +1266,9 @@ class V4l2VideoDevice(GenericVideoDevice):
             r,err = self._secure_xioctl(v4l2.VIDIOC_S_PARM, parm)
             if r == -1:
                 if err == -1:
-                    log.log("videocapture.V4l2VideoDevice","Error while disabling video stream before setting capture parameters",level=logging.DEBUG)
+                    log.log(repr(self),"Error while disabling video stream before setting capture parameters",level=logging.DEBUG)
                 elif err == -2:
-                    log.log("videocapture.V4l2VideoDevice","Error while reenalbing video stream after setting capture parameters",level=logging.DEBUG)
+                    log.log(repr(self),"Error while reenalbing video stream after setting capture parameters",level=logging.DEBUG)
                 else:
                     self._errno_exit("Error in setting capture parameters")
                 return False
@@ -1290,13 +1290,13 @@ class V4l2VideoDevice(GenericVideoDevice):
         
         r,err = self._xioctl(v4l2.VIDIOC_G_PARM, parm)
         if r == -1:
-            log.log("videocapture.V4l2VideoDevice",self._device_filename+" cannot retrieve capture parameters",level=logging.ERROR)
+            log.log(repr(self),self._device_filename+" cannot retrieve capture parameters",level=logging.ERROR)
             return None
         
         #NOTE: We use only video_capture devices and thus parm.type
         #      should be always V4L2_BUF_TYPE_VIDEO_CAPTURE. 
         if parm.type != v4l2.V4L2_BUF_TYPE_VIDEO_CAPTURE:
-            log.log("videocapture.V4l2VideoDevice",self._device_filename+" is not a capture device!",level=logging.ERROR)
+            log.log(repr(self),self._device_filename+" is not a capture device!",level=logging.ERROR)
             return None
         
         self._capture_capability = parm.parm.capture.capability
@@ -1481,7 +1481,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 if not ((wid,hei) in self._available_pixel_format[pixfmt]['framse_size']):
                     return None
             else:
-                log.log("videocapture.V4l2VideoDevice","Both width and height must be specified!" ,level=logging.ERROR)
+                log.log(repr(self),"Both width and height must be specified!" ,level=logging.ERROR)
                 return None
             
             if field is None:
@@ -1490,7 +1490,7 @@ class V4l2VideoDevice(GenericVideoDevice):
             fmt.type = v4l2.V4L2_BUF_TYPE_VIDEO_CAPTURE
             if preserve:
                 # Preserve original settings as set by v4l2-ctl for example 
-                log.log("videocapture.V4l2VideoDevice","trying to preserve the original format settings" ,level=logging.DEBUG)
+                log.log(repr(self),"trying to preserve the original format settings" ,level=logging.DEBUG)
                 
                 if self._format is None:
                     logmsg="setting default format"
@@ -1510,7 +1510,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                     fmt.fmt.pix.pixelformat = self._format.pix.pixelformat
                     fmt.fmt.pix.field       = self._format.pix.field
                     
-                log.log("videocapture.V4l2VideoDevice",logmsg+": {0:d}x{1:d} [{2:s}]".format(
+                log.log(repr(self),logmsg+": {0:d}x{1:d} [{2:s}]".format(
                         fmt.fmt.pix.width,
                         fmt.fmt.pix.height,
                         v4l2.v4l2_fourcc_string(fmt.fmt.pix.pixelformat)) ,level=logging.DEBUG)
@@ -1522,7 +1522,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                 fmt.fmt.pix.pixelformat = pixfmt
                 fmt.fmt.pix.field       = field
                 
-                log.log("videocapture.V4l2VideoDevice","setting new format: {0:d}x{1:d} [{2:s}]".format(
+                log.log(repr(self),"setting new format: {0:d}x{1:d} [{2:s}]".format(
                         fmt.fmt.pix.width,
                         fmt.fmt.pix.height,
                         v4l2.v4l2_fourcc_string(fmt.fmt.pix.pixelformat)) ,level=logging.DEBUG)
@@ -1536,10 +1536,10 @@ class V4l2VideoDevice(GenericVideoDevice):
         fmtavail = (fmt.fmt.pix.pixelformat in self._available_pixel_format.keys())
                 
         if not (fmtmatch and fmtavail):
-            log.log("videocapture.V4l2VideoDevice","Pixel format not supported by device!" ,level=logging.ERROR)
+            log.log(repr(self),"Pixel format not supported by device!" ,level=logging.ERROR)
             return None
         elif fmt.fmt.pix.pixelformat not in self.supported_pixel_formats:
-            log.log("videocapture.V4l2VideoDevice","Pixel format not supported by lxnstack decoding software!" ,level=logging.WARNING)
+            log.log(repr(self),"Pixel format not supported by lxnstack decoding software!" ,level=logging.WARNING)
         
         if (-1 == self._secure_xioctl(v4l2.VIDIOC_S_FMT, fmt)[0]):
             # Note VIDIOC_S_FMT may change width and height.
@@ -1574,7 +1574,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                     if v4l2.HAS_LIBV4L2:
                         buf_start=self._buffers[i]['start']
                         buf_length=self._buffers[i]['length']
-                        log.log("videocapture.V4l2VideoDevice","unmapping buffer {0:02d}".format(i),level=logging.DEBUG)
+                        log.log(repr(self),"unmapping buffer {0:02d}".format(i),level=logging.DEBUG)
                         if (-1 == v4l2.v4l2_munmap(ctypes.c_voidp(buf_start),ctypes.c_uint32(buf_length))):
                             self._errno_exit("munmap")
                     else:
@@ -1605,12 +1605,12 @@ class V4l2VideoDevice(GenericVideoDevice):
             self._build_ui_controls_interface()    
         
         if self._io == self.MEMORY_READ:
-            log.log("videocapture.V4l2VideoDevice","using reading mode" ,level=logging.DEBUG)
+            log.log(repr(self),"using reading mode" ,level=logging.DEBUG)
             if not self._init_read():
                 return False
         else:
             if self._io == self.MEMORY_MMAP:
-                log.log("videocapture.V4l2VideoDevice","using mmap mode" ,level=logging.DEBUG)
+                log.log(repr(self),"using mmap mode" ,level=logging.DEBUG)
                 if not self._init_mmap():
                     return False
                 
@@ -1681,7 +1681,7 @@ class V4l2VideoDevice(GenericVideoDevice):
         try:
             sbuf=ctypes.create_string_buffer(buffer_size)
         except MemoryError:
-            log.log("videocapture.V4l2VideoDevice","Out of memory",level=logging.ERROR)
+            log.log(repr(self),"Out of memory",level=logging.ERROR)
             return False
         except:
             return False
@@ -1702,13 +1702,13 @@ class V4l2VideoDevice(GenericVideoDevice):
         
         if (-1 == r):
             if (errno.EINVAL == err):
-                log.log("videocapture.V4l2VideoDevice",self._device_filename+" does not support memory mapping",level=logging.WARNING)
+                log.log(repr(self),self._device_filename+" does not support memory mapping",level=logging.WARNING)
             else:
                 self._errno_exit("MMAP:VIDIOC_REQBUFS")
                 return False
 
         if (req.count < 2):
-            log.log("videocapture.V4l2VideoDevice","Insufficient buffer memory on "+self._device_filename,level=logging.ERROR)
+            log.log(repr(self),"Insufficient buffer memory on "+self._device_filename,level=logging.ERROR)
             return False
 
         self._buffers={}
@@ -1722,7 +1722,7 @@ class V4l2VideoDevice(GenericVideoDevice):
             buf.memory = self.MEMORY_MMAP
             buf.index  = n_buffers
             
-            log.log("videocapture.V4l2VideoDevice","setting mmap buffer {0:02d}".format(n_buffers),level=logging.DEBUG)
+            log.log(repr(self),"setting mmap buffer {0:02d}".format(n_buffers),level=logging.DEBUG)
             
             if (-1 == self._xioctl(v4l2.VIDIOC_QUERYBUF, buf)[0]):
                 self._errno_exit("VIDIOC_QUERYBUF")
@@ -1766,7 +1766,7 @@ class V4l2VideoDevice(GenericVideoDevice):
         r,err = self._xioctl(v4l2.VIDIOC_REQBUFS, req)
         if (-1 == r):
             if (errno.EINVAL == err):
-                    log.log("videocapture.V4l2VideoDevice",self._device_filename+" does not support user pointer i/o",level=logging.ERROR)
+                    log.log(repr(self),self._device_filename+" does not support user pointer i/o",level=logging.ERROR)
             else:
                 self._errno_exit("UPTR:VIDIOC_REQBUFS")
             return False
@@ -1776,7 +1776,7 @@ class V4l2VideoDevice(GenericVideoDevice):
             try:
                 sbuf = ctypes.create_string_buffer(buffer_size)
             except MemoryError:
-                log.log("videocapture.V4l2VideoDevice","Out of memory",level=logging.ERROR)
+                log.log(repr(self),"Out of memory",level=logging.ERROR)
                 return False
             
             self._buffers[n_buffers]={'start':ctypes.addressof(sbuf),'length':buffer_size,'arr':sbuf}
@@ -1808,7 +1808,7 @@ class V4l2VideoDevice(GenericVideoDevice):
                     return None
             
             if (0 == r):
-                log.log("videocapture.V4l2VideoDevice","select timeout",level=logging.DEBUG)
+                log.log(repr(self),"select timeout",level=logging.DEBUG)
                 return None
             
             ndframe = self.read_frame()
@@ -1935,7 +1935,7 @@ class V4l2VideoDevice(GenericVideoDevice):
             else:
                 arr = np.random.random_integers(0,100,(h,w))
         except Exception as exc:
-            log.log("videocapture.V4l2VideoDevice","frame processing error: \""+str(exc)+"\"",level=logging.DEBUG)
+            log.log(repr(self),"frame processing error: \""+str(exc)+"\"",level=logging.DEBUG)
             arr = np.random.random_integers(0,100,(h,w))
         return arr
     
@@ -2466,7 +2466,7 @@ class CaptureJob(Qt.QObject):
     StatusWaiting=3
     
     def __init__(self, destdir, name, deviceid=0, captype=1, parent=None):
-        log.log("videocapture.CaptureJob","Initializing video capture job \'"+str(name)+"\'",level=logging.DEBUG)
+        log.log(repr(self),"Initializing video capture job \'"+str(name)+"\'",level=logging.DEBUG)
         Qt.QObject.__init__(self)
         self.name=name
         self._start_time=0
@@ -2483,7 +2483,7 @@ class CaptureJob(Qt.QObject):
         
     
     def __del__(self):
-        log.log("videocapture.CaptureJob","Deleting video capture job \'"+self.name+"\'",level=logging.DEBUG)
+        log.log(repr(self),"Deleting video capture job \'"+self.name+"\'",level=logging.DEBUG)
         if self._capture_thread is not None:
             self.stop()
     
@@ -2540,7 +2540,7 @@ class CaptureJob(Qt.QObject):
         
     def start(self):
         if self._status!=self.StatusInProgress:
-            log.log("videocapture.CaptureJob","job \'"+self.name+"\': Starting video capture thread",level=logging.DEBUG)
+            log.log(repr(self),"job \'"+self.name+"\': Starting video capture thread",level=logging.DEBUG)
             self._status=self.StatusInProgress
             self._capture_thread=QtCore.QThread()
             self.moveToThread(self._capture_thread) # moving to a working thread
@@ -2554,7 +2554,7 @@ class CaptureJob(Qt.QObject):
     def stop(self):
         if ((self._status != self.StatusDone) and
             (self._capture_thread is not None)):
-            log.log("videocapture.CaptureJob","job \'"+self.name+"\': Stopping video capture thread",level=logging.DEBUG)
+            log.log(repr(self),"job \'"+self.name+"\': Stopping video capture thread",level=logging.DEBUG)
             self._status=self.StatusDone
             self._capture_thread.quit()
             self._capture_thread.wait()
@@ -2595,9 +2595,9 @@ class CaptureJob(Qt.QObject):
                 fps = self._device.getFrameRate()
                 sze = self._device.getFrameSize()
                 fcc = v4l2.v4l2_fourcc('I', 'Y', 'U', 'V')
-                log.log("videocapture.CaptureJob","Opening video file \'"+file_name+"\'",level=logging.INFO)
-                log.log("videocapture.CaptureJob","video fps:"+str(fps),level=logging.DEBUG)
-                log.log("videocapture.CaptureJob","video size:"+str(sze),level=logging.DEBUG)
+                log.log(repr(self),"Opening video file \'"+file_name+"\'",level=logging.INFO)
+                log.log(repr(self),"video fps:"+str(fps),level=logging.DEBUG)
+                log.log(repr(self),"video size:"+str(sze),level=logging.DEBUG)
                 
                 video_writer = cv2.VideoWriter(file_name,fcc,fps,sze)
                 if video_writer.isOpened():
@@ -2605,13 +2605,13 @@ class CaptureJob(Qt.QObject):
                         try:
                             video_writer.write(self._device.getFrame()[...,(2,1,0)])
                         except Exception as exc:
-                            log.log("videocapture.CaptureJob","An error has occured during video capturing:\'"+str(exc)+"\'",level=logging.ERROR)
+                            log.log(repr(self),"An error has occured during video capturing:\'"+str(exc)+"\'",level=logging.ERROR)
                             self._status=self.StatusError
                             break
                         captured_frames+=1
                     video_writer.release()
                 else:
-                    log.log("videocapture.CaptureJob","Cannot write to the file \'"+file_name+"\'",level=logging.ERROR)
+                    log.log(repr(self),"Cannot write to the file \'"+file_name+"\'",level=logging.ERROR)
                     self._status=self.StatusError
             elif self.type == self.TypeFrames:
                 hexcnt=0
@@ -2625,7 +2625,7 @@ class CaptureJob(Qt.QObject):
                 try:
                     os.mkdir(dir_name)
                 except Exception as exc:
-                    log.log("videocapture.CaptureJob","Cannot create output directory\'"+str(dir_name)+"\':\'"+str(exc)+"\'",level=logging.ERROR)
+                    log.log(repr(self),"Cannot create output directory\'"+str(dir_name)+"\':\'"+str(exc)+"\'",level=logging.ERROR)
                     self._status=self.StatusError
                     
                 while(self._status == self.StatusInProgress):
@@ -2634,7 +2634,7 @@ class CaptureJob(Qt.QObject):
                     try:
                         frm.save(data=self._device.getFrame(),force_overwrite=True,save_dlg=False,fmat='fits',bits='16')
                     except Exception as exc:
-                        log.log("videocapture.CaptureJob","An error has occured during image capturing:\'"+str(exc)+"\'",level=logging.ERROR)
+                        log.log(repr(self),"An error has occured during image capturing:\'"+str(exc)+"\'",level=logging.ERROR)
                         self._status=self.StatusError
                         break
                     captured_frames+=1                    
@@ -2888,7 +2888,7 @@ class CaptureScheduler(Qt.QObject):
         
         
         if add_new_job:
-            log.log("videocapture.CaptureScheduler","Adding a new video capture job to the scheduler",level=logging.INFO)
+            log.log(repr(self),"Adding a new video capture job to the scheduler",level=logging.INFO)
             if (jobid is None) or (jobid in self.jobs.keys()):
                 jobid=hex(Qt.QDateTime.toMSecsSinceEpoch(Qt.QDateTime.currentDateTime()))
                 jobid=jobid[2:-1].upper()                
@@ -2899,7 +2899,7 @@ class CaptureScheduler(Qt.QObject):
             end_time = start_time + duration
             captype=CaptureJob.TypeVideo
             
-            log.log("videocapture.CaptureScheduler","job ID : "+jobid, level=logging.DEBUG)
+            log.log(repr(self),"job ID : "+jobid, level=logging.DEBUG)
             
             newjob=CaptureJob(destdir, jobid, self._capture_device, captype)
             newjob.setStartTime(start_time)
@@ -2912,14 +2912,14 @@ class CaptureScheduler(Qt.QObject):
             newjob._start_type=0
             newjob._end_type=0
         elif job not in self.jobs.values():
-            log.log("videocapture.CaptureScheduler","Adding an existing video capture job to the scheduler",level=logging.INFO)
+            log.log(repr(self),"Adding an existing video capture job to the scheduler",level=logging.INFO)
             if jobid is None:
                 jobid=hex(Qt.QDateTime.toMSecsSinceEpoch(Qt.QDateTime.currentDateTime()))
                 jobid=jobid[2:-1].upper()
-            log.log("videocapture.CaptureScheduler","job ID : "+jobid, level=logging.DEBUG)
+            log.log(repr(self),"job ID : "+jobid, level=logging.DEBUG)
             self.jobs[jobid]=job
         else:
-            log.log("videocapture.CaptureScheduler","Trying to add to the scheduler a job already scheduled!",level=logging.DEBUG)
+            log.log(repr(self),"Trying to add to the scheduler a job already scheduled!",level=logging.DEBUG)
             return # the job is already scheduled
             
         itemname = "id: \"{0}\"".format(jobid)
@@ -2980,7 +2980,7 @@ class CaptureScheduler(Qt.QObject):
         joblistwidgetitem=self._controlgui.jobListWidget.takeItem(row)
         if joblistwidgetitem is not None:
             jobid=joblistwidgetitem.jobid
-            log.log("videocapture.CaptureScheduler","Deleting the video capture job \'"+jobid+"\'",level=logging.DEBUG)
+            log.log(repr(self),"Deleting the video capture job \'"+jobid+"\'",level=logging.DEBUG)
             job= self.jobs.pop(jobid)
             job.stop()
             del job
@@ -2989,7 +2989,7 @@ class CaptureScheduler(Qt.QObject):
         self.refreshJobInfo(row-1)
         
     def deleteAllJobs(self):
-        log.log("videocapture.CaptureScheduler","Deleting all video capture jobs",level=logging.DEBUG)
+        log.log(repr(self),"Deleting all video capture jobs",level=logging.DEBUG)
         self._controlgui.jobListWidget.clear()
         self.jobs={}
         self._updateListWidget()

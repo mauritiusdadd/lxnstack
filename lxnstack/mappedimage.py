@@ -96,9 +96,9 @@ class MappedImage(QtCore.QObject):
     def setName(self,name):
         self._name=str(name).strip()
         if self._name!='':
-            self._logname="mappedimage.MappedImage["+str(self._name)+"]"
+            self._logname=repr(self)+"["+str(self._name)+"]"
         else:
-            self._logname="mappedimage.MappedImage"
+            self._logname=repr(self)
             
     def getLevelsDialog(self):
         return self.levels_dlg
