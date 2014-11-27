@@ -180,8 +180,8 @@ class ImageViewer(QtGui.QWidget):
         self.panning = False
         self.feature_moveing = False
         self.selected_feature=None
-        self.colorbarmap = mappedimage.MappedImage()
-        
+        self.colorbarmap = mappedimage.MappedImage(name='colorbar')
+                
         self.user_cursor = QtCore.Qt.OpenHandCursor
         
         self.levels_range=[0,100]
@@ -226,7 +226,7 @@ class ImageViewer(QtGui.QWidget):
         self.fitMinMaxCheckBox = QtGui.QCheckBox(utils.tr("contrast: none"))
         self.minLevelDoubleSpinBox = QtGui.QDoubleSpinBox()
         self.maxLevelDoubleSpinBox = QtGui.QDoubleSpinBox()
-        
+                
         self.colorBar.current_val=None
         self.colorBar.max_val=1.0
         self.colorBar.min_val=0.0
@@ -273,14 +273,15 @@ class ImageViewer(QtGui.QWidget):
         mainlayout = QtGui.QVBoxLayout()
         self.viewlayout = QtGui.QHBoxLayout()
         cbarlayout = QtGui.QHBoxLayout()
+        maplayout = QtGui.QHBoxLayout()
         
         self.setLayout(mainlayout)
-                
+        
         cbarlayout.addWidget(self.fitMinMaxCheckBox)
         cbarlayout.addWidget(self.minLevelDoubleSpinBox)
         cbarlayout.addWidget(self.colorBar)
         cbarlayout.addWidget(self.maxLevelDoubleSpinBox)
-        
+                
         toolbar.addAction(save_action)
         toolbar.addAction(action_edit_levels)
         toolbar.addWidget(self.colormap_selector)
@@ -295,7 +296,6 @@ class ImageViewer(QtGui.QWidget):
         mainlayout.addWidget(toolbar)
         mainlayout.addLayout(self.viewlayout)
         mainlayout.addLayout(cbarlayout)
-                
         
         # mousemove callback
         self.imageLabel.__mouseMoveEvent__= self.imageLabel.mouseMoveEvent #base implementation
@@ -349,10 +349,11 @@ class ImageViewer(QtGui.QWidget):
         self.setColorMap(cmaps.COLORMAPS[cmapid])
         
     def setColorMap(self,cmap):
+        log.log("guicontrols.ImageViewer","Setting new colormap",level=logging.DEBUG)
         if self.mapped_image is not None:
-            self.mapped_image.setColormap(cmap)
-            self.generateScaleMaps()
-            self.updateImage() 
+            self.mapped_image.setColormap(cmap,update=False)
+            self.generateScaleMaps(remap=False)
+            self.mapped_image.remap()
     
     def getColorMap(self):
         return self.mapped_image.getColormap()
@@ -360,7 +361,7 @@ class ImageViewer(QtGui.QWidget):
     def updateColorMap(self,val):
         self.colormap_selector.setCurrentIndex(val)
             
-    def generateScaleMaps(self):        
+    def generateScaleMaps(self, remap=True):        
         
         if self.mapped_image is None:
             return
@@ -371,14 +372,13 @@ class ImageViewer(QtGui.QWidget):
             return
         
         elif ncomponents == 1:
+            log.log("guicontrols.ImageViewer","Generating ColorBar scalemaps...",level=logging.DEBUG)
             data1 = np.arange(0,self.colorBar.width())*255.0/self.colorBar.width()
             data2 = np.array([data1]*(self.colorBar.height()-8))
-            self.colorbarmap = mappedimage.MappedImage(data2,
-                                                    self.mapped_image.getColormap(),
-                                                    fit_levels=self.fit_levels,
-                                                    levels_range=self.levels_range)
+            data3 = data2
 
         else:
+            log.log("guicontrols.ImageViewer","Generating ColorBar RGB scalemaps...",level=logging.DEBUG)
             data1 = np.arange(0,self.colorBar.width())*255.0/self.colorBar.width()
             data2 = np.array([data1]*int((self.colorBar.height()-8)/float(ncomponents)))
             hh=len(data2)
@@ -386,17 +386,24 @@ class ImageViewer(QtGui.QWidget):
             
             for i in xrange(ncomponents):
                 data3[i*hh:(i+1)*hh,0:,i]=data2
-            
+
+        if isinstance(self.colorbarmap,mappedimage.MappedImage):
+            self.colorbarmap.setColormap(self.mapped_image.getColormap(),update=False)
+            self.colorbarmap.setOutputLevels(lrange=self.levels_range, lfitting=self.fit_levels, update=False)
+            self.colorbarmap.setData(data3,update=remap)
+        else:
             self.colorbarmap = mappedimage.MappedImage(data3,
-                                                        self.mapped_image.getColormap(),
-                                                        fit_levels=self.fit_levels,
-                                                        levels_range=self.levels_range)
+                                                       self.mapped_image.getColormap(),
+                                                       fit_levels=self.fit_levels,
+                                                       levels_range=self.levels_range,
+                                                       name='colorbar',
+                                                       update=remap)
     
     #resizeEvent callback
     def scrollAreaResizeEvent(self, event):
         val = self.__resizeEvent__(event)# old implementation
         if self.zoom_fit:
-            self.updateImage()    
+            self.updateImage()
         self.generateScaleMaps()
         return val
     
@@ -556,8 +563,10 @@ class ImageViewer(QtGui.QWidget):
                     self.statusLabelMousePos.setText('position='+str(self.current_pixel)+' value='+str(cb.current_val))
                 except:
                     pass
-                
-            painter.drawImage(devicerect,self.colorbarmap.getQImage())
+            
+            qimg = self.colorbarmap.getQImage()
+            if qimg is not None:
+                painter.drawImage(devicerect,qimg)
             
             ncomp = len(cb.current_val)
             hh = dh/ncomp
@@ -654,6 +663,7 @@ class ImageViewer(QtGui.QWidget):
             
     def showImage(self, image):
         if isinstance(image,mappedimage.MappedImage):
+            log.log("guicontrols.ImageViewer","Displaying new mappedimage",level=logging.DEBUG)
             del self.mapped_image
             self.mapped_image.remapped.disconnect(self.updateImage)
             self.viewlayout.removeWidget(self.mapped_image.getLevelsDialog())
@@ -661,15 +671,18 @@ class ImageViewer(QtGui.QWidget):
             self.viewlayout.addWidget(self.mapped_image.getLevelsDialog())
             self.mapped_image.getLevelsDialog().hide()
             self.mapped_image.remapped.connect(self.updateImage)
+            self.updateImage()
         else:
+            log.log("guicontrols.ImageViewer","Displaying new image",level=logging.DEBUG)
             self.mapped_image.setData(image)
-        self.updateImage()
             
     def clearImage(self):
         self.mapped_image.setData(None)
         self.imageLabel.setPixmap(Qt.QPixmap())
         
     def updateImage(self, paint=True, overridden_image=None):
+        
+        log.log("guicontrols.ImageViewer","Updating the displayed image",level=logging.DEBUG)
         
         if overridden_image is not None:
             if isinstance(image,MappedImage):
@@ -682,13 +695,26 @@ class ImageViewer(QtGui.QWidget):
             return False
         
         qimg=current_image.getQImage()
+        
+        if qimg is None:
+            return False
+        
         imh = qimg.height()
         imw = qimg.width()
         
         if imw*imh <= 0:
             return False
         
+                    
+        self.colorbarmap.setCurve(*current_image.getCurve(),update=False)
+        self.colorbarmap.setMWBCorrectionFactors(*current_image.getMWBCorrectionFactors(),update=False)
+        self.colorbarmap.setOutputLevels(lrange=self.levels_range, lfitting=self.fit_levels, update=False)
         
+        if (self.colorbarmap.getQImage() is None or
+            self.colorbarmap.getNumberOfComponents() != current_image.getNumberOfComponents()):
+            self.generateScaleMaps()
+        else:
+            self.colorbarmap.remap()
         
         try:
             pix_val = current_image.getOriginalData()[self.current_pixel[1],self.current_pixel[0]]
@@ -722,6 +748,7 @@ class ImageViewer(QtGui.QWidget):
             self.imageLabel.setMinimumSize(imw*self.actual_zoom,imh*self.actual_zoom)
             self.imageLabel.resize(imw*self.actual_zoom,imh*self.actual_zoom)
             self.imageLabel.update()
+            
             if current_image._original_data is not None:
                 self.colorBar.max_val=current_image._original_data.max()
                 self.colorBar.min_val=current_image._original_data.min()
@@ -777,6 +804,8 @@ class ImageViewer(QtGui.QWidget):
         
     def setDisplayLevelsFitMode(self, state):
         
+        log.log("guicontrols.ImageViewer","Updating output levels",level=logging.DEBUG)
+        
         if state==0:
             self.minLevelDoubleSpinBox.hide()
             self.maxLevelDoubleSpinBox.hide()
@@ -792,13 +821,15 @@ class ImageViewer(QtGui.QWidget):
                
         self.fit_levels=state
         
-        if self.mapped_image is not None:
-            self.mapped_image.setOutputLevels(self.levels_range,self.fit_levels)
-            self.updateImage()
-            self.setOutputLevelsRange(self.levels_range)
-        
         Qt.QApplication.instance().processEvents()
-        self.generateScaleMaps()
+        
+        if self.mapped_image is not None:
+            self.setOutputLevelsRange(self.levels_range)
+            self.mapped_image.setOutputLevels(self.levels_range,self.fit_levels,update=True)
+            self.updateImage()
+        else:
+            self.generateScaleMaps()
+            
         self.colorBar.repaint()
     
     def doEditLevels(self, clicked):

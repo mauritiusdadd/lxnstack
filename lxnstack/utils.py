@@ -401,9 +401,9 @@ class Frame(Qt.QObject):
         self.setOffset([0,0])
     
     def _setModeFromArray(self, arr):
-        if len(_tmp_data.shape) > 2:
-            dpth = _tmp_data.shape[2]
-            dtyp = _tmp_data.dtype
+        if len(arr.shape) > 2:
+            dpth = arr.shape[2]
+            dtyp = arr.dtype
             
             if dpth == 1:
                 if np.issubdtype(dtyp,np.float):
@@ -421,8 +421,11 @@ class Frame(Qt.QObject):
             elif dpth == 4:
                 self.mode = 'RGBA'
             else:
-                return None
-    
+                # multidimensional image AKA datacube
+                self.mode = 'M'*dpth
+        else:
+            self.mode = '0'
+            
     def setUrl(self, url, page):
         self.url=str(url)
         self.name=os.path.basename(self.url)
@@ -458,6 +461,10 @@ class Frame(Qt.QObject):
             return 1
         elif 'F' in self.mode:
             return 1
+        elif 'M' in self.mode:
+            return len(self.mode)
+        else:
+            return 0
         
     def isUsed(self):
         
@@ -1060,19 +1067,8 @@ class Frame(Qt.QObject):
         self.height = shape[0]
         self.width = shape[1]
         
-        if len(shape) > 2:
-            dpth = shape[2]
-            if dpth == 1:
-                self.mode = 'L'
-            elif dpth == 3:
-                self.mode = 'RGB'
-            elif dpth == 4:
-                self.mode = 'RGBA'
-            else:
-                return None
-        else:
-            self.mode = 'L'
-                
+        self._setModeFromArray(data)
+                        
     def exportProperties(self,url):
         try:
             f=open(url,'w')
@@ -1627,7 +1623,7 @@ def normToUint8 (data,adapt=False, lrange=None):
             result=data            
         return result.clip(0,255).astype(np.uint8) #40% of computation time
 
-def normToUint16 (data, refit=True):    
+def normToUint16 (data):    
     if data is None:
         return None
     elif data.dtype == np.uint16:
@@ -2697,7 +2693,7 @@ def generateHistograhms(imgdata, bins=255):
     hists=[]
     shape=imgdata.shape
         
-    hrange=getMinMax(imgdata,False)
+    hrange=getMinMax(imgdata,True)
     
     #NOTE: computing an extra histogram here for the total image
     #      is faster than adding the histograms of each component
@@ -2774,6 +2770,33 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
     
     ymax=0
     
+    x0=w*gm1
+    x1=w*gm2
+    y0=h*gm2
+    y1=h*gm1
+    
+    if hists is None:
+        painter.setCompositionMode(0)
+        painter.setPen(QtCore.Qt.black)
+        painter.drawLine(x0,y0+2,x1,y0+2)
+        painter.drawLine(x0-2,y0,x0-2,y1)
+    
+        painter.setPen(QtCore.Qt.DotLine)
+        
+        ly=np.emath.logn(10,y0/y1+1)
+                    
+        for yy in np.arange(y1,y0,(y0-y1)/10.0):
+            
+            if logY:
+                yy=y0+(y1-y0)*np.emath.logn(10,yy/y1+1)/ly
+            painter.drawLine(x0,yy,x1,yy)
+            
+            
+        painter.setPen(QtCore.Qt.DashLine)
+        painter.drawLine(x0,y1,x1,y1)
+        
+        return None
+    
     if logY:
         ymax=max(ymax,max(np.emath.logn(10,hists[0][0]+1)))
     else:
@@ -2809,12 +2832,7 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
         
         path = Qt.QPainterPath()
         hist = hists[channel]
-
-        x0=w*gm1
-        x1=w*gm2
-        y0=h*gm2
-        y1=h*gm1
-    
+        
         path.moveTo(x0,y0)
         
         if xmax==xmin:

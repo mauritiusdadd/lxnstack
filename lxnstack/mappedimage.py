@@ -46,15 +46,17 @@ class MappedImage(QtCore.QObject):
     
     remapped = QtCore.pyqtSignal()
     
-    def __init__(self,data=None,cmap=colormaps.gray,fit_levels=False,levels_range=(0,100),live=False):
+    def __init__(self,data=None,cmap=colormaps.gray,fit_levels=False,levels_range=(0,100),name=''):
         QtCore.QObject.__init__(self)
-        self._original_data=data
+        self._original_data=None
         self._colormap=cmap
-        self._mapped_qimage=QtGui.QImage()
+        self._mapped_qimage=None
         self._fit_levels=fit_levels
         self._levels_range=levels_range      
         self.component_table={}
         self.component_ctrl_table={}
+        
+        self.setName(name)
         
         self.levelfunc_idx=0
         self._ignore_histogrham_update = False #this will be used to avoid recursion loop
@@ -83,12 +85,21 @@ class MappedImage(QtCore.QObject):
         self.levels_dlg.histLogViewCheckBox.stateChanged.connect(self.updateHistograhm2)
         self.levels_dlg.buttonBox.clicked.connect(self.levelsDialogButtonBoxClickedEvent)
         
-        self.remap()
+        self.updateCurveData()
+        if data is not None:
+            self.setData(data)
         
     def __del__(self):
         del self._mapped_qimage
         del self._original_data
     
+    def setName(self,name):
+        self._name=str(name).strip()
+        if self._name!='':
+            self._logname="mappedimage.MappedImage["+str(self._name)+"]"
+        else:
+            self._logname="mappedimage.MappedImage"
+            
     def getLevelsDialog(self):
         return self.levels_dlg
     
@@ -116,13 +127,20 @@ class MappedImage(QtCore.QObject):
     def getColormap(self):
         return self._colormap
     
-    def setColormap(self,cmap):
+    def setColormap(self,cmap,update=False):
         self._colormap=cmap
-        return self.remap()
+        if update:
+            return self.remap()
     
-    def setData(self,data):
+    def setData(self,data, update=True):
         
-        self._original_data=data.astype(np.float32) # 1% of computation time
+        if data is None:
+            self._original_data=None
+            self._hst=None
+            self._original_hst=None
+            return
+        else:
+            self._original_data=data.astype(np.float32) # 1% of computation time
         
         if len(self.component_table) != self.componentsCount():  # 0% of computation time
             self.component_table=getComponentTable(self.componentsCount(),named=True)
@@ -131,7 +149,7 @@ class MappedImage(QtCore.QObject):
             for name in self.component_table.values():
                 self.MWB_CORRECTION_FACTORS[name]=[0,0.5,1]
             
-            self.buildMWBControls()
+            self.rebuildMWBControls()
             
             self.backUpLevels()
             
@@ -140,23 +158,31 @@ class MappedImage(QtCore.QObject):
         
         if self.levels_dlg.isVisible():
             self.updateHistograhm2() # 0%|17% of computation time
-                
-        return self.remap() # 34%|27% of computation time
+        
+        if update:
+            return self.remap() # 34%|27% of computation time
     
-    def setOutputLevels(self,lrange=None, lfitting=None):
+    def getOutputLevels(self):
+        return (self._levels_range,self._fit_levels)
+    
+    def setOutputLevels(self, lrange=None, lfitting=None, update=False):
         if lrange is not None:
             self._levels_range=lrange
         if lfitting is not None:
             self._fit_levels=lfitting
-        return self.remap()
+        if update:
+            return self.remap()
     
     def getMappedData(self):
-        if self._original_data.ndim==2:
+        if self._original_data is None:
+            return None
+        elif (self._original_data.ndim==2 and
+              self._colormap is not colormaps.gray):
             mapped_data = self._colormap.mapData(self.getData(),self._fit_levels,self._levels_range)
             arr=np.empty((self._original_data.shape[0],self._original_data.shape[1],3),dtype=np.float)
             arr[...,0] = mapped_data[0]
             arr[...,1] = mapped_data[1]
-            arr[...,2] = mapped_data[2]            
+            arr[...,2] = mapped_data[2]
             return arr
         else:
             return self.getData()
@@ -167,6 +193,7 @@ class MappedImage(QtCore.QObject):
                                                 cmap = self._colormap,
                                                 fit_levels=self._fit_levels,
                                                 levels_range=self._levels_range)
+            log.log(self._logname,"Remapping data...",level=logging.DEBUG)
         self.remapped.emit()
         return self._mapped_qimage
     
@@ -254,7 +281,7 @@ class MappedImage(QtCore.QObject):
                 c_h_dsb.setValue(new_h_val)
                 
                 self.MWB_CORRECTION_FACTORS[name]=[new_l_val,new_m_val,new_h_val]
-            self.updateWBCorrectionFactors()
+            self.updateMWBCorrectionFactors()
             self.updateHistograhm2()
             self.__updating_mwb_ctrls=False
             
@@ -279,11 +306,11 @@ class MappedImage(QtCore.QObject):
                 c_h_sld.setValue(int(new_h_val*10000))
                 
                 self.MWB_CORRECTION_FACTORS[name]=[new_l_val,new_m_val,new_h_val]
-            self.updateWBCorrectionFactors()
+            self.updateMWBCorrectionFactors()
             self.updateHistograhm2()
             self.__updating_mwb_ctrls=False
     
-    def updateWBCorrectionFactors(self):
+    def updateMWBCorrectionFactors(self):
         
         hmax=0
         lmin=1
@@ -306,6 +333,16 @@ class MappedImage(QtCore.QObject):
             self.MWB_CORRECTION_FACTORS[name][2]+=(1-hmax)
             
         self.updateMWBControls()
+    
+    def getMWBCorrectionFactors(self):
+        self.updateMWBCorrectionFactors()
+        return (self.MWB_CORRECTION_FACTORS,bool(self.levels_dlg.MWBGroupBox.isChecked()))
+    
+    def setMWBCorrectionFactors(self,factors,manual=False,update=True):
+        self.MWB_CORRECTION_FACTORS=factors
+        self.levels_dlg.MWBGroupBox.setChecked(bool(manual))
+        if update:
+            self.updateMWBControls()
     
     def updateMWBControls(self):
         self.__updating_mwb_ctrls=True
@@ -406,7 +443,7 @@ class MappedImage(QtCore.QObject):
             
             self.component_ctrl_table[name]=(c_l_sld,c_l_dsb,c_m_sld,c_m_dsb,c_h_sld,c_h_dsb)
             
-            log.log("mappedimage.MappedImage","building controls for component "+str(name),level=logging.DEBUG) 
+            log.log(self._logname,"building controls for component "+str(name),level=logging.DEBUG)
             
             self.levels_dlg.MWBScrollArea.layout().addWidget(c_lbl,idx,0)
             self.levels_dlg.MWBScrollArea.layout().addWidget(c_l_sld,idx,1)
@@ -424,10 +461,10 @@ class MappedImage(QtCore.QObject):
             c_h_sld.show()
             c_h_dsb.show()
                                     
-        log.log("mappedimage.MappedImage","DONE",level=logging.DEBUG)
+        log.log(self._logname,"DONE",level=logging.DEBUG)
     
     def clearMWBControls(self):
-        log.log("mappedimage.MappedImage","clearing MWB controls...",level=logging.DEBUG)
+        log.log(self._logname,"clearing MWB controls...",level=logging.DEBUG)
         try:
             del self.component_ctrl_table
         except:
@@ -465,13 +502,47 @@ class MappedImage(QtCore.QObject):
             data_min = None
         return (data_min,data_max)
     
-    def getData(self):
-        
+    def updateCurveData(self):
         A = float(self.levels_dlg.aDoubleSpinBox.value())
         B = float(self.levels_dlg.bDoubleSpinBox.value())
         o = float(self.levels_dlg.oDoubleSpinBox.value())
         m = float(self.levels_dlg.mDoubleSpinBox.value())
-        n = float(self.levels_dlg.nDoubleSpinBox.value())    
+        n = float(self.levels_dlg.nDoubleSpinBox.value())
+        
+        self._curve_data=(self.levelfunc_idx,A,B,o,m,n)
+        
+    def getCurve(self):
+        return self._curve_data
+    
+    def setCurve(self,curve_id,A,B,o,m,n,update=True):
+        self._ignore_histogrham_update = True
+        
+        self.levels_dlg.aDoubleSpinBox.setValue(float(A))
+        self.levels_dlg.bDoubleSpinBox.setValue(float(B))
+        self.levels_dlg.oDoubleSpinBox.setValue(float(o))
+        self.levels_dlg.mDoubleSpinBox.setValue(float(m))
+        self.levels_dlg.nDoubleSpinBox.setValue(float(n))
+        self.levels_dlg.curveTypeComboBox.setCurrentIndex(curve_id)
+        
+        self._curve_data=(self.levelfunc_idx,A,B,o,m,n)
+        
+        self._ignore_histogrham_update = False
+        
+        if update:
+            self.updateHistograhm2()
+            
+        self.backUpLevels()
+        
+    def getData(self):
+        
+        if self._original_data is None:
+            return None
+        
+        A = self._curve_data[1]
+        B = self._curve_data[2]
+        o = self._curve_data[3]
+        m = self._curve_data[4]
+        n = self._curve_data[5]        
         
         #cf=[]
         
@@ -511,20 +582,22 @@ class MappedImage(QtCore.QObject):
     
     def updateHistograhm(self, curve_idx):
         
-        if self._ignore_histogrham_update:
+        if self._ignore_histogrham_update or (self._hst is None):
             return
         
         scenablied = self.levels_dlg.dataClippingGroupBox.isChecked()
         clipping   = scenablied and self.levels_dlg.dataClippingClipDataRadioButton.isChecked()
         streching  = scenablied and self.levels_dlg.dataClippingFitDataRadioButton.isChecked()
-                
-        A = float(self.levels_dlg.aDoubleSpinBox.value())
-        B = float(self.levels_dlg.bDoubleSpinBox.value())
-        o = float(self.levels_dlg.oDoubleSpinBox.value())
-        m = float(self.levels_dlg.mDoubleSpinBox.value())
-        n = float(self.levels_dlg.nDoubleSpinBox.value())
-    
+        
         self.levelfunc_idx=curve_idx
+        
+        self.updateCurveData()
+        
+        A = self._curve_data[1]
+        B = self._curve_data[2]
+        o = self._curve_data[3]
+        m = self._curve_data[4]
+        n = self._curve_data[5]
         
         data_min,data_max = self.getLevelsClippingRange()
         

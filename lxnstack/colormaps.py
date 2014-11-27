@@ -45,7 +45,8 @@ class ColorMap(object):
         return self.mapfunc(x)
     
 def mapFuncGray(x):
-    return [255*x,255*x,255*x]
+    data=255*x.clip(0,1)
+    return [data,data,data]
 
 def mapFuncJet(x):
     x4=4*x
