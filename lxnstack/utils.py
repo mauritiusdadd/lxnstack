@@ -401,9 +401,9 @@ class Frame(Qt.QObject):
         self.setOffset([0,0])
     
     def _setModeFromArray(self, arr):
+        dtyp = arr.dtype
         if len(arr.shape) > 2:
             dpth = arr.shape[2]
-            dtyp = arr.dtype
             
             if dpth == 1:
                 if np.issubdtype(dtyp,np.float):
@@ -424,7 +424,16 @@ class Frame(Qt.QObject):
                 # multidimensional image AKA datacube
                 self.mode = 'M'*dpth
         else:
-            self.mode = '0'
+            if np.issubdtype(dtyp,np.float):
+                self.mode = 'F'
+            elif (dtyp is np.int8) or (dtyp is np.uint8):
+                self.mode = 'L'
+            elif (np.issubdtype(dtyp,np.int) or np.issubdtype(dtyp,np.uint)
+                    or np.issubdtype(dtyp,np.uint16) or np.issubdtype(dtyp,np.uint32)
+                    or np.issubdtype(dtyp,np.uint6)):
+                self.mode = 'I'
+            elif np.issubdtype(dtyp,np.bool):
+                self.mode = '1'
             
     def setUrl(self, url, page):
         self.url=str(url)

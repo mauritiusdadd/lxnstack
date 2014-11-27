@@ -2642,6 +2642,7 @@ class theApp(Qt.QObject):
             self.wnd.lightListWidget.item(i).setCheckState(state)
 
     def isBayerUsed(self):
+        print self.currentDepht
         if (self.currentDepht in '1LPIF') and self.action_enable_rawmode.isChecked():
             return True
         else:
