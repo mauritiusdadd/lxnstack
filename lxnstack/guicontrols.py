@@ -666,10 +666,12 @@ class ImageViewer(QtGui.QWidget):
             log.log(repr(self),"Displaying new mappedimage",level=logging.DEBUG)
             del self.mapped_image
             self.mapped_image.remapped.disconnect(self.updateImage)
+            self.mapped_image.mappingChanged.disconnect(self.updateImage)
             self.viewlayout.removeWidget(self.mapped_image.getLevelsDialog())
             self.mapped_image = image
             self.viewlayout.addWidget(self.mapped_image.getLevelsDialog())
             self.mapped_image.getLevelsDialog().hide()
+            self.mapped_image.mappingChanged.disconnect(self.updateImage)
             self.mapped_image.remapped.connect(self.updateImage)
             self.updateImage()
         else:
@@ -709,6 +711,7 @@ class ImageViewer(QtGui.QWidget):
         self.colorbarmap.setCurve(*current_image.getCurve(),update=False)
         self.colorbarmap.setMWBCorrectionFactors(*current_image.getMWBCorrectionFactors(),update=False)
         self.colorbarmap.setOutputLevels(lrange=self.levels_range, lfitting=self.fit_levels, update=False)
+        self.colorbarmap.setMapping(*current_image.getMapping(),update=False)
         
         if (self.colorbarmap.getQImage() is None or
             self.colorbarmap.getNumberOfComponents() != current_image.getNumberOfComponents()):

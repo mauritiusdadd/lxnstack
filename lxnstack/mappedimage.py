@@ -38,13 +38,14 @@ def getComponentTable(ncomps,named=True):
                 component_table[c]=COMPONENTS_NAME[c+1]
     else:
         for c in xrange(ncomps):
-            component_table[c]=COMPONENTS_NAME['C'+str(c)]
+            component_table[c]='C'+str(c)
     return component_table
         
 
 class MappedImage(QtCore.QObject):
     
     remapped = QtCore.pyqtSignal()
+    mappingChanged = QtCore.pyqtSignal()
     
     def __init__(self,data=None,cmap=colormaps.gray,fit_levels=False,levels_range=(0,100),name=''):
         QtCore.QObject.__init__(self)
@@ -55,6 +56,10 @@ class MappedImage(QtCore.QObject):
         self._levels_range=levels_range      
         self.component_table={}
         self.component_ctrl_table={}
+        
+        self.r_index=0
+        self.g_index=1
+        self.b_index=2
         
         self.setName(name)
         
@@ -84,6 +89,11 @@ class MappedImage(QtCore.QObject):
         self.levels_dlg.MWBGroupBox.toggled.connect(self.updateHistograhm2)
         self.levels_dlg.histLogViewCheckBox.stateChanged.connect(self.updateHistograhm2)
         self.levels_dlg.buttonBox.clicked.connect(self.levelsDialogButtonBoxClickedEvent)
+        self.levels_dlg.rComboBox.currentIndexChanged.connect(self.setComponentRed)
+        self.levels_dlg.gComboBox.currentIndexChanged.connect(self.setComponentGreen)
+        self.levels_dlg.bComboBox.currentIndexChanged.connect(self.setComponentBlue)
+        
+        self.mappingChanged.connect(self.levels_dlg.histoView.repaint)
         
         self.updateCurveData()
         if data is not None:
@@ -144,11 +154,12 @@ class MappedImage(QtCore.QObject):
         
         if len(self.component_table) != self.componentsCount():  # 0% of computation time
             self.component_table=getComponentTable(self.componentsCount(),named=True)
-            
+                        
             self.MWB_CORRECTION_FACTORS={}
             for name in self.component_table.values():
                 self.MWB_CORRECTION_FACTORS[name]=[0,0.5,1]
             
+            self.rebuildMapping(self.component_table)
             self.rebuildMWBControls()
             
             self.backUpLevels()
@@ -173,6 +184,63 @@ class MappedImage(QtCore.QObject):
         if update:
             return self.remap()
     
+    def rebuildMapping(self,ctable):
+        
+        rrdio=self.levels_dlg.rComboBox
+        grdio=self.levels_dlg.gComboBox
+        brdio=self.levels_dlg.bComboBox
+        
+        rrdio.clear()
+        grdio.clear()
+        brdio.clear()
+        
+        ncomps=len(ctable)
+        
+        for i in range(ncomps):
+            
+            cname=ctable[i]
+            
+            rrdio.addItem(cname)
+            grdio.addItem(cname)
+            brdio.addItem(cname)
+        
+        if ncomps > 2:
+            rrdio.setCurrentIndex(0)
+            grdio.setCurrentIndex(1)
+            brdio.setCurrentIndex(2)
+        else:
+            rrdio.setCurrentIndex(0)
+            grdio.setCurrentIndex(0)
+            brdio.setCurrentIndex(0)
+        
+    def setComponentRed(self,index,update=True):
+        self.r_index=index
+        self.mappingChanged.emit()
+        if update:
+            self.remap()
+        
+    def setComponentGreen(self,index,update=True):
+        self.g_index=index
+        self.mappingChanged.emit()
+        if update:
+            self.remap()
+        
+    def setComponentBlue(self,index,update=True):
+        self.b_index=index
+        self.mappingChanged.emit()
+        if update:
+            self.remap()
+    
+    def setMapping(self,R,G,B,update=True):
+        self.setComponentRed(R,update=False)
+        self.setComponentGreen(G,update=False)
+        self.setComponentBlue(B,update=False)
+        if update:
+            self.remap()        
+    
+    def getMapping(self):
+        return (self.r_index, self.g_index, self.b_index)
+    
     def getMappedData(self):
         if self._original_data is None:
             return None
@@ -190,6 +258,9 @@ class MappedImage(QtCore.QObject):
     def remap(self):
         if self._original_data is not None:
             self._mapped_qimage = arrayToQImage(self.getData(),
+                                                R=self.r_index,
+                                                G=self.g_index,
+                                                B=self.b_index,
                                                 cmap = self._colormap,
                                                 fit_levels=self._fit_levels,
                                                 levels_range=self._levels_range)
@@ -258,7 +329,11 @@ class MappedImage(QtCore.QObject):
         painter.setBrush(QtCore.Qt.white)
         painter.drawRect(painter.window())
         
-        utils.drawHistograhm(painter, self._hst, xmin, xmax, logY=self.levels_dlg.histLogViewCheckBox.checkState())
+        use_log_y=bool(self.levels_dlg.histLogViewCheckBox.checkState())
+        
+        utils.drawHistograhm(painter, self._hst, xmin, xmax,
+                             R=self.r_index, G=self.g_index,
+                             B=self.b_index, logY=use_log_y)
     
     def signalMWBSlider(self, *arg, **args):
         if not self.__updating_mwb_ctrls:
@@ -676,7 +751,7 @@ class MappedImage(QtCore.QObject):
 
 
 
-def arrayToQImage(img,R=0,G=1,B=2,A=3,cmap=colormaps.gray,fit_levels=False,levels_range=None):
+def arrayToQImage(img,R=0,G=1,B=2,cmap=colormaps.gray,fit_levels=False,levels_range=None):
     t1 = time.time()
     if img is None:
         return QtGui.QImage()
@@ -718,17 +793,24 @@ def arrayToQImage(img,R=0,G=1,B=2,A=3,cmap=colormaps.gray,fit_levels=False,level
         arr[h:,0:,3] = 0
         arr[0:,w:,3] = 0
         
-    elif (img.ndim==3) and (channels == 3):
-        img2 = utils.normToUint8(img,fit_levels,levels_range) # 65% of computation time
-        arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C') # 10% of computation time
-        arr[0:h,0:w,0:3]=img2[...,(B,G,R)] # 25% of computation time
-        arr[h:,0:,3] = 0  # 0% of computation time
-        arr[0:,w:,3] = 0  # 0% of computation time
-        
-    elif (img.ndim==3) and (channels == 4):
-        img2 = utils.normToUint8(img,fit_levels,levels_range)
-        arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C')
-        arr[0:h,0:w]=img2[...,(R,G,B,A)]
+    elif (img.ndim==3) and (channels > 2):
+        if R==G and R==B:
+            # this is basically a monocromathic image!
+            arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C')
+            
+            mapped=cmap.mapData(img[...,0],fit_levels,levels_range)
+            arr[0:h,0:w,2] = mapped[0]
+            arr[0:h,0:w,1] = mapped[1]
+            arr[0:h,0:w,0] = mapped[2]
+                    
+            arr[h:,0:,3] = 0
+            arr[0:,w:,3] = 0
+        else:
+            img2 = utils.normToUint8(img,fit_levels,levels_range) # 65% of computation time
+            arr = 255*np.ones((optimal_h, optimal_w, 4), np.uint8, 'C') # 10% of computation time
+            arr[0:h,0:w,0:3]=img2[...,(B,G,R)] # 25% of computation time
+            arr[h:,0:,3] = 0  # 0% of computation time
+            arr[0:,w:,3] = 0  # 0% of computation time
     else:
         return QtGui.QImage()
     

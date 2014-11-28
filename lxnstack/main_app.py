@@ -4143,6 +4143,7 @@ class theApp(Qt.QObject):
             self.unlock()
         else:
             self.is_aligning = True
+            log.log(repr(self),' Beginning alignment process...',level=logging.INFO)
             if self.current_align_method == 0:
                 result = self._alignPhaseCorrelation(align, derotate)
             elif self.current_align_method == 1:

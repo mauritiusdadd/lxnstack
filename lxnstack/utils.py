@@ -2768,8 +2768,13 @@ def applyHistWhiteBalance(hists, factors, table):
     
     return hists2
 
-def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
-
+def drawHistograhm(painter, hists, xmin=None, xmax=None,
+                   R=0, G=1, B=2, logY=False):
+    
+    channel_red   = R+1
+    channel_green = G+1
+    channel_blue  = B+1
+    
     gm1 = 0.05 #geometric corrections
     gm2 = 1.0 - gm1
     
@@ -2820,21 +2825,6 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
     
     for channel in range(num_of_components):
         draw_axes=False
-        if channel==0:
-            color = QtCore.Qt.darkGray
-            painter.setCompositionMode(0)
-        elif channel==1:
-            color = QtCore.Qt.red
-            painter.setCompositionMode(painter.CompositionMode_Plus)
-        elif channel==2:
-            color = QtCore.Qt.green
-            painter.setCompositionMode(painter.CompositionMode_Plus)
-        elif channel==3:
-            color = QtCore.Qt.blue
-            painter.setCompositionMode(painter.CompositionMode_Plus)
-        else:
-            color = QtCore.Qt.gray
-            painter.setCompositionMode(0)
         
         if channel==(num_of_components-1):
             draw_axes=True
@@ -2865,9 +2855,43 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,logY=False):
 
         path.lineTo(x0+w*(hist[1][-1]+1-xmin)*(gm2-gm1)/(xmax-xmin),y0)
         path.lineTo(x1,y0)
-    
-        painter.setBrush(generateHistGradient(h,color))
-        painter.setPen(color)
+        
+        
+        if channel==0:
+            painter.setCompositionMode(0)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.darkGray))
+        elif (channel_green==channel_red and
+              channel_green==channel_blue and
+              channel==channel_green):
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.white))
+        elif (channel_green==channel_red and
+              channel_green==channel):
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.yellow))
+        elif (channel_green==channel_blue and
+              channel_green==channel):
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.cyan))
+        elif (channel_red==channel_blue and
+              channel_red==channel):
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.magenta))
+        elif channel==channel_red:
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.red))
+        elif channel==channel_green:
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.green))
+        elif channel==channel_blue:
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(generateHistGradient(h, QtCore.Qt.blue))
+        else:
+            painter.setCompositionMode(painter.CompositionMode_Plus)
+            painter.setBrush(QtCore.Qt.NoBrush)
+                    
+            
+        painter.setPen(QtCore.Qt.black)
         painter.drawPath(path)
     
         if draw_axes:
