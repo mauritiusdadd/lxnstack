@@ -1,4 +1,4 @@
 {
   "name": "lxnstack"
-, "files": [ { "directory": ".", "filters": ["*.py"], "recursive": 1 } ]
+, "files": [ { "directory": ".", "filters": ["*.py", "*.ui"], "recursive": 1 } ]
 }

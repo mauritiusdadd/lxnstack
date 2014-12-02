@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+
 from distutils.core import setup
 
 setup(name='lxnstack',
@@ -10,9 +11,12 @@ setup(name='lxnstack',
       provides=['lxnstack'],
       requires=['scipy', 'numpy', 'cv2'],
       packages=['lxnstack'],
-      package_data={'lxnstack': ['data/*','data/icons/*', 'data/ui/*','data/lang/*']},
+      package_data={'lxnstack': ['data/*', 'data/icons/*',
+                                 'data/ui/*', 'data/lang/*']},
       data_files=[('share/licenses/lxnstack', ['COPYRIGHT']),
                   ('share/applications', ['mime/lxnstack.desktop']),
-                  ('share/lxnstack/', ['mime/lxnstack-project.xml','mime/lxnstack.png']),],
+                  ('share/lxnstack/', ['mime/lxnstack-project.xml',
+                                       'mime/lxnstack.png']),
+                  ],
       scripts=['scripts/lxnstack']
       )

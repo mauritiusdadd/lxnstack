@@ -1,132 +1,139 @@
-#lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
-
-#This program is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation, either version 3 of the License, or
-#(at your option) any later version.
-
-#This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
-
-#You should have received a copy of the GNU General Public License
-#along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+# lxnstack is a program to align and stack atronomical images
+# Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 import platform
 import ctypes
 import ctypes.util
-import os
-import log
 
+import log
 from v4l2_controls import *
 
 #
 # NOTE: This header is generated from <linux/videodev2.h> using the
-#       script binding-builder.py that can be found in the source 
-#       code of lxnstack [1]. The script only translate the header
-#       form c to python so you may want to edit this document in 
+#       scriptv4l2-binding-builder.py that can be found in the source
+#       code of lxnstack. The script only translate the header
+#       form c to python so you may want to edit this document in
 #       order to fix parsing errors.
 #
 
 try:
-    
+
     #
     # This section is needed to access the libv4l2.so functions
     #
-    
+
     libv4l2 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("v4l2"))
-    
-    libv4l2.v4l2_open.argtype=[ctypes.c_char_p,ctypes.c_int8]
-    libv4l2.v4l2_open.restype=ctypes.c_int8
-    v4l2_open=libv4l2.v4l2_open
-    
+
+    libv4l2.v4l2_open.argtype = [ctypes.c_char_p, ctypes.c_int8]
+    libv4l2.v4l2_open.restype = ctypes.c_int8
+    v4l2_open = libv4l2.v4l2_open
+
     # NOTE: the v4l2_fd_open function here is almost useless
     #       because it is already called inside v4l2_open.
-    libv4l2.v4l2_fd_open.argtype=[ctypes.c_int8,ctypes.c_int8]
-    libv4l2.v4l2_fd_open.restype=ctypes.c_int8
-    v4l2_fd_open=libv4l2.v4l2_fd_open
-    
-    libv4l2.v4l2_read.argtype=[ctypes.c_int8,ctypes.c_uint32,ctypes.c_uint32]
-    libv4l2.v4l2_read.restype=ctypes.c_int8
-    v4l2_read=libv4l2.v4l2_read
-    
-    v4l2_close=libv4l2.v4l2_close
-    
-    libv4l2.v4l2_mmap.argtype=[ctypes.c_void_p,ctypes.c_uint32,ctypes.c_int8,ctypes.c_int8,ctypes.c_int8,ctypes.c_uint64]
-    libv4l2.v4l2_mmap.restype=ctypes.c_void_p
-    v4l2_mmap=libv4l2.v4l2_mmap
-    
-    v4l2_munmap=libv4l2.v4l2_munmap
-    
-    libv4l2.v4l2_ioctl.argtype=[ctypes.c_uint8,ctypes.c_uint8,ctypes.c_void_p]
-    libv4l2.v4l2_ioctl.restype=ctypes.c_int8
-    v4l2_ioctl=libv4l2.v4l2_ioctl
-    
+    libv4l2.v4l2_fd_open.argtype = [ctypes.c_int8, ctypes.c_int8]
+    libv4l2.v4l2_fd_open.restype = ctypes.c_int8
+    v4l2_fd_open = libv4l2.v4l2_fd_open
+
+    libv4l2.v4l2_read.argtype = [ctypes.c_int8,
+                                 ctypes.c_uint32,
+                                 ctypes.c_uint32]
+    libv4l2.v4l2_read.restype = ctypes.c_int8
+    v4l2_read = libv4l2.v4l2_read
+
+    v4l2_close = libv4l2.v4l2_close
+
+    libv4l2.v4l2_mmap.argtype = [ctypes.c_void_p, ctypes.c_uint32,
+                                 ctypes.c_int8, ctypes.c_int8,
+                                 ctypes.c_int8, ctypes.c_uint64]
+    libv4l2.v4l2_mmap.restype = ctypes.c_void_p
+    v4l2_mmap = libv4l2.v4l2_mmap
+
+    v4l2_munmap = libv4l2.v4l2_munmap
+
+    libv4l2.v4l2_ioctl.argtype = [ctypes.c_uint8,
+                                  ctypes.c_uint8,
+                                  ctypes.c_void_p]
+    libv4l2.v4l2_ioctl.restype = ctypes.c_int8
+    v4l2_ioctl = libv4l2.v4l2_ioctl
+
     libv4l2.__errno_location.restype = ctypes.POINTER(ctypes.c_int)
-    
+
     def v4l2_errno():
         err = libv4l2.__errno_location()
         return err.contents.value
 
-    # Disable all format conversion done by libv4l2 (reduces libv4l2 functionality
-    # to offering v4l2_read() even on devices which don't implement read())
+    # Disable all format conversion done by libv4l2 (reduces libv4l2
+    # functionality to offering v4l2_read() even on devices which
+    # don't implement read())
     V4L2_DISABLE_CONVERSION = 0x01
-    # Report not only real but also emulated formats with the ENUM_FMT ioctl 
+    # Report not only real but also emulated formats with the ENUM_FMT ioctl
     V4L2_ENABLE_ENUM_FMT_EMULATION = 0x02
-    
-    HAS_LIBV4L2=True
-    log.log("videodev2","FOUND LIBV42",level=logging.DEBUG)
+
+    HAS_LIBV4L2 = True
+    log.log("<videodev2 module>",
+            "FOUND LIBV42",
+            level=logging.DEBUG)
 except:
-    log.log("videodev2","LIBV42 NOT FOUND",level=logging.DEBUG)
-    HAS_LIBV4L2=False
+    log.log("<videodev2 module>",
+            "LIBV42 NOT FOUND",
+            level=logging.DEBUG)
+    HAS_LIBV4L2 = False
 
 #
 # Code translated from c to python from ioctl.h
 #
 
 if platform.machine().startswith('mips'):
-    _IOC_NRBITS   = 8
+    _IOC_NRBITS = 8
     _IOC_TYPEBITS = 8
     _IOC_SIZEBITS = 13
-    _IOC_DIRBITS  = 3
+    _IOC_DIRBITS = 3
 
-    _IOC_NRSHIFT   = 0
+    _IOC_NRSHIFT = 0
     _IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS
     _IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS
-    _IOC_DIRSHIFT  = _IOC_SIZESHIFT + _IOC_SIZEBITS
-    
-    _IOC_SLMASK = 255
-    
-    _IOC_NONE  = 1
-    _IOC_WRITE = 2
-    _IOC_READ  = 4
+    _IOC_DIRSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS
 
+    _IOC_SLMASK = 255
+
+    _IOC_NONE = 1
+    _IOC_WRITE = 2
+    _IOC_READ = 4
 
     def _IOC(dir_, type_, nr, size):
         return ((dir_ << _IOC_DIRSHIFT) |
                 (ord(type_) << _IOC_TYPESHIFT) |
                 (nr << _IOC_NRSHIFT) |
                 ((size & _IOC_SLMASK) << _IOC_SIZESHIFT))
-    
+
 elif platform.machine().startswith('ppc'):
-    _IOC_NRBITS   = 8
+    _IOC_NRBITS = 8
     _IOC_TYPEBITS = 8
     _IOC_SIZEBITS = 13
-    _IOC_DIRBITS  = 3
+    _IOC_DIRBITS = 3
 
-    _IOC_NRSHIFT   = 0
+    _IOC_NRSHIFT = 0
     _IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS
     _IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS
-    _IOC_DIRSHIFT  = _IOC_SIZESHIFT + _IOC_SIZEBITS
-        
-    _IOC_NONE  = 1
-    _IOC_WRITE = 2
-    _IOC_READ  = 4
+    _IOC_DIRSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS
 
+    _IOC_NONE = 1
+    _IOC_WRITE = 2
+    _IOC_READ = 4
 
     def _IOC(dir_, type_, nr, size):
         return ((dir_ << _IOC_DIRSHIFT) |
@@ -136,49 +143,46 @@ elif platform.machine().startswith('ppc'):
 
 elif platform.machine().startswith('sparc'):
 
-    _IOC_NRBITS   = 8
+    _IOC_NRBITS = 8
     _IOC_TYPEBITS = 8
     _IOC_SIZEBITS = 8
     _IOC_RESVBITS = 5
-    _IOC_DIRBITS  = 3
+    _IOC_DIRBITS = 3
 
-    _IOC_NRSHIFT   = 0
+    _IOC_NRSHIFT = 0
     _IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS
     _IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS
     _IOC_RESVSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS
-    _IOC_DIRSHIFT  = _IOC_RESVSHIFT + _IOC_RESVBITS
+    _IOC_DIRSHIFT = _IOC_RESVSHIFT + _IOC_RESVBITS
 
-    _IOC_NONE  = 0
+    _IOC_NONE = 0
     _IOC_WRITE = 1
-    _IOC_READ  = 2
-
+    _IOC_READ = 2
 
     def _IOC(dir_, type_, nr, size):
         return ((dir_ << _IOC_DIRSHIFT) |
                 (ord(type_) << _IOC_TYPESHIFT) |
                 (nr << _IOC_NRSHIFT) |
                 (size << _IOC_SIZESHIFT))
-
 else:
-    
+
     #
-    # It should be compatible with several architecture 
+    # It should be compatible with several architecture
     #
-    
-    _IOC_NRBITS   = 8
+
+    _IOC_NRBITS = 8
     _IOC_TYPEBITS = 8
     _IOC_SIZEBITS = 14
-    _IOC_DIRBITS  = 2
+    _IOC_DIRBITS = 2
 
-    _IOC_NRSHIFT   = 0
+    _IOC_NRSHIFT = 0
     _IOC_TYPESHIFT = _IOC_NRSHIFT + _IOC_NRBITS
     _IOC_SIZESHIFT = _IOC_TYPESHIFT + _IOC_TYPEBITS
-    _IOC_DIRSHIFT  = _IOC_SIZESHIFT + _IOC_SIZEBITS
+    _IOC_DIRSHIFT = _IOC_SIZESHIFT + _IOC_SIZEBITS
 
-    _IOC_NONE  = 0
+    _IOC_NONE = 0
     _IOC_WRITE = 1
-    _IOC_READ  = 2
-
+    _IOC_READ = 2
 
     def _IOC(dir_, type_, nr, size):
         return ((dir_ << _IOC_DIRSHIFT) |
@@ -206,17 +210,15 @@ def _IOR(type_, nr, size):
 def _IOWR(type_, nr, size):
     return _IOC(_IOC_READ | _IOC_WRITE, type_, nr, _IOC_TYPECHECK(size))
 
+
 class timeval(ctypes.Structure):
-    _fields_ = [
-        ('secs', ctypes.c_long),
-        ('usecs', ctypes.c_long),
-    ]
+    _fields_ = [('secs', ctypes.c_long),
+                ('usecs', ctypes.c_long)]
+
 
 class timespec(ctypes.Structure):
-    _fields_ = [
-        ('tv_sec', ctypes.c_long),  #seconds
-        ('tv_nsec', ctypes.c_long), #nanoseconds
-    ]
+    _fields_ = [('tv_sec', ctypes.c_long),
+                ('tv_nsec', ctypes.c_long)]
 
 #
 #  Video for Linux Two header file
@@ -295,7 +297,7 @@ VIDEO_MAX_PLANES = 8
 #
 
 
-#  Four-character-code (FOURCC) 
+#  Four-character-code (FOURCC)
 def v4l2_fourcc(a, b, c, d):
     return ord(a) | (ord(b) << 8) | (ord(c) << 16) | (ord(d) << 24)
 
@@ -371,10 +373,16 @@ V4L2_BUF_TYPE_PRIVATE =  0x80
 
 
 def V4L2_TYPE_IS_MULTIPLANAR(type):
-  return ((type) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE   | (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+  return ((type) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE |
+          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 
 def V4L2_TYPE_IS_OUTPUT(type):
-  return ((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT     | (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE    | (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY    | (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY   | (type) == V4L2_BUF_TYPE_VBI_OUTPUT     | (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
+  return ((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT |
+          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE |
+          (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY |
+          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY |
+          (type) == V4L2_BUF_TYPE_VBI_OUTPUT |
+          (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
 
 v4l2_tuner_type = ctypes.c_uint
 
@@ -394,7 +402,7 @@ V4L2_MEMORY_DMABUF =  4
 
 
 
-# see also http://vektor.theorem.ca/graphics/ycbcr/ 
+# see also http://vektor.theorem.ca/graphics/ycbcr/
 
 v4l2_colorspace = ctypes.c_uint
 
@@ -464,61 +472,61 @@ class v4l2_capability(ctypes.Structure):
 
 
 
-# Values for 'capabilities' field 
+# Values for 'capabilities' field
 V4L2_CAP_VIDEO_CAPTURE = 0x00000001
-# Is a video capture device 
+# Is a video capture device
 V4L2_CAP_VIDEO_OUTPUT = 0x00000002
-# Is a video output device 
+# Is a video output device
 V4L2_CAP_VIDEO_OVERLAY = 0x00000004
-# Can do video overlay 
+# Can do video overlay
 V4L2_CAP_VBI_CAPTURE = 0x00000010
-# Is a raw VBI capture device 
+# Is a raw VBI capture device
 V4L2_CAP_VBI_OUTPUT = 0x00000020
-# Is a raw VBI output device 
+# Is a raw VBI output device
 V4L2_CAP_SLICED_VBI_CAPTURE = 0x00000040
-# Is a sliced VBI capture device 
+# Is a sliced VBI capture device
 V4L2_CAP_SLICED_VBI_OUTPUT = 0x00000080
-# Is a sliced VBI output device 
+# Is a sliced VBI output device
 V4L2_CAP_RDS_CAPTURE = 0x00000100
-# RDS data capture 
+# RDS data capture
 V4L2_CAP_VIDEO_OUTPUT_OVERLAY = 0x00000200
-# Can do video output overlay 
+# Can do video output overlay
 V4L2_CAP_HW_FREQ_SEEK = 0x00000400
-# Can do hardware frequency seek  
+# Can do hardware frequency seek
 V4L2_CAP_RDS_OUTPUT = 0x00000800
-# Is an RDS encoder 
+# Is an RDS encoder
 
 
-# Is a video capture device that supports multiplanar formats 
+# Is a video capture device that supports multiplanar formats
 V4L2_CAP_VIDEO_CAPTURE_MPLANE = 0x00001000
 
-# Is a video output device that supports multiplanar formats 
+# Is a video output device that supports multiplanar formats
 V4L2_CAP_VIDEO_OUTPUT_MPLANE = 0x00002000
 
-# Is a video mem-to-mem device that supports multiplanar formats 
+# Is a video mem-to-mem device that supports multiplanar formats
 V4L2_CAP_VIDEO_M2M_MPLANE = 0x00004000
 
-# Is a video mem-to-mem device 
+# Is a video mem-to-mem device
 V4L2_CAP_VIDEO_M2M = 0x00008000
 
 V4L2_CAP_TUNER = 0x00010000
-# has a tuner 
+# has a tuner
 V4L2_CAP_AUDIO = 0x00020000
-# has audio support 
+# has audio support
 V4L2_CAP_RADIO = 0x00040000
-# is a radio device 
+# is a radio device
 V4L2_CAP_MODULATOR = 0x00080000
-# has a modulator 
+# has a modulator
 
 V4L2_CAP_READWRITE = 0x01000000
-# read/write systemcalls 
+# read/write systemcalls
 V4L2_CAP_ASYNCIO = 0x02000000
-# async I/O 
+# async I/O
 V4L2_CAP_STREAMING = 0x04000000
-# streaming I/O ioctls 
+# streaming I/O ioctls
 
 V4L2_CAP_DEVICE_CAPS = 0x80000000
-# sets device capabilities field 
+# sets device capabilities field
 
 
 #
@@ -540,175 +548,175 @@ class v4l2_pix_format(ctypes.Structure):
 
 
 
-#      Pixel format         FOURCC                          depth  Description  
+#      Pixel format         FOURCC                          depth  Description
 
 
-# RGB formats 
+# RGB formats
 V4L2_PIX_FMT_RGB332 = v4l2_fourcc('R', 'G', 'B', '1')
-#  8  RGB-3-3-2     
+#  8  RGB-3-3-2
 V4L2_PIX_FMT_RGB444 = v4l2_fourcc('R', '4', '4', '4')
-# 16  xxxxrrrr ggggbbbb 
+# 16  xxxxrrrr ggggbbbb
 V4L2_PIX_FMT_RGB555 = v4l2_fourcc('R', 'G', 'B', 'O')
-# 16  RGB-5-5-5     
+# 16  RGB-5-5-5
 V4L2_PIX_FMT_RGB565 = v4l2_fourcc('R', 'G', 'B', 'P')
-# 16  RGB-5-6-5     
+# 16  RGB-5-6-5
 V4L2_PIX_FMT_RGB555X = v4l2_fourcc('R', 'G', 'B', 'Q')
-# 16  RGB-5-5-5 BE  
+# 16  RGB-5-5-5 BE
 V4L2_PIX_FMT_RGB565X = v4l2_fourcc('R', 'G', 'B', 'R')
-# 16  RGB-5-6-5 BE  
+# 16  RGB-5-6-5 BE
 V4L2_PIX_FMT_BGR666 = v4l2_fourcc('B', 'G', 'R', 'H')
-# 18  BGR-6-6-6   
+# 18  BGR-6-6-6
 V4L2_PIX_FMT_BGR24 = v4l2_fourcc('B', 'G', 'R', '3')
-# 24  BGR-8-8-8     
+# 24  BGR-8-8-8
 V4L2_PIX_FMT_RGB24 = v4l2_fourcc('R', 'G', 'B', '3')
-# 24  RGB-8-8-8     
+# 24  RGB-8-8-8
 V4L2_PIX_FMT_BGR32 = v4l2_fourcc('B', 'G', 'R', '4')
-# 32  BGR-8-8-8-8   
+# 32  BGR-8-8-8-8
 V4L2_PIX_FMT_RGB32 = v4l2_fourcc('R', 'G', 'B', '4')
-# 32  RGB-8-8-8-8   
+# 32  RGB-8-8-8-8
 
 
-# Grey formats 
+# Grey formats
 V4L2_PIX_FMT_GREY = v4l2_fourcc('G', 'R', 'E', 'Y')
-#  8  Greyscale     
+#  8  Greyscale
 V4L2_PIX_FMT_Y4 = v4l2_fourcc('Y', '0', '4', ' ')
-#  4  Greyscale     
+#  4  Greyscale
 V4L2_PIX_FMT_Y6 = v4l2_fourcc('Y', '0', '6', ' ')
-#  6  Greyscale     
+#  6  Greyscale
 V4L2_PIX_FMT_Y10 = v4l2_fourcc('Y', '1', '0', ' ')
-# 10  Greyscale     
+# 10  Greyscale
 V4L2_PIX_FMT_Y12 = v4l2_fourcc('Y', '1', '2', ' ')
-# 12  Greyscale     
+# 12  Greyscale
 V4L2_PIX_FMT_Y16 = v4l2_fourcc('Y', '1', '6', ' ')
-# 16  Greyscale     
+# 16  Greyscale
 
 
-# Grey bit-packed formats 
+# Grey bit-packed formats
 V4L2_PIX_FMT_Y10BPACK = v4l2_fourcc('Y', '1', '0', 'B')
-# 10  Greyscale bit-packed 
+# 10  Greyscale bit-packed
 
 
-# Palette formats 
+# Palette formats
 V4L2_PIX_FMT_PAL8 = v4l2_fourcc('P', 'A', 'L', '8')
-#  8  8-bit palette 
+#  8  8-bit palette
 
 
-# Chrominance formats 
+# Chrominance formats
 V4L2_PIX_FMT_UV8 = v4l2_fourcc('U', 'V', '8', ' ')
-#  8  UV 4:4 
+#  8  UV 4:4
 
 
-# Luminance+Chrominance formats 
+# Luminance+Chrominance formats
 V4L2_PIX_FMT_YVU410 = v4l2_fourcc('Y', 'V', 'U', '9')
-#  9  YVU 4:1:0     
+#  9  YVU 4:1:0
 V4L2_PIX_FMT_YVU420 = v4l2_fourcc('Y', 'V', '1', '2')
-# 12  YVU 4:2:0     
+# 12  YVU 4:2:0
 V4L2_PIX_FMT_YUYV = v4l2_fourcc('Y', 'U', 'Y', 'V')
-# 16  YUV 4:2:2     
+# 16  YUV 4:2:2
 V4L2_PIX_FMT_YYUV = v4l2_fourcc('Y', 'Y', 'U', 'V')
-# 16  YUV 4:2:2     
+# 16  YUV 4:2:2
 V4L2_PIX_FMT_YVYU = v4l2_fourcc('Y', 'V', 'Y', 'U')
-# 16 YVU 4:2:2 
+# 16 YVU 4:2:2
 V4L2_PIX_FMT_UYVY = v4l2_fourcc('U', 'Y', 'V', 'Y')
-# 16  YUV 4:2:2     
+# 16  YUV 4:2:2
 V4L2_PIX_FMT_VYUY = v4l2_fourcc('V', 'Y', 'U', 'Y')
-# 16  YUV 4:2:2     
+# 16  YUV 4:2:2
 V4L2_PIX_FMT_YUV422P = v4l2_fourcc('4', '2', '2', 'P')
-# 16  YVU422 planar 
+# 16  YVU422 planar
 V4L2_PIX_FMT_YUV411P = v4l2_fourcc('4', '1', '1', 'P')
-# 16  YVU411 planar 
+# 16  YVU411 planar
 V4L2_PIX_FMT_Y41P = v4l2_fourcc('Y', '4', '1', 'P')
-# 12  YUV 4:1:1     
+# 12  YUV 4:1:1
 V4L2_PIX_FMT_YUV444 = v4l2_fourcc('Y', '4', '4', '4')
-# 16  xxxxyyyy uuuuvvvv 
+# 16  xxxxyyyy uuuuvvvv
 V4L2_PIX_FMT_YUV555 = v4l2_fourcc('Y', 'U', 'V', 'O')
-# 16  YUV-5-5-5     
+# 16  YUV-5-5-5
 V4L2_PIX_FMT_YUV565 = v4l2_fourcc('Y', 'U', 'V', 'P')
-# 16  YUV-5-6-5     
+# 16  YUV-5-6-5
 V4L2_PIX_FMT_YUV32 = v4l2_fourcc('Y', 'U', 'V', '4')
-# 32  YUV-8-8-8-8   
+# 32  YUV-8-8-8-8
 V4L2_PIX_FMT_YUV410 = v4l2_fourcc('Y', 'U', 'V', '9')
-#  9  YUV 4:1:0     
+#  9  YUV 4:1:0
 V4L2_PIX_FMT_YUV420 = v4l2_fourcc('Y', 'U', '1', '2')
-# 12  YUV 4:2:0     
+# 12  YUV 4:2:0
 V4L2_PIX_FMT_HI240 = v4l2_fourcc('H', 'I', '2', '4')
-#  8  8-bit color   
+#  8  8-bit color
 V4L2_PIX_FMT_HM12 = v4l2_fourcc('H', 'M', '1', '2')
-#  8  YUV 4:2:0 16x16 macroblocks 
+#  8  YUV 4:2:0 16x16 macroblocks
 V4L2_PIX_FMT_M420 = v4l2_fourcc('M', '4', '2', '0')
-# 12  YUV 4:2:0 2 lines y, 1 line uv interleaved 
+# 12  YUV 4:2:0 2 lines y, 1 line uv interleaved
 
 
-# two planes -- one Y, one Cr + Cb interleaved  
+# two planes -- one Y, one Cr + Cb interleaved
 V4L2_PIX_FMT_NV12 = v4l2_fourcc('N', 'V', '1', '2')
-# 12  Y/CbCr 4:2:0  
+# 12  Y/CbCr 4:2:0
 V4L2_PIX_FMT_NV21 = v4l2_fourcc('N', 'V', '2', '1')
-# 12  Y/CrCb 4:2:0  
+# 12  Y/CrCb 4:2:0
 V4L2_PIX_FMT_NV16 = v4l2_fourcc('N', 'V', '1', '6')
-# 16  Y/CbCr 4:2:2  
+# 16  Y/CbCr 4:2:2
 V4L2_PIX_FMT_NV61 = v4l2_fourcc('N', 'V', '6', '1')
-# 16  Y/CrCb 4:2:2  
+# 16  Y/CrCb 4:2:2
 V4L2_PIX_FMT_NV24 = v4l2_fourcc('N', 'V', '2', '4')
-# 24  Y/CbCr 4:4:4  
+# 24  Y/CbCr 4:4:4
 V4L2_PIX_FMT_NV42 = v4l2_fourcc('N', 'V', '4', '2')
-# 24  Y/CrCb 4:4:4  
+# 24  Y/CrCb 4:4:4
 
 
-# two non contiguous planes - one Y, one Cr + Cb interleaved  
+# two non contiguous planes - one Y, one Cr + Cb interleaved
 V4L2_PIX_FMT_NV12M = v4l2_fourcc('N', 'M', '1', '2')
-# 12  Y/CbCr 4:2:0  
+# 12  Y/CbCr 4:2:0
 V4L2_PIX_FMT_NV21M = v4l2_fourcc('N', 'M', '2', '1')
-# 21  Y/CrCb 4:2:0  
+# 21  Y/CrCb 4:2:0
 V4L2_PIX_FMT_NV16M = v4l2_fourcc('N', 'M', '1', '6')
-# 16  Y/CbCr 4:2:2  
+# 16  Y/CbCr 4:2:2
 V4L2_PIX_FMT_NV61M = v4l2_fourcc('N', 'M', '6', '1')
-# 16  Y/CrCb 4:2:2  
+# 16  Y/CrCb 4:2:2
 V4L2_PIX_FMT_NV12MT = v4l2_fourcc('T', 'M', '1', '2')
-# 12  Y/CbCr 4:2:0 64x32 macroblocks 
+# 12  Y/CbCr 4:2:0 64x32 macroblocks
 V4L2_PIX_FMT_NV12MT_16X16 = v4l2_fourcc('V', 'M', '1', '2')
-# 12  Y/CbCr 4:2:0 16x16 macroblocks 
+# 12  Y/CbCr 4:2:0 16x16 macroblocks
 
 
-# three non contiguous planes - Y, Cb, Cr 
+# three non contiguous planes - Y, Cb, Cr
 V4L2_PIX_FMT_YUV420M = v4l2_fourcc('Y', 'M', '1', '2')
-# 12  YUV420 planar 
+# 12  YUV420 planar
 V4L2_PIX_FMT_YVU420M = v4l2_fourcc('Y', 'M', '2', '1')
-# 12  YVU420 planar 
+# 12  YVU420 planar
 
 
-# Bayer formats - see http://www.siliconimaging.com/RGB%20Bayer.htm 
+# Bayer formats - see http://www.siliconimaging.com/RGB%20Bayer.htm
 V4L2_PIX_FMT_SBGGR8 = v4l2_fourcc('B', 'A', '8', '1')
-#  8  BGBG.. GRGR.. 
+#  8  BGBG.. GRGR..
 V4L2_PIX_FMT_SGBRG8 = v4l2_fourcc('G', 'B', 'R', 'G')
-#  8  GBGB.. RGRG.. 
+#  8  GBGB.. RGRG..
 V4L2_PIX_FMT_SGRBG8 = v4l2_fourcc('G', 'R', 'B', 'G')
-#  8  GRGR.. BGBG.. 
+#  8  GRGR.. BGBG..
 V4L2_PIX_FMT_SRGGB8 = v4l2_fourcc('R', 'G', 'G', 'B')
-#  8  RGRG.. GBGB.. 
+#  8  RGRG.. GBGB..
 V4L2_PIX_FMT_SBGGR10 = v4l2_fourcc('B', 'G', '1', '0')
-# 10  BGBG.. GRGR.. 
+# 10  BGBG.. GRGR..
 V4L2_PIX_FMT_SGBRG10 = v4l2_fourcc('G', 'B', '1', '0')
-# 10  GBGB.. RGRG.. 
+# 10  GBGB.. RGRG..
 V4L2_PIX_FMT_SGRBG10 = v4l2_fourcc('B', 'A', '1', '0')
-# 10  GRGR.. BGBG.. 
+# 10  GRGR.. BGBG..
 V4L2_PIX_FMT_SRGGB10 = v4l2_fourcc('R', 'G', '1', '0')
-# 10  RGRG.. GBGB.. 
+# 10  RGRG.. GBGB..
 V4L2_PIX_FMT_SBGGR12 = v4l2_fourcc('B', 'G', '1', '2')
-# 12  BGBG.. GRGR.. 
+# 12  BGBG.. GRGR..
 V4L2_PIX_FMT_SGBRG12 = v4l2_fourcc('G', 'B', '1', '2')
-# 12  GBGB.. RGRG.. 
+# 12  GBGB.. RGRG..
 V4L2_PIX_FMT_SGRBG12 = v4l2_fourcc('B', 'A', '1', '2')
-# 12  GRGR.. BGBG.. 
+# 12  GRGR.. BGBG..
 V4L2_PIX_FMT_SRGGB12 = v4l2_fourcc('R', 'G', '1', '2')
-# 12  RGRG.. GBGB.. 
+# 12  RGRG.. GBGB..
 
-# 10bit raw bayer a-law compressed to 8 bits 
+# 10bit raw bayer a-law compressed to 8 bits
 V4L2_PIX_FMT_SBGGR10ALAW8 = v4l2_fourcc('a', 'B', 'A', '8')
 V4L2_PIX_FMT_SGBRG10ALAW8 = v4l2_fourcc('a', 'G', 'A', '8')
 V4L2_PIX_FMT_SGRBG10ALAW8 = v4l2_fourcc('a', 'g', 'A', '8')
 V4L2_PIX_FMT_SRGGB10ALAW8 = v4l2_fourcc('a', 'R', 'A', '8')
 
-# 10bit raw bayer DPCM compressed to 8 bits 
+# 10bit raw bayer DPCM compressed to 8 bits
 V4L2_PIX_FMT_SBGGR10DPCM8 = v4l2_fourcc('b', 'B', 'A', '8')
 V4L2_PIX_FMT_SGBRG10DPCM8 = v4l2_fourcc('b', 'G', 'A', '8')
 V4L2_PIX_FMT_SGRBG10DPCM8 = v4l2_fourcc('B', 'D', '1', '0')
@@ -719,95 +727,95 @@ V4L2_PIX_FMT_SRGGB10DPCM8 = v4l2_fourcc('b', 'R', 'A', '8')
 # xxxxrrrrrrrrrrxxxxgggggggggg xxxxggggggggggxxxxbbbbbbbbbb...
 #
 V4L2_PIX_FMT_SBGGR16 = v4l2_fourcc('B', 'Y', 'R', '2')
-# 16  BGBG.. GRGR.. 
+# 16  BGBG.. GRGR..
 
 
-# compressed formats 
+# compressed formats
 V4L2_PIX_FMT_MJPEG = v4l2_fourcc('M', 'J', 'P', 'G')
-# Motion-JPEG   
+# Motion-JPEG
 V4L2_PIX_FMT_JPEG = v4l2_fourcc('J', 'P', 'E', 'G')
-# JFIF JPEG     
+# JFIF JPEG
 V4L2_PIX_FMT_DV = v4l2_fourcc('d', 'v', 's', 'd')
-# 1394          
+# 1394
 V4L2_PIX_FMT_MPEG = v4l2_fourcc('M', 'P', 'E', 'G')
-# MPEG-1/2/4 Multiplexed 
+# MPEG-1/2/4 Multiplexed
 V4L2_PIX_FMT_H264 = v4l2_fourcc('H', '2', '6', '4')
-# H264 with start codes 
+# H264 with start codes
 V4L2_PIX_FMT_H264_NO_SC = v4l2_fourcc('A', 'V', 'C', '1')
-# H264 without start codes 
+# H264 without start codes
 V4L2_PIX_FMT_H264_MVC = v4l2_fourcc('M', '2', '6', '4')
-# H264 MVC 
+# H264 MVC
 V4L2_PIX_FMT_H263 = v4l2_fourcc('H', '2', '6', '3')
-# H263          
+# H263
 V4L2_PIX_FMT_MPEG1 = v4l2_fourcc('M', 'P', 'G', '1')
-# MPEG-1 ES     
+# MPEG-1 ES
 V4L2_PIX_FMT_MPEG2 = v4l2_fourcc('M', 'P', 'G', '2')
-# MPEG-2 ES     
+# MPEG-2 ES
 V4L2_PIX_FMT_MPEG4 = v4l2_fourcc('M', 'P', 'G', '4')
-# MPEG-4 part 2 ES 
+# MPEG-4 part 2 ES
 V4L2_PIX_FMT_XVID = v4l2_fourcc('X', 'V', 'I', 'D')
-# Xvid           
+# Xvid
 V4L2_PIX_FMT_VC1_ANNEX_G = v4l2_fourcc('V', 'C', '1', 'G')
-# SMPTE 421M Annex G compliant stream 
+# SMPTE 421M Annex G compliant stream
 V4L2_PIX_FMT_VC1_ANNEX_L = v4l2_fourcc('V', 'C', '1', 'L')
-# SMPTE 421M Annex L compliant stream 
+# SMPTE 421M Annex L compliant stream
 V4L2_PIX_FMT_VP8 = v4l2_fourcc('V', 'P', '8', '0')
-# VP8 
+# VP8
 
 
-#  Vendor-specific formats   
+#  Vendor-specific formats
 V4L2_PIX_FMT_CPIA1 = v4l2_fourcc('C', 'P', 'I', 'A')
-# cpia1 YUV 
+# cpia1 YUV
 V4L2_PIX_FMT_WNVA = v4l2_fourcc('W', 'N', 'V', 'A')
-# Winnov hw compress 
+# Winnov hw compress
 V4L2_PIX_FMT_SN9C10X = v4l2_fourcc('S', '9', '1', '0')
-# SN9C10x compression 
+# SN9C10x compression
 V4L2_PIX_FMT_SN9C20X_I420 = v4l2_fourcc('S', '9', '2', '0')
-# SN9C20x YUV 4:2:0 
+# SN9C20x YUV 4:2:0
 V4L2_PIX_FMT_PWC1 = v4l2_fourcc('P', 'W', 'C', '1')
-# pwc older webcam 
+# pwc older webcam
 V4L2_PIX_FMT_PWC2 = v4l2_fourcc('P', 'W', 'C', '2')
-# pwc newer webcam 
+# pwc newer webcam
 V4L2_PIX_FMT_ET61X251 = v4l2_fourcc('E', '6', '2', '5')
-# ET61X251 compression 
+# ET61X251 compression
 V4L2_PIX_FMT_SPCA501 = v4l2_fourcc('S', '5', '0', '1')
-# YUYV per line 
+# YUYV per line
 V4L2_PIX_FMT_SPCA505 = v4l2_fourcc('S', '5', '0', '5')
-# YYUV per line 
+# YYUV per line
 V4L2_PIX_FMT_SPCA508 = v4l2_fourcc('S', '5', '0', '8')
-# YUVY per line 
+# YUVY per line
 V4L2_PIX_FMT_SPCA561 = v4l2_fourcc('S', '5', '6', '1')
-# compressed GBRG bayer 
+# compressed GBRG bayer
 V4L2_PIX_FMT_PAC207 = v4l2_fourcc('P', '2', '0', '7')
-# compressed BGGR bayer 
+# compressed BGGR bayer
 V4L2_PIX_FMT_MR97310A = v4l2_fourcc('M', '3', '1', '0')
-# compressed BGGR bayer 
+# compressed BGGR bayer
 V4L2_PIX_FMT_JL2005BCD = v4l2_fourcc('J', 'L', '2', '0')
-# compressed RGGB bayer 
+# compressed RGGB bayer
 V4L2_PIX_FMT_SN9C2028 = v4l2_fourcc('S', 'O', 'N', 'X')
-# compressed GBRG bayer 
+# compressed GBRG bayer
 V4L2_PIX_FMT_SQ905C = v4l2_fourcc('9', '0', '5', 'C')
-# compressed RGGB bayer 
+# compressed RGGB bayer
 V4L2_PIX_FMT_PJPG = v4l2_fourcc('P', 'J', 'P', 'G')
-# Pixart 73xx JPEG 
+# Pixart 73xx JPEG
 V4L2_PIX_FMT_OV511 = v4l2_fourcc('O', '5', '1', '1')
-# ov511 JPEG 
+# ov511 JPEG
 V4L2_PIX_FMT_OV518 = v4l2_fourcc('O', '5', '1', '8')
-# ov518 JPEG 
+# ov518 JPEG
 V4L2_PIX_FMT_STV0680 = v4l2_fourcc('S', '6', '8', '0')
-# stv0680 bayer 
+# stv0680 bayer
 V4L2_PIX_FMT_TM6000 = v4l2_fourcc('T', 'M', '6', '0')
-# tm5600/tm60x0 
+# tm5600/tm60x0
 V4L2_PIX_FMT_CIT_YYVYUY = v4l2_fourcc('C', 'I', 'T', 'V')
-# one line of Y then 1 line of VYUY 
+# one line of Y then 1 line of VYUY
 V4L2_PIX_FMT_KONICA420 = v4l2_fourcc('K', 'O', 'N', 'I')
-# YUV420 planar in blocks of 256 pixels 
+# YUV420 planar in blocks of 256 pixels
 V4L2_PIX_FMT_JPGL = v4l2_fourcc('J', 'P', 'G', 'L')
-# JPEG-Lite 
+# JPEG-Lite
 V4L2_PIX_FMT_SE401 = v4l2_fourcc('S', '4', '0', '1')
-# se401 janggu compressed rgb 
+# se401 janggu compressed rgb
 V4L2_PIX_FMT_S5C_UYVY_JPG = v4l2_fourcc('S', '5', 'C', 'I')
-# S5C73M3 interleaved UYVY/JPEG 
+# S5C73M3 interleaved UYVY/JPEG
 
 
 #
@@ -830,7 +838,7 @@ V4L2_FMT_FLAG_COMPRESSED = 0x0001
 V4L2_FMT_FLAG_EMULATED = 0x0002
 
 
-# Experimental Frame Size and frame rate enumeration 
+# Experimental Frame Size and frame rate enumeration
 
 #
 # F R A M E   S I Z E   E N U M E R A T I O N
@@ -867,7 +875,7 @@ class v4l2_frmsize_stepwise(ctypes.Structure):
 class v4l2_frmsizeenum(ctypes.Structure):
     #$OBJ-00010
     class _u16(ctypes.Union):
-    
+
         _fields_ = [
             ('discrete',v4l2_frmsize_discrete),
             ('stepwise',v4l2_frmsize_stepwise),
@@ -907,7 +915,7 @@ class v4l2_frmival_stepwise(ctypes.Structure):
 class v4l2_frmivalenum(ctypes.Structure):
     #$OBJ-00014
     class _u20(ctypes.Union):
-    
+
         _fields_ = [
             ('discrete',v4l2_fract),
             ('stepwise',v4l2_frmival_stepwise),
@@ -943,7 +951,7 @@ class v4l2_timecode(ctypes.Structure):
 
 
 
-#  Type  
+#  Type
 V4L2_TC_TYPE_24FPS = 1
 V4L2_TC_TYPE_25FPS = 2
 V4L2_TC_TYPE_30FPS = 3
@@ -951,15 +959,15 @@ V4L2_TC_TYPE_50FPS = 4
 V4L2_TC_TYPE_60FPS = 5
 
 
-#  Flags  
+#  Flags
 V4L2_TC_FLAG_DROPFRAME = 0x0001
-# "drop-frame" mode 
+# "drop-frame" mode
 V4L2_TC_FLAG_COLORFRAME = 0x0002
 V4L2_TC_USERBITS_field = 0x000C
 V4L2_TC_USERBITS_USERDEFINED = 0x0000
 V4L2_TC_USERBITS_8BITCHARS = 0x0008
 
-# The above is based on SMPTE timecodes 
+# The above is based on SMPTE timecodes
 
 class v4l2_jpegcompression(ctypes.Structure):
 
@@ -1014,7 +1022,7 @@ class v4l2_requestbuffers(ctypes.Structure):
 class v4l2_plane(ctypes.Structure):
     #$OBJ-00019
     class _u25(ctypes.Union):
-    
+
         _fields_ = [
             ('mem_offset',ctypes.c_uint32),
             ('userptr',ctypes.c_uint32),
@@ -1066,7 +1074,7 @@ class v4l2_plane(ctypes.Structure):
 class v4l2_buffer(ctypes.Structure):
     #$OBJ-0001B
     class _u27(ctypes.Union):
-    
+
         _fields_ = [
             ('offset',ctypes.c_uint32),
             ('userptr',ctypes.c_uint32),
@@ -1092,32 +1100,32 @@ class v4l2_buffer(ctypes.Structure):
 
 
 
-#  Flags for 'flags' field 
+#  Flags for 'flags' field
 V4L2_BUF_FLAG_MAPPED = 0x0001
-# Buffer is mapped (flag) 
+# Buffer is mapped (flag)
 V4L2_BUF_FLAG_QUEUED = 0x0002
-# Buffer is queued for processing 
+# Buffer is queued for processing
 V4L2_BUF_FLAG_DONE = 0x0004
-# Buffer is ready 
+# Buffer is ready
 V4L2_BUF_FLAG_KEYFRAME = 0x0008
-# Image is a keyframe (I-frame) 
+# Image is a keyframe (I-frame)
 V4L2_BUF_FLAG_PFRAME = 0x0010
-# Image is a P-frame 
+# Image is a P-frame
 V4L2_BUF_FLAG_BFRAME = 0x0020
-# Image is a B-frame 
+# Image is a B-frame
 
-# Buffer is ready, but the data contained within is corrupted. 
+# Buffer is ready, but the data contained within is corrupted.
 V4L2_BUF_FLAG_ERROR = 0x0040
 V4L2_BUF_FLAG_TIMECODE = 0x0100
-# timecode field is valid 
+# timecode field is valid
 V4L2_BUF_FLAG_PREPARED = 0x0400
-# Buffer is prepared for queuing 
+# Buffer is prepared for queuing
 
-# Cache handling flags 
+# Cache handling flags
 V4L2_BUF_FLAG_NO_CACHE_INVALIDATE = 0x0800
 V4L2_BUF_FLAG_NO_CACHE_CLEAN = 0x1000
 
-# Timestamp type 
+# Timestamp type
 V4L2_BUF_FLAG_TIMESTAMP_MASK = 0xe000
 V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN = 0x0000
 V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC = 0x2000
@@ -1170,7 +1178,7 @@ class v4l2_framebuffer(ctypes.Structure):
     ]
 
 
-#  Flags for the 'capability' field. Read only 
+#  Flags for the 'capability' field. Read only
 V4L2_FBUF_CAP_EXTERNOVERLAY = 0x0001
 V4L2_FBUF_CAP_CHROMAKEY = 0x0002
 V4L2_FBUF_CAP_LIST_CLIPPING = 0x0004
@@ -1180,7 +1188,7 @@ V4L2_FBUF_CAP_GLOBAL_ALPHA = 0x0020
 V4L2_FBUF_CAP_LOCAL_INV_ALPHA = 0x0040
 V4L2_FBUF_CAP_SRC_CHROMAKEY = 0x0080
 
-#  Flags for the 'flags' field. 
+#  Flags for the 'flags' field.
 V4L2_FBUF_FLAG_PRIMARY = 0x0001
 V4L2_FBUF_FLAG_OVERLAY = 0x0002
 V4L2_FBUF_FLAG_CHROMAKEY = 0x0004
@@ -1229,11 +1237,11 @@ class v4l2_captureparm(ctypes.Structure):
 
 
 
-#  Flags for 'capability' and 'capturemode' fields 
+#  Flags for 'capability' and 'capturemode' fields
 V4L2_MODE_HIGHQUALITY = 0x0001
-#  High quality imaging mode 
+#  High quality imaging mode
 V4L2_CAP_TIMEPERFRAME = 0x1000
-#  timeperframe field is supported 
+#  timeperframe field is supported
 
 class v4l2_outputparm(ctypes.Structure):
 
@@ -1306,7 +1314,7 @@ v4l2_std_id = ctypes.c_uint64
 
 
 
-# one bit for each 
+# one bit for each
 V4L2_STD_PAL_B = 0x00000001
 V4L2_STD_PAL_B1 = 0x00000002
 V4L2_STD_PAL_G = 0x00000004
@@ -1322,12 +1330,12 @@ V4L2_STD_PAL_Nc = 0x00000400
 V4L2_STD_PAL_60 = 0x00000800
 
 V4L2_STD_NTSC_M = 0x00001000
-# BTSC 
+# BTSC
 V4L2_STD_NTSC_M_JP = 0x00002000
-# EIA-J 
+# EIA-J
 V4L2_STD_NTSC_443 = 0x00004000
 V4L2_STD_NTSC_M_KR = 0x00008000
-# FM A2 
+# FM A2
 
 V4L2_STD_SECAM_B = 0x00010000
 V4L2_STD_SECAM_D = 0x00020000
@@ -1339,7 +1347,7 @@ V4L2_STD_SECAM_L = 0x00400000
 V4L2_STD_SECAM_LC = 0x00800000
 
 
-# ATSC/HDTV 
+# ATSC/HDTV
 V4L2_STD_ATSC_8_VSB = 0x01000000
 V4L2_STD_ATSC_16_VSB = 0x02000000
 
@@ -1368,12 +1376,12 @@ V4L2_STD_NTSC = (V4L2_STD_NTSC_M |
                  V4L2_STD_NTSC_M_JP |
                  V4L2_STD_NTSC_M_KR)
 
-# Secam macros 
+# Secam macros
 V4L2_STD_SECAM_DK = (V4L2_STD_SECAM_D |
                      V4L2_STD_SECAM_K |
                      V4L2_STD_SECAM_K1)
 
-# All Secam Standards 
+# All Secam Standards
 V4L2_STD_SECAM = (V4L2_STD_SECAM_B  |
                   V4L2_STD_SECAM_G  |
                   V4L2_STD_SECAM_H  |
@@ -1381,13 +1389,13 @@ V4L2_STD_SECAM = (V4L2_STD_SECAM_B  |
                   V4L2_STD_SECAM_L  |
                   V4L2_STD_SECAM_LC)
 
-# PAL macros 
+# PAL macros
 V4L2_STD_PAL_BG = (V4L2_STD_PAL_B  |
                    V4L2_STD_PAL_B1 |
                    V4L2_STD_PAL_G)
 
 V4L2_STD_PAL_DK = (V4L2_STD_PAL_D  |
-                   V4L2_STD_PAL_D1 | 
+                   V4L2_STD_PAL_D1 |
                    V4L2_STD_PAL_K)
 
 #
@@ -1396,11 +1404,11 @@ V4L2_STD_PAL_DK = (V4L2_STD_PAL_D  |
 # Several PAL standards are missing here: /M, /N and /Nc
 #
 V4L2_STD_PAL = (V4L2_STD_PAL_BG |
-                V4L2_STD_PAL_DK | 
-                V4L2_STD_PAL_H  |  
+                V4L2_STD_PAL_DK |
+                V4L2_STD_PAL_H  |
                 V4L2_STD_PAL_I)
 
-# Chroma "agnostic" standards 
+# Chroma "agnostic" standards
 V4L2_STD_B  = (V4L2_STD_PAL_B   |
                V4L2_STD_PAL_B1  |
                V4L2_STD_SECAM_B)
@@ -1423,26 +1431,26 @@ V4L2_STD_DK = (V4L2_STD_PAL_DK |
 V4L2_STD_BG = (V4L2_STD_B |
                V4L2_STD_G)
 
-V4L2_STD_MN = (V4L2_STD_PAL_M   | 
+V4L2_STD_MN = (V4L2_STD_PAL_M   |
                V4L2_STD_PAL_N   |
                V4L2_STD_PAL_Nc  |
                V4L2_STD_NTSC)
 
 
-# Standards where MTS/BTSC stereo could be found 
+# Standards where MTS/BTSC stereo could be found
 V4L2_STD_MTS = (V4L2_STD_NTSC_M |
                 V4L2_STD_PAL_M  |
                 V4L2_STD_PAL_N  |
                 V4L2_STD_PAL_Nc)
 
 
-# Standards for Countries with 60Hz Line frequency 
+# Standards for Countries with 60Hz Line frequency
 V4L2_STD_525_60 = (V4L2_STD_PAL_M  |
                    V4L2_STD_PAL_60 |
                    V4L2_STD_NTSC   |
                    V4L2_STD_NTSC_443)
 
-# Standards for Countries with 50Hz Line frequency 
+# Standards for Countries with 50Hz Line frequency
 V4L2_STD_625_50 = (V4L2_STD_PAL    |
                    V4L2_STD_PAL_N  |
                    V4L2_STD_PAL_Nc |
@@ -1451,7 +1459,7 @@ V4L2_STD_625_50 = (V4L2_STD_PAL    |
 V4L2_STD_ATSC = (V4L2_STD_ATSC_8_VSB |
                  V4L2_STD_ATSC_16_VSB)
 
-# Macros with none and all analog standards 
+# Macros with none and all analog standards
 V4L2_STD_UNKNOWN = 0
 V4L2_STD_ALL = (V4L2_STD_525_60 |
                 V4L2_STD_625_50)
@@ -1533,35 +1541,35 @@ class v4l2_bt_timings(ctypes.Structure):
 
 
 
-# Interlaced or progressive format 
+# Interlaced or progressive format
 V4L2_DV_PROGRESSIVE = 0
 V4L2_DV_INTERLACED = 1
 
 
-# Polarities. If bit is not set, it is assumed to be negative polarity 
+# Polarities. If bit is not set, it is assumed to be negative polarity
 V4L2_DV_VSYNC_POS_POL = 0x00000001
 V4L2_DV_HSYNC_POS_POL = 0x00000002
 
 
-# Timings standards 
+# Timings standards
 V4L2_DV_BT_STD_CEA861 = 1 << 0 # CEA-861 Digital TV Profile
-V4L2_DV_BT_STD_DMT    = 1 << 1 # VESA Discrete Monitor Timings 
-V4L2_DV_BT_STD_CVT    = 1 << 2 # VESA Coordinated Video Timings 
-V4L2_DV_BT_STD_GTF    = 1 << 3 # VESA Generalized Timings Formula 
+V4L2_DV_BT_STD_DMT    = 1 << 1 # VESA Discrete Monitor Timings
+V4L2_DV_BT_STD_CVT    = 1 << 2 # VESA Coordinated Video Timings
+V4L2_DV_BT_STD_GTF    = 1 << 3 # VESA Generalized Timings Formula
 
 
-# Flags 
+# Flags
 
 
 # CVT/GTF specific: timing uses reduced blanking (CVT) or the 'Secondary
 #GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
 #intervals are reduced, allowing a higher resolution over the same
-#bandwidth. This is a read-only flag. 
+#bandwidth. This is a read-only flag.
 V4L2_DV_FL_REDUCED_BLANKING = (1 << 0)
 
 # CEA-861 specific: set for CEA-861 formats with a framerate of a multiple
 #of six. These formats can be optionally played at 1 / 1.001 speed.
-#This is a read-only flag. 
+#This is a read-only flag.
 V4L2_DV_FL_CAN_REDUCE_FPS = (1 << 1)
 
 # CEA-861 specific: only valid for video transmitters, the flag is cleared
@@ -1570,17 +1578,17 @@ V4L2_DV_FL_CAN_REDUCE_FPS = (1 << 1)
 #used to set up the transmitter is divided by 1.001 to make it compatible
 #with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
 #29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
-#such frequencies, then the flag will also be cleared. 
+#such frequencies, then the flag will also be cleared.
 V4L2_DV_FL_REDUCED_FPS = (1 << 2)
 
 # Specific to interlaced formats: if set, then field 1 is really one half-line
 #longer and field 2 is really one half-line shorter, so each field has
 #exactly the same number of half-lines. Whether half-lines can be detected
-#or used depends on the hardware. 
+#or used depends on the hardware.
 V4L2_DV_FL_HALF_LINE = (1 << 3)
 
 
-# A few useful defines to calculate the total blanking and frame sizes 
+# A few useful defines to calculate the total blanking and frame sizes
 def V4L2_DV_BT_BLANKING_WIDTH(bt):
   return (bt.hfrontporch + bt.hsync + bt.hbackporch)
 def V4L2_DV_BT_FRAME_WIDTH(bt):
@@ -1599,7 +1607,7 @@ def V4L2_DV_BT_FRAME_HEIGHT(bt):
 class v4l2_dv_timings(ctypes.Structure):
     #$OBJ-00028
     class _u40(ctypes.Union):
-    
+
         _fields_ = [
             ('bt',v4l2_bt_timings),
             ('reserved',ctypes.c_uint32*32),
@@ -1614,9 +1622,9 @@ class v4l2_dv_timings(ctypes.Structure):
 
 
 
-# Values for the type field 
+# Values for the type field
 V4L2_DV_BT_656_1120 = 0
-# BT.656/1120 timing type 
+# BT.656/1120 timing type
 
 
 
@@ -1666,16 +1674,16 @@ class v4l2_bt_timings_cap(ctypes.Structure):
 
 
 
-# Supports interlaced formats 
+# Supports interlaced formats
 V4L2_DV_BT_CAP_INTERLACED = (1 << 0)
 
-# Supports progressive formats 
+# Supports progressive formats
 V4L2_DV_BT_CAP_PROGRESSIVE = (1 << 1)
 
-# Supports CVT/GTF reduced blanking 
+# Supports CVT/GTF reduced blanking
 V4L2_DV_BT_CAP_REDUCED_BLANKING = (1 << 2)
 
-# Supports custom formats 
+# Supports custom formats
 V4L2_DV_BT_CAP_CUSTOM = (1 << 3)
 
 
@@ -1687,7 +1695,7 @@ V4L2_DV_BT_CAP_CUSTOM = (1 << 3)
 class v4l2_dv_timings_cap(ctypes.Structure):
     #$OBJ-0002C
     class _u44(ctypes.Union):
-    
+
         _fields_ = [
             ('bt',v4l2_bt_timings_cap),
             ('raw_data',ctypes.c_uint32*32),
@@ -1722,59 +1730,59 @@ class v4l2_input(ctypes.Structure):
 
 
 
-#  Values for the 'type' field 
+#  Values for the 'type' field
 V4L2_INPUT_TYPE_TUNER = 1
 V4L2_INPUT_TYPE_CAMERA = 2
 
 
-# field 'status' - general 
+# field 'status' - general
 V4L2_IN_ST_NO_POWER = 0x00000001
-# Attached device is off 
+# Attached device is off
 V4L2_IN_ST_NO_SIGNAL = 0x00000002
 V4L2_IN_ST_NO_COLOR = 0x00000004
 
 
-# field 'status' - sensor orientation 
+# field 'status' - sensor orientation
 
-# If sensor is mounted upside down set both bits 
+# If sensor is mounted upside down set both bits
 V4L2_IN_ST_HFLIP = 0x00000010
-# Frames are flipped horizontally 
+# Frames are flipped horizontally
 V4L2_IN_ST_VFLIP = 0x00000020
-# Frames are flipped vertically 
+# Frames are flipped vertically
 
 
-# field 'status' - analog 
+# field 'status' - analog
 V4L2_IN_ST_NO_H_LOCK = 0x00000100
-# No horizontal sync lock 
+# No horizontal sync lock
 V4L2_IN_ST_COLOR_KILL = 0x00000200
-# Color killer is active 
+# Color killer is active
 
 
-# field 'status' - digital 
+# field 'status' - digital
 V4L2_IN_ST_NO_SYNC = 0x00010000
-# No synchronization lock 
+# No synchronization lock
 V4L2_IN_ST_NO_EQU = 0x00020000
-# No equalizer lock 
+# No equalizer lock
 V4L2_IN_ST_NO_CARRIER = 0x00040000
-# Carrier recovery failed 
+# Carrier recovery failed
 
 
-# field 'status' - VCR and set-top box 
+# field 'status' - VCR and set-top box
 V4L2_IN_ST_MACROVISION = 0x01000000
-# Macrovision detected 
+# Macrovision detected
 V4L2_IN_ST_NO_ACCESS = 0x02000000
-# Conditional access denied 
+# Conditional access denied
 V4L2_IN_ST_VTR = 0x04000000
-# VTR time constant 
+# VTR time constant
 
 
-# capabilities flags 
+# capabilities flags
 V4L2_IN_CAP_DV_TIMINGS = 0x00000002
-# Supports S_DV_TIMINGS 
+# Supports S_DV_TIMINGS
 V4L2_IN_CAP_CUSTOM_TIMINGS = V4L2_IN_CAP_DV_TIMINGS
-# For compatibility 
+# For compatibility
 V4L2_IN_CAP_STD = 0x00000004
-# Supports S_STD 
+# Supports S_STD
 
 
 #
@@ -1795,19 +1803,19 @@ class v4l2_output(ctypes.Structure):
     ]
 
 
-#  Values for the 'type' field 
+#  Values for the 'type' field
 V4L2_OUTPUT_TYPE_MODULATOR = 1
 V4L2_OUTPUT_TYPE_ANALOG = 2
 V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY = 3
 
 
-# capabilities flags 
+# capabilities flags
 V4L2_OUT_CAP_DV_TIMINGS = 0x00000002
-# Supports S_DV_TIMINGS 
+# Supports S_DV_TIMINGS
 V4L2_OUT_CAP_CUSTOM_TIMINGS = V4L2_OUT_CAP_DV_TIMINGS
-# For compatibility 
+# For compatibility
 V4L2_OUT_CAP_STD = 0x00000004
-# Supports S_STD 
+# Supports S_STD
 
 
 #
@@ -1825,7 +1833,7 @@ class v4l2_control(ctypes.Structure):
 class v4l2_ext_control(ctypes.Structure):
     #$OBJ-00031
     class _u49(ctypes.Union):
-    
+
         _fields_ = [
             ('value',ctypes.c_int32),
             ('value64',ctypes.c_int64),
@@ -1874,7 +1882,7 @@ V4L2_CTRL_TYPE_INTEGER_MENU =  9
 
 
 
-#  Used in the VIDIOC_QUERYCTRL ioctl for querying controls 
+#  Used in the VIDIOC_QUERYCTRL ioctl for querying controls
 
 class v4l2_queryctrl(ctypes.Structure):
 
@@ -1892,12 +1900,12 @@ class v4l2_queryctrl(ctypes.Structure):
 
 
 
-#  Used in the VIDIOC_QUERYMENU ioctl for querying menu items 
+#  Used in the VIDIOC_QUERYMENU ioctl for querying menu items
 
 class v4l2_querymenu(ctypes.Structure):
     #$OBJ-00036
     class _u54(ctypes.Union):
-    
+
         _fields_ = [
             ('name',ctypes.c_char*32),
             ('value',ctypes.c_int64),
@@ -1914,7 +1922,7 @@ class v4l2_querymenu(ctypes.Structure):
 
 
 
-#  Control flags  
+#  Control flags
 V4L2_CTRL_FLAG_DISABLED = 0x0001
 V4L2_CTRL_FLAG_GRABBED = 0x0002
 V4L2_CTRL_FLAG_READ_ONLY = 0x0004
@@ -1925,14 +1933,14 @@ V4L2_CTRL_FLAG_WRITE_ONLY = 0x0040
 V4L2_CTRL_FLAG_VOLATILE = 0x0080
 
 
-#  Query flag, to be ORed with the control ID 
+#  Query flag, to be ORed with the control ID
 V4L2_CTRL_FLAG_NEXT_CTRL = 0x80000000
 
 
-#  User-class control IDs defined by V4L2 
+#  User-class control IDs defined by V4L2
 V4L2_CID_MAX_CTRLS = 1024
 
-#  IDs reserved for driver specific controls 
+#  IDs reserved for driver specific controls
 V4L2_CID_PRIVATE_BASE = 0x08000000
 
 
@@ -1972,7 +1980,7 @@ class v4l2_modulator(ctypes.Structure):
 
 
 
-#  Flags for the 'capability' field 
+#  Flags for the 'capability' field
 V4L2_TUNER_CAP_LOW = 0x0001
 V4L2_TUNER_CAP_NORM = 0x0002
 V4L2_TUNER_CAP_HWSEEK_BOUNDED = 0x0004
@@ -1988,7 +1996,7 @@ V4L2_TUNER_CAP_FREQ_BANDS = 0x0400
 V4L2_TUNER_CAP_HWSEEK_PROG_LIM = 0x0800
 
 
-#  Flags for the 'rxsubchans' field 
+#  Flags for the 'rxsubchans' field
 V4L2_TUNER_SUB_MONO = 0x0001
 V4L2_TUNER_SUB_STEREO = 0x0002
 V4L2_TUNER_SUB_LANG2 = 0x0004
@@ -1997,7 +2005,7 @@ V4L2_TUNER_SUB_LANG1 = 0x0008
 V4L2_TUNER_SUB_RDS = 0x0010
 
 
-#  Values for the 'audmode' field 
+#  Values for the 'audmode' field
 V4L2_TUNER_MODE_MONO = 0x0000
 V4L2_TUNER_MODE_STEREO = 0x0001
 V4L2_TUNER_MODE_LANG2 = 0x0002
@@ -2091,12 +2099,12 @@ class v4l2_audio(ctypes.Structure):
 
 
 
-#  Flags for the 'capability' field 
+#  Flags for the 'capability' field
 V4L2_AUDCAP_STEREO = 0x00001
 V4L2_AUDCAP_AVL = 0x00002
 
 
-#  Flags for the 'mode' field 
+#  Flags for the 'mode' field
 V4L2_AUDMODE_AVL = 0x00001
 
 class v4l2_audioout(ctypes.Structure):
@@ -2151,7 +2159,7 @@ V4L2_ENC_CMD_PAUSE = (2)
 V4L2_ENC_CMD_RESUME = (3)
 
 
-# Flags for V4L2_ENC_CMD_STOP 
+# Flags for V4L2_ENC_CMD_STOP
 V4L2_ENC_CMD_STOP_AT_GOP_END = (1 << 0)
 
 class v4l2_encoder_cmd(ctypes.Structure):
@@ -2159,11 +2167,11 @@ class v4l2_encoder_cmd(ctypes.Structure):
     class _u67(ctypes.Union):
         #$OBJ-00043
         class _s67(ctypes.Structure):
-        
+
             _fields_ = [
                 ('data',ctypes.c_uint32*8),
             ]
-    
+
         _fields_ = [
             ('raw',_s67),
         ]
@@ -2176,62 +2184,62 @@ class v4l2_encoder_cmd(ctypes.Structure):
 
 
 
-# Decoder commands 
+# Decoder commands
 V4L2_DEC_CMD_START = (0)
 V4L2_DEC_CMD_STOP = (1)
 V4L2_DEC_CMD_PAUSE = (2)
 V4L2_DEC_CMD_RESUME = (3)
 
 
-# Flags for V4L2_DEC_CMD_START 
+# Flags for V4L2_DEC_CMD_START
 V4L2_DEC_CMD_START_MUTE_AUDIO = (1 << 0)
 
 
-# Flags for V4L2_DEC_CMD_PAUSE 
+# Flags for V4L2_DEC_CMD_PAUSE
 V4L2_DEC_CMD_PAUSE_TO_BLACK = (1 << 0)
 
 
-# Flags for V4L2_DEC_CMD_STOP 
+# Flags for V4L2_DEC_CMD_STOP
 V4L2_DEC_CMD_STOP_TO_BLACK = (1 << 0)
 V4L2_DEC_CMD_STOP_IMMEDIATELY = (1 << 1)
 
 
-# Play format requirements (returned by the driver): 
+# Play format requirements (returned by the driver):
 
 
-# The decoder has no special format requirements 
+# The decoder has no special format requirements
 V4L2_DEC_START_FMT_NONE = (0)
 
-# The decoder requires full GOPs 
+# The decoder requires full GOPs
 V4L2_DEC_START_FMT_GOP = (1)
 
 
 # The structure must be zeroed before use by the application
-#This ensures it can be extended safely in the future. 
+#This ensures it can be extended safely in the future.
 
 class v4l2_decoder_cmd(ctypes.Structure):
     #$OBJ-00045
     class _u72(ctypes.Union):
         #$OBJ-00046
         class _s70(ctypes.Structure):
-        
+
             _fields_ = [
                 ('pts',ctypes.c_uint64),
             ]
         #$OBJ-00047
         class _s71(ctypes.Structure):
-        
+
             _fields_ = [
                 ('speed',ctypes.c_int32),
                 ('format',ctypes.c_uint32),
             ]
         #$OBJ-00048
         class _s72(ctypes.Structure):
-        
+
             _fields_ = [
                 ('data',ctypes.c_uint32*16),
             ]
-    
+
         _fields_ = [
             ('stop',_s70),
             ('start',_s71),
@@ -2254,7 +2262,7 @@ class v4l2_decoder_cmd(ctypes.Structure):
 #
 
 
-# Raw VBI 
+# Raw VBI
 
 class v4l2_vbi_format(ctypes.Structure):
 
@@ -2271,7 +2279,7 @@ class v4l2_vbi_format(ctypes.Structure):
 
 
 
-#  VBI flags  
+#  VBI flags
 V4L2_VBI_UNSYNC = (1 << 0)
 V4L2_VBI_INTERLACED = (1 << 1)
 
@@ -2295,16 +2303,16 @@ class v4l2_sliced_vbi_format(ctypes.Structure):
 
 
 # Teletext World System Teletext
-#(WST), defined on ITU-R BT.653-2 
+#(WST), defined on ITU-R BT.653-2
 V4L2_SLICED_TELETEXT_B = (0x0001)
 
 # Video Program System, defined on ETS 300 231
 V4L2_SLICED_VPS = (0x0400)
 
-# Closed Caption, defined on EIA-608 
+# Closed Caption, defined on EIA-608
 V4L2_SLICED_CAPTION_525 = (0x1000)
 
-# Wide Screen System, defined on ITU-R BT1119.1 
+# Wide Screen System, defined on ITU-R BT1119.1
 V4L2_SLICED_WSS_625 = (0x4000)
 
 V4L2_SLICED_VBI_525 = (V4L2_SLICED_CAPTION_525)
@@ -2350,7 +2358,7 @@ class v4l2_sliced_vbi_data(ctypes.Structure):
 #
 
 
-# Line type IDs 
+# Line type IDs
 V4L2_MPEG_VBI_IVTV_TELETEXT_B = (1)
 V4L2_MPEG_VBI_IVTV_CAPTION_525 = (4)
 V4L2_MPEG_VBI_IVTV_WSS_625 = (5)
@@ -2391,7 +2399,7 @@ V4L2_MPEG_VBI_IVTV_MAGIC1 = "ITV0"
 class v4l2_mpeg_vbi_fmt_ivtv(ctypes.Structure):
     #$OBJ-00051
     class _u81(ctypes.Union):
-    
+
         _fields_ = [
             ('itv0',v4l2_mpeg_vbi_itv0),
             ('ITV0',v4l2_mpeg_vbi_ITV0),
@@ -2473,7 +2481,7 @@ class v4l2_pix_format_mplane(ctypes.Structure):
 class v4l2_format(ctypes.Structure):
     #$OBJ-00055
     class _u85(ctypes.Union):
-    
+
         _fields_ = [
             ('pix',v4l2_pix_format),
             ('pix_mp',v4l2_pix_format_mplane),
@@ -2496,7 +2504,7 @@ class v4l2_format(ctypes.Structure):
 class v4l2_streamparm(ctypes.Structure):
     #$OBJ-00057
     class _u87(ctypes.Union):
-    
+
         _fields_ = [
             ('capture',v4l2_captureparm),
             ('output',v4l2_outputparm),
@@ -2522,7 +2530,7 @@ V4L2_EVENT_FRAME_SYNC = 4
 V4L2_EVENT_PRIVATE_START = 0x08000000
 
 
-# Payload for V4L2_EVENT_VSYNC 
+# Payload for V4L2_EVENT_VSYNC
 
 class v4l2_event_vsync(ctypes.Structure):
 
@@ -2534,7 +2542,7 @@ class v4l2_event_vsync(ctypes.Structure):
 
 
 
-# Payload for V4L2_EVENT_CTRL 
+# Payload for V4L2_EVENT_CTRL
 V4L2_EVENT_CTRL_CH_VALUE = (1 << 0)
 V4L2_EVENT_CTRL_CH_FLAGS = (1 << 1)
 V4L2_EVENT_CTRL_CH_RANGE = (1 << 2)
@@ -2542,7 +2550,7 @@ V4L2_EVENT_CTRL_CH_RANGE = (1 << 2)
 class v4l2_event_ctrl(ctypes.Structure):
     #$OBJ-0005A
     class _u90(ctypes.Union):
-    
+
         _fields_ = [
             ('value',ctypes.c_int32),
             ('value64',ctypes.c_int64),
@@ -2570,7 +2578,7 @@ class v4l2_event_frame_sync(ctypes.Structure):
 class v4l2_event(ctypes.Structure):
     #$OBJ-0005D
     class _u93(ctypes.Union):
-    
+
         _fields_ = [
             ('vsync',v4l2_event_vsync),
             ('ctrl',v4l2_event_ctrl),
@@ -2611,27 +2619,27 @@ class v4l2_event_subscription(ctypes.Structure):
 #
 
 
-# VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER 
+# VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER
 
 V4L2_CHIP_MATCH_BRIDGE = 0
-# Match against chip ID on the bridge (0 for the bridge) 
+# Match against chip ID on the bridge (0 for the bridge)
 V4L2_CHIP_MATCH_SUBDEV = 4
-# Match against subdev index 
+# Match against subdev index
 
 
-# The following four defines are no longer in use 
+# The following four defines are no longer in use
 V4L2_CHIP_MATCH_HOST = V4L2_CHIP_MATCH_BRIDGE
 V4L2_CHIP_MATCH_I2C_DRIVER = 1
-# Match against I2C driver name 
+# Match against I2C driver name
 V4L2_CHIP_MATCH_I2C_ADDR = 2
-# Match against I2C 7-bit address 
+# Match against I2C 7-bit address
 V4L2_CHIP_MATCH_AC97 = 3
-# Match against ancillary AC97 chip 
+# Match against ancillary AC97 chip
 
 class v4l2_dbg_match(ctypes.Structure):
     #$OBJ-00060
     class _u96(ctypes.Union):
-    
+
         _fields_ = [
             ('addr',ctypes.c_uint32),
             ('name',ctypes.c_char*32),
@@ -2661,7 +2669,7 @@ V4L2_CHIP_FL_READABLE = (1 << 0)
 V4L2_CHIP_FL_WRITABLE = (1 << 1)
 
 
-# VIDIOC_DBG_G_CHIP_INFO 
+# VIDIOC_DBG_G_CHIP_INFO
 
 class v4l2_dbg_chip_info(ctypes.Structure):
 
@@ -2751,8 +2759,8 @@ VIDIOC_QUERYSTD            =  _IOR('V', 63, v4l2_std_id)
 VIDIOC_TRY_FMT             = _IOWR('V', 64, v4l2_format)
 VIDIOC_ENUMAUDIO           = _IOWR('V', 65, v4l2_audio)
 VIDIOC_ENUMAUDOUT          = _IOWR('V', 66, v4l2_audioout)
-VIDIOC_G_PRIORITY          =  _IOR('V', 67, ctypes.c_uint32) # enum v4l2_priority 
-VIDIOC_S_PRIORITY          =  _IOW('V', 68, ctypes.c_uint32) # enum v4l2_priority 
+VIDIOC_G_PRIORITY          =  _IOR('V', 67, ctypes.c_uint32) # enum v4l2_priority
+VIDIOC_S_PRIORITY          =  _IOW('V', 68, ctypes.c_uint32) # enum v4l2_priority
 VIDIOC_G_SLICED_VBI_CAP    = _IOWR('V', 69, v4l2_sliced_vbi_cap)
 VIDIOC_LOG_STATUS          =   _IO('V', 70)
 VIDIOC_G_EXT_CTRLS         = _IOWR('V', 71, v4l2_ext_controls)
@@ -2767,7 +2775,7 @@ VIDIOC_TRY_ENCODER_CMD     = _IOWR('V', 78, v4l2_encoder_cmd)
 
 # Experimental, meant for debugging, testing and internal use.
 #Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
-#You must be root to use these ioctls. Never use these in applications! 
+#You must be root to use these ioctls. Never use these in applications!
 VIDIOC_DBG_S_REGISTER    =  _IOW('V', 79, v4l2_dbg_register)
 VIDIOC_DBG_G_REGISTER    = _IOWR('V', 80, v4l2_dbg_register)
 VIDIOC_S_HW_FREQ_SEEK    =  _IOW('V', 82, v4l2_hw_freq_seek)
@@ -2779,42 +2787,42 @@ VIDIOC_UNSUBSCRIBE_EVENT =  _IOW('V', 91, v4l2_event_subscription)
 
 
 # Experimental, the below two ioctls may change over the next couple of kernel
-#versions 
+#versions
 VIDIOC_CREATE_BUFS = _IOWR('V', 92, v4l2_create_buffers)
 VIDIOC_PREPARE_BUF = _IOWR('V', 93, v4l2_buffer)
 
 
-# Experimental selection API 
+# Experimental selection API
 VIDIOC_G_SELECTION = _IOWR('V', 94, v4l2_selection)
 VIDIOC_S_SELECTION = _IOWR('V', 95, v4l2_selection)
 
 
 # Experimental, these two ioctls may change over the next couple of kernel
-#versions. 
+#versions.
 VIDIOC_DECODER_CMD     = _IOWR('V', 96, v4l2_decoder_cmd)
 VIDIOC_TRY_DECODER_CMD = _IOWR('V', 97, v4l2_decoder_cmd)
 
 
 # Experimental, these three ioctls may change over the next couple of kernel
-#versions. 
+#versions.
 VIDIOC_ENUM_DV_TIMINGS  = _IOWR('V',  98, v4l2_enum_dv_timings)
 VIDIOC_QUERY_DV_TIMINGS =  _IOR('V',  99, v4l2_dv_timings)
 VIDIOC_DV_TIMINGS_CAP   = _IOWR('V', 100, v4l2_dv_timings_cap)
 
 
 # Experimental, this ioctl may change over the next couple of kernel
-#versions. 
+#versions.
 VIDIOC_ENUM_FREQ_BANDS = _IOWR('V', 101, v4l2_frequency_band)
 
 
 # Experimental, meant for debugging, testing and internal use.
-#Never use these in applications! 
+#Never use these in applications!
 VIDIOC_DBG_G_CHIP_INFO = _IOWR('V', 102, v4l2_dbg_chip_info)
 
 
 # Reminder: when adding new ioctls please add support for them to
-#drivers/media/video/v4l2-compat-ioctl32.c as well! 
+#drivers/media/video/v4l2-compat-ioctl32.c as well!
 
 BASE_VIDIOC_PRIVATE = 192
-# 192-255 are private 
+# 192-255 are private
 
