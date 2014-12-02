@@ -2152,11 +2152,10 @@ class theApp(Qt.QObject):
         QtGui.QApplication.instance().restoreOverrideCursor()
 
     #
-    # MDI CONTROL FUNCTIONS
+    # mdi control functions
     #
 
     def updateMdiControls(self, mdisw):
-
         if mdisw is None:
             return
 
@@ -2174,7 +2173,7 @@ class theApp(Qt.QObject):
             self.deselectAllListWidgetsItems()
 
             try:
-                refimg = iv['references'][0]
+                refimg = self.mdi_windows[mdisw]['references'][0]
                 frametype = refimg.getProperty('frametype')
 
                 if frametype == utils.LIGHT_FRAME_TYPE:
@@ -2187,7 +2186,9 @@ class theApp(Qt.QObject):
                     listwidget = self.wnd.flatListWidget
 
                 try:
-                    listwidget.setCurrentItem(refimg.getProperty('listItem'))
+                    lististem = refimg.getProperty('listItem')
+                    listwidget.setCurrentItem(lististem)
+                    self.updateImageFeatures(listwidget, lististem)
                 except:
                     listwidget.setCurrentItem(None)
                 else:
@@ -2927,11 +2928,10 @@ class theApp(Qt.QObject):
             self.closeAllMdiWindows(frame)
 
         self.framelist = []
-        self.wnd.lightListWidget.clear()
         self.ref_image_idx = -1
         self.dif_image_idx = -1
         self.wnd.lightListWidget.clear()
-        self.wnd.alignPointsListWidget.clear()
+        self.clearAlignPoinList()
         self.wnd.manualAlignGroupBox.setEnabled(False)
         self.lockSidebar()
 
@@ -3233,7 +3233,6 @@ class theApp(Qt.QObject):
         if idx >= 0:
             self.wnd.alignGroupBox.setEnabled(True)
             self.wnd.alignDeleteAllPushButton.setEnabled(True)
-            self.updateAlignPointList()
         else:
             self.wnd.alignGroupBox.setEnabled(False)
             self.wnd.alignDeleteAllPushButton.setEnabled(False)
@@ -3378,7 +3377,6 @@ class theApp(Qt.QObject):
             self.dlg.rWSpinBox.setValue(r_l)
             self.dlg.rHSpinBox.setValue(r_l)
 
-        imagename = self.wnd.lightListWidget.item(self.image_idx).text()
         idx = 1
         for i in range(self.wnd.alignPointsListWidget.count()):
             pname = '#{0:05d}'.format(i+1)
@@ -3390,8 +3388,7 @@ class theApp(Qt.QObject):
 
         pname = '#{0:05d}'.format(idx)
         q = Qt.QListWidgetItem(pname)
-        tooltip_text = tr('image')+' '+imagename+" \n"
-        tooltip_text += tr('alignment-point')+' '+pname
+        tooltip_text = tr('alignment-point')+' '+pname
         q.setToolTip(tooltip_text)
         self.wnd.alignPointsListWidget.insertItem(idx-1, q)
 
@@ -3467,14 +3464,24 @@ class theApp(Qt.QObject):
 
         del item
 
-    def updateAlignPointList(self):
-        self.wnd.alignPointsListWidget.clear()
-        crow = self.wnd.lightListWidget.currentRow()
+    def updateImageFeatures(self, listwidget, lististem):
+        log.log(repr(self),
+                "Updating image features...",
+                level=logging.DEBUG)
+        if listwidget is self.wnd.lightListWidget:
+            self.updateAlignPointList(lististem)
 
-        if crow < 0:  # no item selected!
+    def updateAlignPointList(self, listitem):
+        log.log(repr(self),
+                "Updating alignment points list...",
+                level=logging.DEBUG)
+        self.wnd.alignPointsListWidget.clear()
+
+        if listitem is None:
+            # no item selected!
             return
 
-        imagename = self.wnd.lightListWidget.item(crow).text()
+        imagename = listitem.text()
 
         for pnt in self.framelist[self.image_idx].alignpoints:
             q = Qt.QListWidgetItem(pnt.name, self.wnd.alignPointsListWidget)
@@ -4512,7 +4519,8 @@ class theApp(Qt.QObject):
             if points is None:
                 points = []
 
-        if points:
+        # ponts here is an numpy array!
+        if len(points) > 0:
             for p in points:
                 self.point_idx = self.addAlignPoint()
                 self.wnd.spinBoxXAlign.setValue(p[0][0]+ww)
@@ -4590,7 +4598,7 @@ class theApp(Qt.QObject):
             msg += tr('of')+' '+str(len(self.framelist[image_idx].alignpoints))
             msg += tr(' ')+tr('on image')+tr(' ')+str(i)
             msg += tr(' ')+tr('of')+tr(' ')+str(len(self.framelist)-1)
-            self.statusBar.showMessage()
+            self.statusBar.showMessage(msg)
 
             if self.aap_wholeimage == 2:
                 rawi = frm.getData(asarray=True)

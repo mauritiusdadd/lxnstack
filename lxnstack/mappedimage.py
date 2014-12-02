@@ -71,6 +71,7 @@ class MappedImage(QtCore.QObject):
         self.levelfunc_idx = 0
         self._ignore_histogrham_update = False  # used to avoid recursion loop
         self.__updating_mwb_ctrls = False  # used to avoid recursion loop
+        self.__updating_mapping = False  # used to avoid recursion loop
 
         self._hst = None
 
@@ -171,6 +172,10 @@ class MappedImage(QtCore.QObject):
         else:
             self._original_data = data.astype(np.float32)
 
+        log.log(self._logname,
+                "Setting image data...",
+                level=logging.DEBUG)
+
         if len(self.component_table) != self.componentsCount():
             self.component_table = getComponentTable(
                 self.componentsCount(), named=True)
@@ -206,7 +211,7 @@ class MappedImage(QtCore.QObject):
             return self.remap()
 
     def rebuildMapping(self, ctable):
-
+        self.__updating_mapping = True
         rrdio = self.levels_dlg.rComboBox
         grdio = self.levels_dlg.gComboBox
         brdio = self.levels_dlg.bComboBox
@@ -231,30 +236,31 @@ class MappedImage(QtCore.QObject):
             rrdio.setCurrentIndex(0)
             grdio.setCurrentIndex(0)
             brdio.setCurrentIndex(0)
+        self.__updating_mapping = False
 
     def setComponentRed(self, index, update=True):
         self.r_index = index
         self.mappingChanged.emit()
-        if update:
+        if update and not self.__updating_mapping:
             self.remap()
 
     def setComponentGreen(self, index, update=True):
         self.g_index = index
         self.mappingChanged.emit()
-        if update:
+        if update and not self.__updating_mapping:
             self.remap()
 
     def setComponentBlue(self, index, update=True):
         self.b_index = index
         self.mappingChanged.emit()
-        if update:
+        if update and not self.__updating_mapping:
             self.remap()
 
     def setMapping(self, R, G, B, update=True):
         self.setComponentRed(R, update=False)
         self.setComponentGreen(G, update=False)
         self.setComponentBlue(B, update=False)
-        if update:
+        if update and not self.__updating_mapping:
             self.remap()
 
     def getMapping(self):
@@ -291,7 +297,7 @@ class MappedImage(QtCore.QObject):
             log.log(self._logname,
                     "Remapping data...",
                     level=logging.DEBUG)
-        self.remapped.emit()
+            self.remapped.emit()
         return self._mapped_qimage
 
     def getQImage(self):
@@ -445,6 +451,9 @@ class MappedImage(QtCore.QObject):
                 bool(self.levels_dlg.MWBGroupBox.isChecked()))
 
     def setMWBCorrectionFactors(self, factors, manual=False, update=True):
+        log.log(self._logname,
+                "setting MWB correction factors: "+str(factors),
+                level=logging.DEBUG)
         self.MWB_CORRECTION_FACTORS = factors
         self.levels_dlg.MWBGroupBox.setChecked(bool(manual))
         if update:

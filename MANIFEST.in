@@ -4,6 +4,5 @@ include CHANGELOG
 include README
 include MANIFEST.in
 include .kateproject
-include scripts/postinst.sh
-include scripts/prerem.sh
 recursive-include doc *.*
+recursive-include scripts *.*

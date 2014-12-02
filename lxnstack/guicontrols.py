@@ -517,7 +517,7 @@ class ImageViewer(QtGui.QWidget):
                 self.feature_moveing = True
                 self.selected_feature.mouse_grabbed = True
 
-        return self.QtGui.QLabel(self.imageLabel, event)
+        return QtGui.QLabel.mousePressEvent(self.imageLabel, event)
 
     def imageLabelMouseReleaseEvent(self, event):
 
