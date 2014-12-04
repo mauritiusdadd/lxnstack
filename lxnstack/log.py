@@ -36,7 +36,7 @@ class LogContext(object):
         return iter(['host'])
 
 
-def createMainLogger(verbosity=logging.DEBUG):
+def createMainLogger(verbosity=logging.DEBUG, bkpcount=1):
     format_str = '[%(levelname)s] %(asctime)s - %(traceback)s - %(message)s'
     formatter = logging.Formatter(fmt=format_str)
 
@@ -44,11 +44,12 @@ def createMainLogger(verbosity=logging.DEBUG):
     console_handler.setFormatter(formatter)
     console_handler.setLevel(verbosity)
 
-    file_handler = logging.handlers.RotatingFileHandler(LOG_FILE,
-                                                        backupCount=5)
+    file_handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE,
+        backupCount=bkpcount)
     file_handler.doRollover()
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(min(verbosity, logging.INFO))
 
     logger = logging.getLogger(LOGGERNAME)
     logger.setLevel(logging.DEBUG)

@@ -26,6 +26,7 @@ import logging
 from PyQt4 import Qt, QtCore, QtGui, uic
 
 import log
+import translation as tr
 
 PROGRAM = paths.PROGRAM_NAME
 PROGRAM_NAME = paths.PROGRAM_NAME
@@ -72,20 +73,6 @@ MSGBOX_ANSWERS = {
     Qt.QMessageBox.Retry: 'Retry',
     Qt.QMessageBox.Ignore: 'Ignore',
     Qt.QMessageBox.NoButton: 'No answer'}
-
-
-def tr(s):
-    news = QtCore.QCoreApplication.translate('@default', s)
-    if type(news) == str:
-        # python3 return str...
-        return news
-    else:
-        # ...while python2 return QString
-        # that must be converted to str
-        try:
-            return str(news.toAscii())
-        except:
-            return str(news)
 
 
 def showMsgBox(text, informative_text="", parent=None,
@@ -151,7 +138,7 @@ def showYesNoCancelMsgBox(text, informative_text="", parent=None, caller=None):
 
 
 def showErrorMsgBox(text, informative_text="", parent=None, caller=None):
-    return showMsgBox(tr("Error")+": "+str(text),
+    return showMsgBox(tr.tr("Error")+": "+str(text),
                       informative_text,
                       parent,
                       icon=Qt.QMessageBox.Critical,
@@ -159,7 +146,7 @@ def showErrorMsgBox(text, informative_text="", parent=None, caller=None):
 
 
 def showWarningMsgBox(text, informative_text="", parent=None, caller=None):
-    return showMsgBox(tr("Warning")+": "+str(text),
+    return showMsgBox(tr.tr("Warning")+": "+str(text),
                       informative_text,
                       parent,
                       icon=Qt.QMessageBox.Warning,
@@ -171,8 +158,8 @@ except ImportError:
     log.log("<lxnstack.utils module>",
             '\'numpy\' python module not found! exiting program.',
             level=logging.ERROR)
-    showErrorMsgBox(tr("\'numpy\' python module not found!"),
-                    tr("Please install numpy."))
+    showErrorMsgBox(tr.tr("\'numpy\' python module not found!"),
+                    tr.tr("Please install numpy."))
     sys.exit(1)
 
 try:
@@ -182,8 +169,8 @@ except ImportError:
     log.log("<lxnstack.utils module>",
             '\'scipy\' python module not found! exiting program.',
             level=logging.ERROR)
-    showErrorMsgBox(tr("\'scipy\' python module not found!"),
-                    tr("Please install scipy."))
+    showErrorMsgBox(tr.tr("\'scipy\' python module not found!"),
+                    tr.tr("Please install scipy."))
     sys.exit(1)
 
 try:
@@ -192,8 +179,8 @@ except ImportError:
     log.log("<lxnstack.utils module>",
             '\'opencv (cv2)\' python module not found! exiting program.',
             level=logging.ERROR)
-    showErrorMsgBox(tr("\'opencv2\' python module not found!"),
-                    tr("Please install opencv2 python bindings."))
+    showErrorMsgBox(tr.tr("\'opencv2\' python module not found!"),
+                    tr.tr("Please install opencv2 python bindings."))
     sys.exit(1)
 
 
@@ -204,8 +191,9 @@ except ImportError:
     log.log("<lxnstack.utils module>",
             '\'PIL\' python module not found! exiting program.',
             level=logging.ERROR)
-    showErrorMsgBox(tr("\'PIL\' python module not found!"),
-                    tr("Please install a python imaging library (PIL/Pillow)"))
+    showErrorMsgBox(tr.tr("\'PIL\' python module not found!"),
+                    tr.tr("Please install a python imaging " +
+                          "library (PIL/Pillow)"))
     sys.exit(1)
 
 try:
@@ -958,9 +946,9 @@ class Frame(Qt.QObject):
 
             if asarray:
 
-                self.infoTextChanged.emit(tr('decoding image') +
+                self.infoTextChanged.emit(tr.tr('decoding image') +
                                           ' '+self.name + ', ' +
-                                          tr('please wait...'))
+                                          tr.tr('please wait...'))
 
                 if (notUpdated(self.url, data_file_name) or
                         force_update is True):
@@ -969,7 +957,7 @@ class Frame(Qt.QObject):
                             level=logging.INFO)
 
                     self.infoTextChanged.emit(
-                        tr('decoding raw data to file')+'\n' +
+                        tr.tr('decoding raw data to file')+'\n' +
                         data_file_name)
 
                     try:
@@ -1004,9 +992,9 @@ class Frame(Qt.QObject):
                     log.log(repr(self),
                             'loading raw data',
                             level=logging.INFO)
-                    self.infoTextChanged.emit(tr('decoding image ') +
+                    self.infoTextChanged.emit(tr.tr('decoding image ') +
                                               self.name + ', ' +
-                                              tr('please wait...'))
+                                              tr.tr('please wait...'))
                     try:
                         image = self.open(data_file_name,
                                           page,
@@ -1033,14 +1021,14 @@ class Frame(Qt.QObject):
                                   **args)
             else:
                 if ('convert_cr2' in args and args['convert_cr2'] is True):
-                    self.infoTextChanged.emit(tr('decoding image')+', ' +
-                                              tr('please wait...'))
+                    self.infoTextChanged.emit(tr.tr('decoding image')+', ' +
+                                              tr.tr('please wait...'))
                     if notUpdated(self.url, data_file_name):
                         log.log(repr(self),
                                 'decoding raw data to file '+data_file_name,
                                 level=logging.INFO)
                         self.infoTextChanged.emit(
-                            tr('decoding raw data to file')+'\n' +
+                            tr.tr('decoding raw data to file')+'\n' +
                             data_file_name)
 
                         try:
@@ -1049,7 +1037,7 @@ class Frame(Qt.QObject):
                                 return None
                         except SyntaxError as exc:
                             msgBox = Qt.QMessageBox()
-                            msgBox.setText(tr('Corrupted CR2 data!'))
+                            msgBox.setText(tr.tr('Corrupted CR2 data!'))
                             msgBox.setInformativeText(str(exc))
                             msgBox.setIcon(Qt.QMessageBox.Critical)
                             msgBox.exec_()
@@ -1101,8 +1089,8 @@ class Frame(Qt.QObject):
                     self.progressMaximumChanged.emit(total_frames)
                     self.progressValueChanged.emit(page)
                     self.infoTextChanged.emit(
-                        tr('loading frame')+' '+str(page) +
-                        '/'+str(total_frames)+tr('of video') +
+                        tr.tr('loading frame')+' '+str(page) +
+                        '/'+str(total_frames)+tr.tr('of video') +
                         ' \n'+file_name)
                     Qt.QApplication.instance().processEvents()
                 else:
@@ -1317,10 +1305,10 @@ class Frame(Qt.QObject):
                 os.remove(url)
             else:
                 msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("A file named")+" \"" +
+                msgBox.setText(tr.tr("A file named")+" \"" +
                                os.path.basename(url)+"\" " +
-                               tr("already exists."))
-                msgBox.setInformativeText(tr("Do you want to overwite it?"))
+                               tr.tr("already exists."))
+                msgBox.setInformativeText(tr.tr("Do you want to overwite it?"))
                 msgBox.setIcon(Qt.QMessageBox.Question)
                 msgBox.setStandardButtons(Qt.QMessageBox.Yes |
                                           Qt.QMessageBox.No)
@@ -1488,11 +1476,11 @@ class Frame(Qt.QObject):
                     os.remove(url)
                 else:
                     msgBox = Qt.QMessageBox()
-                    msgBox.setText(tr("A file named")+" \"" +
+                    msgBox.setText(tr.tr("A file named")+" \"" +
                                    os.path.basename(url)+"\" " +
-                                   tr("already exists."))
+                                   tr.tr("already exists."))
                     msgBox.setInformativeText(
-                        tr("Do you want to overwite it?"))
+                        tr.tr("Do you want to overwite it?"))
                     msgBox.setIcon(Qt.QMessageBox.Question)
                     msgBox.setStandardButtons(Qt.QMessageBox.Yes |
                                               Qt.QMessageBox.No)
@@ -1515,7 +1503,7 @@ class Frame(Qt.QObject):
                     "Cannot save image due to cv2 exception: " + str(exc),
                     level=logging.ERROR)
             msgBox = Qt.QMessageBox()
-            msgBox.setText(tr("Cannot save image due to cv2 exception:"))
+            msgBox.setText(tr.tr("Cannot save image due to cv2 exception:"))
             msgBox.setInformativeText(str(exc))
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
@@ -1677,12 +1665,12 @@ class Frame(Qt.QObject):
 
                 while valid_dir and not invalid_name:
                     if not valid_dir:
-                        showWarningMsgBox(tr("The selected output folder " +
-                                             "is not a directory\nor it " +
-                                             "does not exist!"),
+                        showWarningMsgBox(tr.tr("The selected output folder " +
+                                                "is not a directory\nor it " +
+                                                "does not exist!"),
                                           caller=self)
                     if invalid_name:
-                        showWarningMsgBox(tr("The file name is not valid!"),
+                        showWarningMsgBox(tr.tr("The file name is not valid!"),
                                           caller=self)
 
                     if self.save_dlg.exec_() != 1:
@@ -1811,10 +1799,10 @@ class Frame(Qt.QObject):
                                            override_name=filename,
                                            **args)
                 if use_dialog:
-                    msg1 = tr("Cannot save compressed files " +
-                              "with this version of pyfits")
-                    msg2 = tr("the image was saved as an " +
-                              "uncompressed FITS file.")
+                    msg1 = tr.tr("Cannot save compressed files " +
+                                 "with this version of pyfits")
+                    msg2 = tr.tr("the image was saved as an " +
+                                 "uncompressed FITS file.")
                     showWarningMsgBox(msg1+":\n "+msg2,
                                       caller=self)
                 else:
@@ -1832,9 +1820,9 @@ class Frame(Qt.QObject):
                 rawavg = normToUint16(data, False)
             else:
                 # This should never be executed!
-                showErrorMsgBox(tr("Cannot save image:"),
-                                tr("Unsupported format ") +
-                                str(bits)+"-bit "+tr("for") +
+                showErrorMsgBox(tr.tr("Cannot save image:"),
+                                tr.tr("Unsupported format ") +
+                                str(bits)+"-bit "+tr.tr("for") +
                                 " "+str(frmat),
                                 caller=self)
                 return False
@@ -1847,7 +1835,7 @@ class Frame(Qt.QObject):
     def _getDestDir(self):
         destdir = str(Qt.QFileDialog.getExistingDirectory(
             None,
-            tr("Choose the output folder"),
+            tr.tr("Choose the output folder"),
             os.path.dirname(self.url),
             DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly))
         self.save_dlg.lineEditDestDir.setText(str(destdir))
@@ -2668,9 +2656,9 @@ def exportTableCSV(self, qtable, fname, sep='\t', newl='\n', unit=','):
         f = open(fname, 'w')
     except Exception as exc:
         msgBox = Qt.QMessageBox()
-        msgBox.setText(tr("Cannot create the data file: ")+str(exc))
+        msgBox.setText(tr.tr("Cannot create the data file: ")+str(exc))
         msgBox.setInformativeText(
-            tr("Assure you have the authorization to write the file."))
+            tr.tr("Assure you have the authorization to write the file."))
         msgBox.setIcon(Qt.QMessageBox.Critical)
         msgBox.exec_()
     else:
@@ -3386,29 +3374,3 @@ def getStarMagnitudeADU(ndimg, star_x, star_y, inner_radius,
     else:
         raise ValueError('Negative or null ADU values are not allowed!\n' +
                          'Please set the star marker correctly.')
-
-
-def getLocale():
-    try:
-        settings = Qt.QSettings()
-        settings.beginGroup("settings")
-        lang = str(settings.value("language_file", None, str))
-        settings.endGroup()
-        if not os.path.isfile(lang):
-            raise Exception('no valid file')
-        return lang
-    except Exception:
-        local = 'lang_'+str(Qt.QLocale.system().name())+'.qm'
-        lang = os.path.join(paths.LANG_PATH, local)
-
-        settings = Qt.QSettings()
-        settings.beginGroup("settings")
-
-        if os.path.exists(lang):
-            current_language = lang
-        else:
-            current_language = local
-
-        settings.setValue("language_file", current_language)
-        settings.endGroup()
-        return current_language

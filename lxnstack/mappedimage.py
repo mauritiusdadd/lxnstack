@@ -21,6 +21,7 @@ import logging
 import numpy as np
 from PyQt4 import Qt, QtCore, QtGui, uic
 
+import translation as tr
 import log
 import utils
 import colormaps
@@ -485,9 +486,9 @@ class MappedImage(QtCore.QObject):
 
         idx = 0
 
-        l_lbl = Qt.QLabel(utils.tr("shadows"))
-        m_lbl = Qt.QLabel(utils.tr("middletones"))
-        h_lbl = Qt.QLabel(utils.tr("lights"))
+        l_lbl = Qt.QLabel(tr.tr("shadows"))
+        m_lbl = Qt.QLabel(tr.tr("middletones"))
+        h_lbl = Qt.QLabel(tr.tr("lights"))
 
         self.levels_dlg.MWBScrollArea.layout().addWidget(l_lbl, 0, 1, 1, 2)
         self.levels_dlg.MWBScrollArea.layout().addWidget(h_lbl, 0, 3, 1, 2)

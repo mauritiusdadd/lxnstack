@@ -17,7 +17,6 @@
 import os
 import paths
 import time
-import utils
 import subprocess
 import errno
 import ctypes
@@ -29,6 +28,8 @@ import cv2
 import numpy as np
 from PyQt4 import Qt, QtCore, QtGui, uic
 
+import translation as tr
+import utils
 import videodev2 as v4l2
 import log
 import logging
@@ -3365,7 +3366,7 @@ class CaptureScheduler(Qt.QObject):
                     # editing and activate the job
                     joblistwidgetitem.setBackground(QtCore.Qt.lightGray)
 
-                    status_txt = utils.tr("Inactive")
+                    status_txt = tr.tr("Inactive")
 
                     if job._start_type == 0:
                         delay = job.getDelay()
@@ -3389,12 +3390,12 @@ class CaptureScheduler(Qt.QObject):
                 elif status == CaptureJob.StatusDone:
                     # Job is active and capturing is completed
                     joblistwidgetitem.setBackground(QtCore.Qt.green)
-                    status_txt = utils.tr("Completed")
+                    status_txt = tr.tr("Completed")
                 elif status == CaptureJob.StatusInProgress:
                     # Job is active and capturing is in progress
                     joblistwidgetitem.setBackground(QtCore.Qt.yellow)
                     count = (utils.getCurrentTimeMsec()-job.getStartTime())
-                    status_txt = utils.tr("In progress")
+                    status_txt = tr.tr("In progress")
                     status_txt += " {0:0.02f}sec".format(count/1000.0)
                     if job._end_type == 2:
                         if job.getNumberOfFrames() < 0:
@@ -3409,16 +3410,16 @@ class CaptureScheduler(Qt.QObject):
                     joblistwidgetitem.setBackground(QtCore.Qt.white)
                     countdown = (utils.getCurrentTimeMsec()-job.getStartTime())
                     countdown /= 1000.0
-                    status_txt = utils.tr("Waiting")
+                    status_txt = tr.tr("Waiting")
                     status_txt += " {0:0.02f} sec".format(countdown)
                     if utils.getCurrentTimeMsec() >= job.getStartTime():
                         job.start()
                 elif status == CaptureJob.StatusError:
                     joblistwidgetitem.setBackground(QtCore.Qt.red)
-                    status_txt = utils.tr("Error")
+                    status_txt = tr.tr("Error")
                 else:
                     joblistwidgetitem.setBackground(QtCore.Qt.red)
-                    status_txt = utils.tr("Unknown")
+                    status_txt = tr.tr("Unknown")
 
                 job._status_text = status_txt
 
@@ -3467,7 +3468,7 @@ class CaptureScheduler(Qt.QObject):
 
     def start(self):
         self._controlgui.confirmPushButton.setIcon(utils.getQIcon("stop"))
-        self._controlgui.confirmPushButton.setText(utils.tr("Stop"))
+        self._controlgui.confirmPushButton.setText(tr.tr("Stop"))
         self._global_status = True
         self._lock_edit_ctrls(True)
         for job in self.jobs.values():
@@ -3475,7 +3476,7 @@ class CaptureScheduler(Qt.QObject):
 
     def stop(self):
         self._controlgui.confirmPushButton.setIcon(utils.getQIcon("ok"))
-        self._controlgui.confirmPushButton.setText(utils.tr("Start"))
+        self._controlgui.confirmPushButton.setText(tr.tr("Start"))
         self._global_status = False
         self._lock_edit_ctrls(False)
         for job in self.jobs.values():
@@ -3572,8 +3573,8 @@ class CaptureScheduler(Qt.QObject):
         if len(self.jobs) != self._controlgui.jobListWidget.count():
             # This should never never happens.
             utils.showErrorMsgBox(
-                utils.tr("Somethig terrible wrong has happend!\n" +
-                         "Please send a bug report to the author."),
+                tr.tr("Somethig terrible wrong has happend!\n" +
+                      "Please send a bug report to the author."),
                 caller=self)
         elif len(self.jobs) <= 0:
             self._lock_ctrls(True)

@@ -15,13 +15,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import math
-import utils
 import os
 import paths
 import logging
 
 from PyQt4 import Qt, QtCore, QtGui
 
+import translation as tr
+import utils
 import colormaps as cmaps
 import mappedimage
 import numpy as np
@@ -197,20 +198,20 @@ class ImageViewer(QtGui.QWidget):
         # ToolBar actions
         save_action = QtGui.QAction(
             utils.getQIcon("save-image"),
-            utils.tr('Save the displayed image to a file'),
+            tr.tr('Save the displayed image to a file'),
             self)
 
         action_edit_levels = QtGui.QAction(
             utils.getQIcon("edit-levels"),
-            utils.tr('Edit input levels'),
+            tr.tr('Edit input levels'),
             self)
 
         action_edit_levels.setCheckable(True)
 
         # colormap controls
         self.colormap_selector = ToolComboBox(
-            utils.tr("colormap:"),
-            tooltip=utils.tr("Image color-map"))
+            tr.tr("colormap:"),
+            tooltip=tr.tr("Image color-map"))
 
         data = np.meshgrid(np.arange(64), np.arange(64))[0]
 
@@ -226,7 +227,7 @@ class ImageViewer(QtGui.QWidget):
         self.colormap_selector.setEnabled(True)
 
         # zoom controls
-        self.zoomCheckBox = QtGui.QCheckBox(utils.tr("zoom: none"))
+        self.zoomCheckBox = QtGui.QCheckBox(tr.tr("zoom: none"))
         self.zoomSlider = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.zoomDoubleSpinBox = QtGui.QDoubleSpinBox()
 
@@ -238,7 +239,7 @@ class ImageViewer(QtGui.QWidget):
 
         # colorbar controls
         self.colorBar = QtGui.QLabel()
-        self.fitMinMaxCheckBox = QtGui.QCheckBox(utils.tr("contrast: none"))
+        self.fitMinMaxCheckBox = QtGui.QCheckBox(tr.tr("contrast: none"))
         self.minLevelDoubleSpinBox = QtGui.QDoubleSpinBox()
         self.maxLevelDoubleSpinBox = QtGui.QDoubleSpinBox()
 
@@ -622,19 +623,19 @@ class ImageViewer(QtGui.QWidget):
             self.zoomCheckBox.setCheckState(val)
 
         if val is 0:
-            self.zoomCheckBox.setText(utils.tr('zoom: none'))
+            self.zoomCheckBox.setText(tr.tr('zoom: none'))
             self.zoomSlider.setEnabled(False)
             self.zoomDoubleSpinBox.setEnabled(False)
             self.zoom_enabled = False
             self.zoom_fit = False
         elif val is 1:
-            self.zoomCheckBox.setText(utils.tr('zoom: fit'))
+            self.zoomCheckBox.setText(tr.tr('zoom: fit'))
             self.zoomSlider.setEnabled(False)
             self.zoomDoubleSpinBox.setEnabled(False)
             self.zoom_enabled = False
             self.zoom_fit = True
         else:
-            self.zoomCheckBox.setText(utils.tr('zoom: full'))
+            self.zoomCheckBox.setText(tr.tr('zoom: full'))
             self.zoomSlider.setEnabled(True)
             self.zoomDoubleSpinBox.setEnabled(True)
             self.zoom_enabled = True
@@ -863,18 +864,18 @@ class ImageViewer(QtGui.QWidget):
         if state == 0:
             self.minLevelDoubleSpinBox.hide()
             self.maxLevelDoubleSpinBox.hide()
-            self.fitMinMaxCheckBox.setText(utils.tr('contrast')+': ' +
-                                           utils.tr('none'))
+            self.fitMinMaxCheckBox.setText(tr.tr('contrast')+': ' +
+                                           tr.tr('none'))
         elif state == 1:
             self.minLevelDoubleSpinBox.hide()
             self.maxLevelDoubleSpinBox.hide()
-            self.fitMinMaxCheckBox.setText(utils.tr('contrast')+': ' +
-                                           utils.tr('full'))
+            self.fitMinMaxCheckBox.setText(tr.tr('contrast')+': ' +
+                                           tr.tr('full'))
         else:
             self.minLevelDoubleSpinBox.show()
             self.maxLevelDoubleSpinBox.show()
-            self.fitMinMaxCheckBox.setText(utils.tr('contrast')+': ' +
-                                           utils.tr('yes'))
+            self.fitMinMaxCheckBox.setText(tr.tr('contrast')+': ' +
+                                           tr.tr('yes'))
         self.fit_levels = state
 
         Qt.QApplication.instance().processEvents()

@@ -20,7 +20,6 @@ import math
 import time
 import shutil
 import webbrowser
-import argparse
 import logging
 from xml.dom import minidom
 
@@ -37,10 +36,7 @@ import imgfeatures
 import mappedimage
 import guicontrols
 import colormaps as cmaps
-
-
-def tr(s):
-    return utils.tr(s)
+import translation as tr
 
 
 def Int(val):
@@ -62,9 +58,8 @@ class theApp(Qt.QObject):
         Qt.QObject.__init__(self)
 
         self._fully_loaded = False
-        self.verbose = False
 
-        self.parseArguments(args)
+        self.checkArguments(args)
 
         log.log(repr(self),
                 'Starting lxnstack...',
@@ -100,20 +95,20 @@ class theApp(Qt.QObject):
         self.zoom_fit = False
         self.current_dir = '~'
 
-        self.colors = [(QtCore.Qt.red, tr('red')),
-                       (QtCore.Qt.green, tr('green')),
-                       (QtCore.Qt.blue, tr('blue')),
-                       (QtCore.Qt.yellow, tr('yellow')),
-                       (QtCore.Qt.cyan, tr('cyan')),
-                       (QtCore.Qt.magenta, tr('magenta')),
-                       (QtCore.Qt.darkRed, tr('dark red')),
-                       (QtCore.Qt.gray, tr('gray')),
-                       (QtCore.Qt.darkYellow, tr('dark yellow')),
-                       (QtCore.Qt.darkGreen, tr('dark green')),
-                       (QtCore.Qt.darkCyan, tr('dark cyan')),
-                       (QtCore.Qt.darkBlue, tr('dark blue')),
-                       (QtCore.Qt.darkMagenta, tr('dark magenta')),
-                       (QtCore.Qt.black, tr('black'))]
+        self.colors = [(QtCore.Qt.red, tr.tr('red')),
+                       (QtCore.Qt.green, tr.tr('green')),
+                       (QtCore.Qt.blue, tr.tr('blue')),
+                       (QtCore.Qt.yellow, tr.tr('yellow')),
+                       (QtCore.Qt.cyan, tr.tr('cyan')),
+                       (QtCore.Qt.magenta, tr.tr('magenta')),
+                       (QtCore.Qt.darkRed, tr.tr('dark red')),
+                       (QtCore.Qt.gray, tr.tr('gray')),
+                       (QtCore.Qt.darkYellow, tr.tr('dark yellow')),
+                       (QtCore.Qt.darkGreen, tr.tr('dark green')),
+                       (QtCore.Qt.darkCyan, tr.tr('dark cyan')),
+                       (QtCore.Qt.darkBlue, tr.tr('dark blue')),
+                       (QtCore.Qt.darkMagenta, tr.tr('dark magenta')),
+                       (QtCore.Qt.black, tr.tr('black'))]
 
         self.wasCanceled = False
         self.__video_capture_stopped = False
@@ -451,112 +446,21 @@ class theApp(Qt.QObject):
         reload(guicontrols)
 
     # TODO: switch to argparse module
-    def parseArguments(self, args):
+    def checkArguments(self, args):
 
-        # lproject = [None, '']
-        # sproject = [None, '']
-        # stacking = [None, '']
-        # align = [None, [False, False, False]]
-        # images = [None, []]
-        # light = False
-
-        parser = argparse.ArgumentParser(
-            description=tr('lxnstack is aprogram usefull to '
-                           'align and stack the astronomical images.'))
-
-        parser.add_argument(
-            "-a",
-            "--align",
-            nargs='?',
-            const='align-derotate',
-            choices=['align-only', 'derotate-only',
-                     'align-derotate', 'reset'],
-            metavar='METHOD',
-            help=tr('''execute the phase correlation alignment
-                    with the given %(metavar)s. The values allowed
-                    for %(metavar)s are: align-only, derotate-only,
-                    align-derotate, reset. If no %(metavar)s is
-                    specified then  %(const)s is used by
-                    default.'''))
-
-        parser.add_argument(
-            "-i",
-            "--add-images",
-            nargs='+',
-            metavar='FILES',
-            help=tr('''load the images from the files %(metavar)s.'''))
-
-        parser.add_argument(
-            "-m",
-            "--user-manual",
-            action='store_true',
-            help=tr('''show the use manual in a web browser
-                    and exit.'''))
-
-        parser.add_argument(
-            "-l",
-            "--load-project",
-            nargs='?',
-            metavar='FILE',
-            help=tr('''load the project from the file %(metavar)s.'''))
-
-        parser.add_argument(
-            "-s",
-            "--save-project",
-            nargs='?',
-            metavar='FILE',
-            default="False",
-            help=tr('''save the project to the file %(metavar)s
-                    If %(metavar)s is not given and a project is alrady
-                    loaded then the current project will be
-                    overwritten. If %(metavar)s is not given and no
-                    project is loaded, then an error is raised.'''))
-
-        parser.add_argument(
-            "-S",
-            "--stack",
-            nargs='?',
-            const='average',
-            choices=['average', 'median', 'sigma-clipping',
-                     'minimum', 'maximum', 'stddev',
-                     'variance', 'product'],
-            metavar='MODE',
-            help=tr('''stack the images using the mode %(metavar)s.
-                    The values allowed for %(metavar)s are:
-                    average, median, sigma-clipping, minimum,
-                    maximum, stddev, variance, product.
-                    If no %(metavar)s is given then the %(const)s is
-                    be computed.'''))
-
-        parser.add_argument(
-            "--lightcurve",
-            action='store_true',
-            help=tr('''generate the lightcurves (a project with
-                    lightcurve informations must be loaded).'''))
-
-        parser.add_argument(
-            "-v",
-            "--version",
-            action='store_true',
-            help=tr('''print the version of the program and exit.'''))
-
-        parser.add_argument(
-            "--verbose",
-            action='store_true',
-            help=tr('''increase output verbosity'''))
-
-        self.args = vars(parser.parse_args(args))
-
-        self.verbose = self.args['verbose']
+        self.args = args
 
         # default values for project name
+
         if self.args['save_project'] is None:
             if self.args['load_project'] is not None:
                 self.args['save_project'] = self.args['load_project']
             else:
-                self.criticalError('No project name specified!\n'
-                                   'Please use --help for more informations\n',
-                                   False)
+                print("")
+                print('No project name specified!')
+                print('Please use --help for more informations')
+                print("")
+                sys.exit(1)
 
     def executeCommads(self):
 
@@ -578,7 +482,7 @@ class theApp(Qt.QObject):
             elif self.args['align'] == 'reset':
                 self.align(True, False, False)
 
-        if self.args['save_project'] is not None:
+        if self.args['save_project']:
             self.current_project_fname = self.args['save_project']
             self._save_project()
 
@@ -766,7 +670,7 @@ class theApp(Qt.QObject):
                 ImageTypes[key] = ' *'+str(ext)
 
         for ext in ImageTypes:
-            self.images_extensions += tr('Image')+' '
+            self.images_extensions += tr.tr('Image')+' '
             self.images_extensions += ext+' : '+ImageTypes[ext]
             self.images_extensions += '('+ImageTypes[ext]+');;'
 
@@ -915,7 +819,7 @@ class theApp(Qt.QObject):
 
         tmp_path = Qt.QFileDialog.getExistingDirectory(
             self.dlg,
-            tr("Choose the temporary folder"),
+            tr.tr("Choose the temporary folder"),
             self.temp_path,
             utils.DIALOG_OPTIONS)
 
@@ -1090,16 +994,16 @@ class theApp(Qt.QObject):
                (imh != self.currentHeight) or
                (dep != self.currentDepht[0:3])):
                 utils.showErrorMsgBox(
-                    tr("Frame size or number of channels does not match.\n"),
-                    tr('current size=') +
+                    tr.tr("Frame size or number of channels does not match."),
+                    tr.tr('current size=') +
                     str(self.currentWidth) + 'x' +
                     str(self.currentHeight) +
-                    tr(' image size=') +
+                    tr.tr(' image size=') +
                     str(imw) + 'x' +
                     str(imh) + '\n' +
-                    tr('current channels=') +
+                    tr.tr('current channels=') +
                     str(self.currentDepht) +
-                    tr(' image channels=') +
+                    tr.tr(' image channels=') +
                     str(dep),
                     parent=self.wnd,
                     caller=self)
@@ -1267,8 +1171,8 @@ class theApp(Qt.QObject):
                 old_tooltip = str(self.dlg.refreshPushButton.toolTip())
 
                 self.dlg.refreshPushButton.setToolTip(
-                    tr("Cannot refresh devices list") + ": " +
-                    tr("current device is in use"))
+                    tr.tr("Cannot refresh devices list") + ": " +
+                    tr.tr("current device is in use"))
 
                 log.log(repr(self),
                         "Starting live preview from device " +
@@ -1313,13 +1217,13 @@ class theApp(Qt.QObject):
 
     def loadMasterBias(self):
 
-        open_str = tr("All supported images")
+        open_str = tr.tr("All supported images")
         open_str += self.images_extensions+";;"
-        open_str += tr("All files *.* (*.*)")
+        open_str += tr.tr("All files *.* (*.*)")
 
         master_bias_file = str(Qt.QFileDialog.getOpenFileName(
             self.wnd,
-            tr("Select master-dark file"),
+            tr.tr("Select master-dark file"),
             self.current_dir,
             open_str,
             None,
@@ -1329,7 +1233,7 @@ class theApp(Qt.QObject):
             try:
                 i = utils.Frame(master_bias_file, **self.frame_open_args)
                 if not i.is_good:
-                    utils.showErrorMsgBox(tr("Cannot open image") +
+                    utils.showErrorMsgBox(tr.tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
                                           parent=self.wnd,
                                           caller=self)
@@ -1344,16 +1248,16 @@ class theApp(Qt.QObject):
                     self.wnd.masterBiasLineEdit.setText(i.url)
                 else:
                     utils.showErrorMsgBox(
-                        tr("Cannot use this file:") +
-                        tr(" size or number of channels does not match!"),
-                        tr('current size=') +
+                        tr.tr("Cannot use this file:") +
+                        tr.tr(" size or number of channels does not match!"),
+                        tr.tr('current size=') +
                         str(self.currentWidth) + 'x' +
                         str(self.currentHeight) + '\n' +
-                        tr('image size=') +
+                        tr.tr('image size=') +
                         str(imw)+'x'+str(imh) + '\n' +
-                        tr('current channels=') +
+                        tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
-                        tr('image channels=') + str(dep),
+                        tr.tr('image channels=') + str(dep),
                         parent=self.wnd,
                         caller=self)
                 del i
@@ -1377,13 +1281,13 @@ class theApp(Qt.QObject):
 
     def loadMasterDark(self):
 
-        open_str = tr("All supported images")
+        open_str = tr.tr("All supported images")
         open_str += self.images_extensions+";;"
-        open_str += tr("All files *.* (*.*)")
+        open_str += tr.tr("All files *.* (*.*)")
 
         master_dark_file = str(Qt.QFileDialog.getOpenFileName(
             self.wnd,
-            tr("Select master-dark file"),
+            tr.tr("Select master-dark file"),
             self.current_dir,
             open_str,
             None,
@@ -1393,7 +1297,7 @@ class theApp(Qt.QObject):
             try:
                 i = utils.Frame(master_dark_file, **self.frame_open_args)
                 if not i.is_good:
-                    utils.showErrorMsgBox(tr("Cannot open image") +
+                    utils.showErrorMsgBox(tr.tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
                                           parent=self.wnd,
                                           caller=self)
@@ -1408,16 +1312,16 @@ class theApp(Qt.QObject):
                     self.wnd.masterDarkLineEdit.setText(i.url)
                 else:
                     utils.showErrorMsgBox(
-                        tr("Cannot use this file:") +
-                        tr(" size or number of channels does not match!"),
-                        tr('current size=') +
+                        tr.tr("Cannot use this file:") +
+                        tr.tr(" size or number of channels does not match!"),
+                        tr.tr('current size=') +
                         str(self.currentWidth) + 'x' +
                         str(self.currentHeight) + '\n' +
-                        tr('image size=') +
+                        tr.tr('image size=') +
                         str(imw) + 'x' + str(imh) + '\n' +
-                        tr('current channels=') +
+                        tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
-                        tr('image channels=')+str(dep),
+                        tr.tr('image channels=')+str(dep),
                         parent=self.wnd,
                         caller=self)
                 del i
@@ -1441,13 +1345,13 @@ class theApp(Qt.QObject):
 
     def loadMasterFlat(self):
 
-        open_str = tr("All supported images")
+        open_str = tr.tr("All supported images")
         open_str += self.images_extensions+";;"
-        open_str += tr("All files *.* (*.*)")
+        open_str += tr.tr("All files *.* (*.*)")
 
         master_flat_file = str(Qt.QFileDialog.getOpenFileName(
             self.wnd,
-            tr("Select master-flatfield file"),
+            tr.tr("Select master-flatfield file"),
             self.current_dir,
             open_str,
             None,
@@ -1456,7 +1360,7 @@ class theApp(Qt.QObject):
             try:
                 i = utils.Frame(master_flat_file, **self.frame_open_args)
                 if not i.is_good:
-                    utils.showErrorMsgBox(tr("Cannot open image") +
+                    utils.showErrorMsgBox(tr.tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
                                           parent=self.wnd,
                                           caller=self)
@@ -1471,16 +1375,16 @@ class theApp(Qt.QObject):
                     self.wnd.masterFlatLineEdit.setText(i.url)
                 else:
                     utils.showErrorMsgBox(
-                        tr("Cannot use this file:") +
-                        tr(" size or number of channels does not match!"),
-                        tr('current size=') +
+                        tr.tr("Cannot use this file:") +
+                        tr.tr(" size or number of channels does not match!"),
+                        tr.tr('current size=') +
                         str(self.currentWidth) + 'x' +
                         str(self.currentHeight) + '\n' +
-                        tr('image size=') +
+                        tr.tr('image size=') +
                         str(imw)+'x'+str(imh) + '\n' +
-                        tr('current channels=') +
+                        tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
-                        tr('image channels=') + str(dep),
+                        tr.tr('image channels=') + str(dep),
                         parent=self.wnd,
                         caller=self)
                 del i
@@ -1494,8 +1398,8 @@ class theApp(Qt.QObject):
     def mainWindowCloseEvent(self, event):
         if self._fully_loaded:
             val = utils.showYesNoMsgBox(
-                tr("Do you really want to quit?"),
-                tr("All unsaved changes will be lost!"),
+                tr.tr("Do you really want to quit?"),
+                tr.tr("All unsaved changes will be lost!"),
                 parent=self.wnd,
                 caller=self)
 
@@ -1678,7 +1582,7 @@ class theApp(Qt.QObject):
         chart = Qt.QImage(1600, 1200, Qt.QImage.Format_ARGB32)
         fname = str(Qt.QFileDialog.getSaveFileName(
             self.wnd,
-            tr("Save the chart"),
+            tr.tr("Save the chart"),
             os.path.join(self.current_dir, title+'.jpg'),
             "JPEG (*.jpg *.jpeg);;" +
             "PNG (*.png);;PPM (*.ppm);;" +
@@ -2280,14 +2184,14 @@ class theApp(Qt.QObject):
         self.progress = Qt.QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setMaximumSize(400, 25)
-        self.cancelProgress = Qt.QPushButton(tr('cancel'))
+        self.cancelProgress = Qt.QPushButton(tr.tr('cancel'))
         self.cancelProgress.clicked.connect(self.canceled)
         self.statusBar.addPermanentWidget(self.statusLabelMousePos)
         self.statusBar.addPermanentWidget(self.cancelProgress)
         self.statusBar.addPermanentWidget(self.progress)
         self.progress.hide()
         self.cancelProgress.hide()
-        self.statusBar.showMessage(tr('Welcome!'))
+        self.statusBar.showMessage(tr.tr('Welcome!'))
 
     def buildMenus(self):
 
@@ -2306,132 +2210,132 @@ class theApp(Qt.QObject):
 
         self.action_exit = QtGui.QAction(
             utils.getQIcon("application-exit"),
-            tr('exit'), self)
+            tr.tr('exit'), self)
         self.action_exit.triggered.connect(
             self.wnd.close)
 
         self.action_load_project = QtGui.QAction(
             utils.getQIcon("document-open"),
-            tr('Load project'), self)
+            tr.tr('Load project'), self)
         self.action_load_project.triggered.connect(
             self.doLoadProject)
 
         self.action_new_project = QtGui.QAction(
             utils.getQIcon("document-new"),
-            tr('New project'), self)
+            tr.tr('New project'), self)
         self.action_new_project.triggered.connect(
             self.doNewProject)
 
         self.action_save_project = QtGui.QAction(
             utils.getQIcon("document-save"),
-            tr('Save project'), self)
+            tr.tr('Save project'), self)
         self.action_save_project.triggered.connect(
             self.doSaveProject)
 
         self.action_save_project_as = QtGui.QAction(
             utils.getQIcon("document-save-as"),
-            tr('Save project as'), self)
+            tr.tr('Save project as'), self)
         self.action_save_project_as.triggered.connect(
             self.doSaveProjectAs)
 
         self.action_add_files = QtGui.QAction(
             utils.getQIcon("insert-image"),
-            tr('Add images/videos'), self)
+            tr.tr('Add images/videos'), self)
         self.action_add_files.triggered.connect(
             self.doLoadFiles)
 
         self.action_lock_toolbars = QtGui.QAction(
             utils.getQIcon(None),
-            tr('Lock tool-bars'), self)
+            tr.tr('Lock tool-bars'), self)
         self.action_lock_toolbars.toggled.connect(
             self.setToolBarsLock)
         self.action_lock_toolbars.setCheckable(True)
 
         self.action_show_preferences = QtGui.QAction(
             utils.getQIcon(),
-            tr('Show preferences'), self)
+            tr.tr('Show preferences'), self)
         self.action_show_preferences.triggered.connect(
             self.doSetPreferences)
 
         self.action_show_about = QtGui.QAction(
             utils.getQIcon("help-about"),
-            tr('About lxnstack'), self)
+            tr.tr('About lxnstack'), self)
         self.action_show_about.triggered.connect(
             self.doShowAbout)
 
         self.action_show_manual = QtGui.QAction(
             utils.getQIcon("help-contents"),
-            tr('Show User\'s Manual'), self)
+            tr.tr('Show User\'s Manual'), self)
         self.action_show_manual.triggered.connect(
             self.doShowUserMan)
 
         self.action_align = QtGui.QAction(
             utils.getQIcon("align-images"),
-            tr('Align images'), self)
+            tr.tr('Align images'), self)
         self.action_align.triggered.connect(
             self.doAlign)
 
         self.action_stack = QtGui.QAction(
             utils.getQIcon("stack-images"),
-            tr('Stack images'), self)
+            tr.tr('Stack images'), self)
         self.action_stack.triggered.connect(
             self.doStack)
 
         self.action_save_result = QtGui.QAction(
             utils.getQIcon("save-image"),
-            tr('Save resulting image'), self)
+            tr.tr('Save resulting image'), self)
         self.action_save_result.triggered.connect(
             self.doSaveResult)
 
         self.action_save_video = QtGui.QAction(
             utils.getQIcon("video-x-generic"),
-            tr('Export images sequence as a video'), self)
+            tr.tr('Export images sequence as a video'), self)
         self.action_save_video.triggered.connect(
             self.doSaveVideo)
 
         self.action_gen_lightcurves = QtGui.QAction(
             utils.getQIcon("generate-lightcurves"),
-            tr('Generate lightcurves'), self)
+            tr.tr('Generate lightcurves'), self)
         self.action_gen_lightcurves.triggered.connect(
             self.doGenerateLightCurves)
 
         self.action_enable_rawmode = QtGui.QAction(
             utils.getQIcon("bayer-mode"),
-            tr('Enable raw-mode'), self)
+            tr.tr('Enable raw-mode'), self)
         self.action_enable_rawmode.triggered.connect(
             self.updateBayerMatrix)
         self.action_enable_rawmode.setCheckable(True)
 
         self.action_enable_video = QtGui.QAction(
             utils.getQIcon(""),
-            tr('Enable preview'), self)
+            tr.tr('Enable preview'), self)
         self.action_enable_video.setCheckable(True)
         self.action_enable_video.toggled.connect(
             self.enableVideoPreview)
 
         self.action_start_capture = QtGui.QAction(
             utils.getQIcon("video-recording-start"),
-            tr('Start capturing'), self)
+            tr.tr('Start capturing'), self)
         self.action_start_capture.triggered.connect(
             self.startDirectVideoCapture)
         self.action_start_capture.setEnabled(False)
 
         self.action_stop_capture = QtGui.QAction(
             utils.getQIcon("video-recording-stop"),
-            tr('Stop capturing'), self)
+            tr.tr('Stop capturing'), self)
         self.action_stop_capture.triggered.connect(
             self.stopDirectVideoCapture)
         self.action_stop_capture.setEnabled(False)
 
         self.action_sched_capture = QtGui.QAction(
             utils.getQIcon("video.scheduler"),
-            tr('open scheduler'), self)
+            tr.tr('open scheduler'), self)
         self.action_sched_capture.triggered.connect(
             self.videoCaptureScheduler.show)
 
         self.action_take_shot = QtGui.QAction(
             utils.getQIcon("video-single-shot"),
-            tr('Take single shot'), self)
+            tr.tr('Take single shot'), self)
         self.action_take_shot.triggered.connect(
             self.oneShot)
 
@@ -2439,11 +2343,11 @@ class theApp(Qt.QObject):
                 "Bulding menu trees...",
                 level=logging.DEBUG)
 
-        menu_files = self.mainMenuBar.addMenu(tr("Files"))
-        menu_video = self.mainMenuBar.addMenu(tr("Video capture"))
-        menu_stacking = self.mainMenuBar.addMenu(tr("Stacking"))
-        menu_lightcurves = self.mainMenuBar.addMenu(tr("Lightcurves"))
-        menu_settings = self.mainMenuBar.addMenu(tr("Settings"))
+        menu_files = self.mainMenuBar.addMenu(tr.tr("Files"))
+        menu_video = self.mainMenuBar.addMenu(tr.tr("Video capture"))
+        menu_stacking = self.mainMenuBar.addMenu(tr.tr("Stacking"))
+        menu_lightcurves = self.mainMenuBar.addMenu(tr.tr("Lightcurves"))
+        menu_settings = self.mainMenuBar.addMenu(tr.tr("Settings"))
         menu_about = self.mainMenuBar.addMenu("?")
 
         # Files menu
@@ -2516,8 +2420,8 @@ class theApp(Qt.QObject):
         toolbar.setObjectName("Misc ToolBar")
 
         self.bayer_tcb = guicontrols.ToolComboBox(
-            tr("matrix type:"),
-            tooltip=tr("Specify the type of bayer matrix used"))
+            tr.tr("matrix type:"),
+            tooltip=tr.tr("Specify the type of bayer matrix used"))
         self.bayer_tcb.setEnabled(False)
         self.bayer_tcb.currentIndexChanged.connect(
             self.updateBayerMatrix)
@@ -2552,8 +2456,8 @@ class theApp(Qt.QObject):
         toolbar.addAction(self.action_stop_capture)
 
         self.direct_capture_type_tcb = guicontrols.ToolComboBox(
-            tr("output:"),
-            tooltip=tr("Specify how to save the captured images"))
+            tr.tr("output:"),
+            tooltip=tr.tr("Specify how to save the captured images"))
 
         self.direct_capture_type_tcb.addItem(
             utils.getQIcon("type-video-file"),
@@ -2631,18 +2535,18 @@ class theApp(Qt.QObject):
         oldlist = self.framelist[:]
 
         if newlist is None:
-            open_str = tr("All supported images")
+            open_str = tr.tr("All supported images")
             open_str += self.images_extensions+";;"
-            open_str += tr("All files *.* (*.*)")
+            open_str += tr.tr("All files *.* (*.*)")
             newlist = list(Qt.QFileDialog.getOpenFileNames(
                 self.wnd,
-                tr("Select one or more files"),
+                tr.tr("Select one or more files"),
                 self.current_dir,
                 open_str,
                 None,
                 utils.DIALOG_OPTIONS))
 
-        self.statusBar.showMessage(tr('Loading files, please wait...'))
+        self.statusBar.showMessage(tr.tr('Loading files, please wait...'))
 
         if not newlist:
             return
@@ -2655,7 +2559,8 @@ class theApp(Qt.QObject):
             ref = utils.Frame(str(newlist[0]), **self.frame_open_args)
             if not ref.is_good:
                 msgBox = Qt.QMessageBox(self.wnd)
-                msgBox.setText(tr("Cannot open image")+" \""+str(ref.url)+"\"")
+                msgBox.setText(tr.tr("Cannot open image") +
+                               " \""+str(ref.url)+"\"")
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
@@ -2682,7 +2587,7 @@ class theApp(Qt.QObject):
 
         self.progress.setMaximum(len(newlist))
         self.lock()
-        self.statusBar.showMessage(tr('Analyzing images, please wait...'))
+        self.statusBar.showMessage(tr.tr('Analyzing images, please wait...'))
         count = 0
         warnings = False
         listitemslist = []
@@ -2694,7 +2599,8 @@ class theApp(Qt.QObject):
                 img = utils.Frame(str(i), page, **self.frame_open_args)
                 if not img.is_good:
                     msgBox = Qt.QMessageBox(self.wnd)
-                    msgBox.setText(tr("Cannot open image")+" \""+str(i)+"\"")
+                    msgBox.setText(tr.tr("Cannot open image") +
+                                   " \""+str(i)+"\"")
                     msgBox.setIcon(Qt.QMessageBox.Critical)
                     msgBox.exec_()
                     continue
@@ -2703,19 +2609,19 @@ class theApp(Qt.QObject):
                     if (imw, imh) != (img.width, img.height):
                         warnings = True
                         rejected += img.url+' --> '
-                        rejected += tr('size does not match')+':\n'
-                        rejected += tr('current size')+'='
+                        rejected += tr.tr('size does not match')+':\n'
+                        rejected += tr.tr('current size')+'='
                         rejected += str(self.currentWidth)+'x'
                         rejected += str(self.currentHeight)+' '
-                        rejected += tr('image size')+'='
+                        rejected += tr.tr('image size')+'='
                         rejected += str(img.width)+'x'+str(img.height)+'\n'
                     elif not(dep in img.mode):
                         warnings = True
                         rejected += img.url+' --> '
-                        rejected += tr('number of channels does not match')+':'
-                        rejected += '\n'+tr('current channels')+'='
+                        rejected += tr.tr('number of channels does not match')
+                        rejected += ':\n'+tr.tr('current channels')+'='
                         rejected += str(self.currentDepht)+' '
-                        rejected += tr('image channels')+'='
+                        rejected += tr.tr('image channels')+'='
                         rejected += str(img.mode)+'\n'
                     else:
                         q = Qt.QListWidgetItem(img.tool_name)
@@ -2745,13 +2651,14 @@ class theApp(Qt.QObject):
         if warnings:
             msgBox = Qt.QMessageBox(self.wnd)
 
-            msgBox.setText(tr("Some images have different size or number " +
-                              "of channels and will been ignored.\n"))
+            msgBox.setText(tr.tr("Some images have different size or number " +
+                                 "of channels and will been ignored.\n"))
 
-            msgBox.setInformativeText(tr("All images must have the same " +
-                                         "size and number of channels.\n\n") +
-                                      tr("Click the \'Show Details' " +
-                                         "button for more information.\n"))
+            msgBox.setInformativeText(tr.tr("All images must have the " +
+                                            "same size and number of " +
+                                            "channels.\n\n") +
+                                      tr.tr("Click the \'Show Details' " +
+                                            "button for more information.\n"))
 
             msgBox.setDetailedText(rejected)
             msgBox.setIcon(Qt.QMessageBox.Warning)
@@ -2764,29 +2671,32 @@ class theApp(Qt.QObject):
 
         if self.checked_seach_dark_flat == 2:
             self.bias_dir = os.path.join(self.current_dir, 'bias')
-            self.statusBar.showMessage(tr('Searching for bias frames') +
-                                       ', '+tr('please wait')+'...')
+            self.statusBar.showMessage(
+                tr.tr('Searching for bias frames') + ', ' +
+                tr.tr('please wait')+'...')
             if not self.addBiasFilesFiles(self.bias_dir, ignoreErrors=True):
                 pass
 
             self.dark_dir = os.path.join(self.current_dir, 'dark')
-            self.statusBar.showMessage(tr('Searching for dark frames') +
-                                       ', '+tr('please wait')+'...')
+            self.statusBar.showMessage(
+                tr.tr('Searching for dark frames') + ', ' +
+                tr.tr('please wait')+'...')
             if not self.addDarkFiles(self.dark_dir, ignoreErrors=True):
                 pass
 
             self.flat_dir = os.path.join(self.current_dir, 'flat')
-            self.statusBar.showMessage(tr('Searching for flatfiled frames') +
-                                       ', '+tr('please wait')+'...')
+            self.statusBar.showMessage(
+                tr.tr('Searching for flatfiled frames') + ', ' +
+                tr.tr('please wait')+'...')
             if not self.addFlatFiles(self.flat_dir, ignoreErrors=True):
                 pass
 
-        self.statusBar.showMessage(tr('DONE'))
+        self.statusBar.showMessage(tr.tr('DONE'))
 
-        if (len(self.framelist) > 0):
+        if self.framelist:
             self.unlockSidebar()
 
-        self.statusBar.showMessage(tr('Ready'))
+        self.statusBar.showMessage(tr.tr('Ready'))
 
     def doAddBiasFiles(self, clicked):
         self.addBiasFiles()
@@ -2848,12 +2758,12 @@ class theApp(Qt.QObject):
     def addFrameFiles(self, frametype, framelistwidget, framelist, clearbutton,
                       directory=None, ignoreErrors=False):
         if directory is None:
-            open_str = tr("All supported images")
+            open_str = tr.tr("All supported images")
             open_str += self.images_extensions+";;"
-            open_str += tr("All files *.* (*.*)")
+            open_str += tr.tr("All files *.* (*.*)")
             files = list(Qt.QFileDialog.getOpenFileNames(
                 self.wnd,
-                tr("Select one or more files"),
+                tr.tr("Select one or more files"),
                 self.current_dir,
                 open_str,
                 None,
@@ -2884,7 +2794,7 @@ class theApp(Qt.QObject):
                 if not i.is_good:
                     if not ignoreErrors:
                         msgBox = Qt.QMessageBox(self.wnd)
-                        msgBox.setText(tr("Cannot open image") +
+                        msgBox.setText(tr.tr("Cannot open image") +
                                        " \""+str(fn)+"\"")
                         msgBox.setIcon(Qt.QMessageBox.Critical)
                         msgBox.exec_()
@@ -2914,12 +2824,13 @@ class theApp(Qt.QObject):
 
         if warnings:
             msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("Some images have different size or number " +
-                              "of channels and will been ignored.\n"))
-            msgBox.setInformativeText(tr("All images must have the same " +
-                                         "size and number of channels.\n\n") +
-                                      tr("Click the \'Show Details' button " +
-                                         "for more information.\n"))
+            msgBox.setText(tr.tr("Some images have different size or number " +
+                                 "of channels and will been ignored.\n"))
+            msgBox.setInformativeText(tr.tr("All images must have the " +
+                                            "same size and number of " +
+                                            "channels.\n\n") +
+                                      tr.tr("Click the \'Show Details' " +
+                                            "button for more information.\n"))
             msgBox.setDetailedText(rejected)
             msgBox.setIcon(Qt.QMessageBox.Warning)
             msgBox.exec_()
@@ -2989,7 +2900,6 @@ class theApp(Qt.QObject):
             self.wnd.lightListWidget.item(i).setCheckState(state)
 
     def isBayerUsed(self):
-        print self.currentDepht
         if ((self.currentDepht in '1LPIF') and
                 self.action_enable_rawmode.isChecked()):
             # the image is RAW monocromathic with bayer matrix
@@ -3396,7 +3306,7 @@ class theApp(Qt.QObject):
 
         pname = '#{0:05d}'.format(idx)
         q = Qt.QListWidgetItem(pname)
-        tooltip_text = tr('alignment-point')+' '+pname
+        tooltip_text = tr.tr('alignment-point')+' '+pname
         q.setToolTip(tooltip_text)
         self.wnd.alignPointsListWidget.insertItem(idx-1, q)
 
@@ -3493,8 +3403,8 @@ class theApp(Qt.QObject):
 
         for pnt in self.framelist[self.image_idx].alignpoints:
             q = Qt.QListWidgetItem(pnt.name, self.wnd.alignPointsListWidget)
-            tooltip_text = tr('image')+' '+imagename+" \n"
-            tooltip_text += tr('alignment-point')+' '+pnt.name
+            tooltip_text = tr.tr('image')+' '+imagename+" \n"
+            tooltip_text += tr.tr('alignment-point')+' '+pnt.name
             q.setToolTip(tooltip_text)
 
     def shiftX(self, val):
@@ -3705,7 +3615,7 @@ class theApp(Qt.QObject):
     def saveProjectAs(self):
         self.current_project_fname = str(Qt.QFileDialog.getSaveFileName(
             self.wnd,
-            tr("Save the project"),
+            tr.tr("Save the project"),
             os.path.join(self.current_dir, 'Untitled.lxn'),
             "Project (*.lxn);;All files (*.*)",
             None,
@@ -3723,7 +3633,7 @@ class theApp(Qt.QObject):
             self._save_project()
 
     def corruptedMsgBox(self, info=""):
-        utils.showErrorMsgBox(tr("The project is invalid or corrupted!"),
+        utils.showErrorMsgBox(tr.tr("The project is invalid or corrupted!"),
                               info,
                               parent=self.wnd,
                               caller=self)
@@ -3732,8 +3642,11 @@ class theApp(Qt.QObject):
     def _save_project(self):
         self.lock(False)
         self.progress.reset()
-        self.statusBar.showMessage(tr('saving project') + ', ' +
-                                   tr('please wait...'))
+        log.log(repr(self),
+                "Saving project to " + str(self.current_project_fname),
+                level=logging.ERROR)
+        self.statusBar.showMessage(tr.tr('saving project') + ', ' +
+                                   tr.tr('please wait...'))
 
         if self.action_enable_rawmode.isChecked():
             bayer_mode = self.bayer_tcb.currentIndex()
@@ -3958,9 +3871,9 @@ class theApp(Qt.QObject):
                     "Cannot save the project: " + str(err),
                     level=logging.ERROR)
             msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("Cannot save the project: ")+str(err))
-            msgBox.setInformativeText(tr("Assure you have the permissions " +
-                                         "to write the file."))
+            msgBox.setText(tr.tr("Cannot save the project: ")+str(err))
+            msgBox.setInformativeText(
+                tr.tr("Assure you have the permissions to write the file."))
             msgBox.setIcon(Qt.QMessageBox.Critical)
             msgBox.exec_()
             del msgBox
@@ -3983,7 +3896,7 @@ class theApp(Qt.QObject):
         if pname is None:
             project_fname = str(Qt.QFileDialog.getOpenFileName(
                 self.wnd,
-                tr("Open a project"),
+                tr.tr("Open a project"),
                 os.path.join(self.current_dir, 'Untitled.lxn'),
                 "Project (*.lxn *.prj);;All files (*.*)", None,
                 utils.DIALOG_OPTIONS))
@@ -4008,7 +3921,7 @@ class theApp(Qt.QObject):
                     level=logging.ERROR)
             return self.corruptedMsgBox(err)
 
-        self.statusBar.showMessage(tr('loading project, please wait...'))
+        self.statusBar.showMessage(tr.tr('loading project, please wait...'))
         self.lock(False)
 
         try:
@@ -4534,22 +4447,22 @@ class theApp(Qt.QObject):
 
         elif self.checked_autodetect_min_quality:
             msgBox = Qt.QMessageBox()
-            msgBox.setText(tr("No suitable points foud!"))
-            msgBox.setInformativeText(tr("Try to add them manually."))
+            msgBox.setText(tr.tr("No suitable points foud!"))
+            msgBox.setInformativeText(tr.tr("Try to add them manually."))
             msgBox.setIcon(Qt.QMessageBox.Warning)
             msgBox.exec_()
         else:
             msgBox = Qt.QMessageBox()
-            msgBox.setText(tr("No suitable points foud!"))
-            msgBox.setInformativeText(tr("Try to modify the " +
-                                         "alignment settings."))
+            msgBox.setText(tr.tr("No suitable points foud!"))
+            msgBox.setInformativeText(tr.tr("Try to modify the " +
+                                            "alignment settings."))
             msgBox.setIcon(Qt.QMessageBox.Warning)
             msgBox.exec_()
 
     def autoSetAlignPoint(self):
         image_idx = self.wnd.lightListWidget.currentRow()
         current_point = self.wnd.alignPointsListWidget.currentRow()
-        self.statusBar.showMessage(tr('detecting points, please wait...'))
+        self.statusBar.showMessage(tr.tr('detecting points, please wait...'))
 
         current_frame = self.framelist[image_idx]
 
@@ -4600,10 +4513,11 @@ class theApp(Qt.QObject):
 
             if i == image_idx:
                 continue
-            msg = tr('detecting point')+' '+str(point_idx+1)+' '
-            msg += tr('of')+' '+str(len(self.framelist[image_idx].alignpoints))
-            msg += tr(' ')+tr('on image')+tr(' ')+str(i)
-            msg += tr(' ')+tr('of')+tr(' ')+str(len(self.framelist)-1)
+            msg = tr.tr('detecting point')+' '+str(point_idx+1)+' '
+            msg += tr.tr('of')+' '
+            msg += str(len(self.framelist[image_idx].alignpoints))
+            msg += tr.tr(' ')+tr.tr('on image')+tr.tr(' ')+str(i)
+            msg += tr.tr(' ')+tr.tr('of')+tr.tr(' ')+str(len(self.framelist)-1)
             self.statusBar.showMessage(msg)
 
             if self.aap_wholeimage == 2:
@@ -4668,7 +4582,7 @@ class theApp(Qt.QObject):
                             'Image ' + i.name +
                             ' -> shift = (0.0, 0.0)  angle=0.0',
                             level=logging.INFO)
-                    msg = tr('Resetting alignment for image')+' '+i.name
+                    msg = tr.tr('Resetting alignment for image')+' '+i.name
                     self.statusBar.showMessage(msg)
                     i.setAngle(0)
                     i.setOffset((0, 0))
@@ -4750,8 +4664,8 @@ class theApp(Qt.QObject):
         total_images = len(self.framelist)
 
         if self.framelist and total_points > 0:
-            self.statusBar.showMessage(tr('Calculating image shift') +
-                                       ', '+tr('please wait...'))
+            self.statusBar.showMessage(tr.tr('Calculating image shift') +
+                                       ', '+tr.tr('please wait...'))
 
             self.progress.setMaximum(total_images-1)
             self.lock()
@@ -4801,7 +4715,7 @@ class theApp(Qt.QObject):
                     img.offset[1] = 0
 
             self.unlock()
-            self.statusBar.showMessage(tr('DONE'))
+            self.statusBar.showMessage(tr.tr('DONE'))
 
             if (total_points > 1) and derotate:
                 self._derotateAlignPoints(w)
@@ -4828,7 +4742,7 @@ class theApp(Qt.QObject):
 
             if align:
                 self.lock()
-                msg = tr('Calculating references, please wait...')
+                msg = tr.tr('Calculating references, please wait...')
                 self.statusBar.showMessage(msg)
                 count = 0
                 ref_set = False
@@ -4867,8 +4781,8 @@ class theApp(Qt.QObject):
                     img.setOffset([0, 0])
 
     def _alignPhaseCorrelation(self, align, derotate):
-        self.statusBar.showMessage(tr('Computing phase correlation') +
-                                   ', '+tr('please wait...'))
+        self.statusBar.showMessage(tr.tr('Computing phase correlation') +
+                                   ', '+tr.tr('please wait...'))
 
         sw = self.newMdiImageViewer("Phase correlation")
         iv = self.mdi_windows[sw]['widget']
@@ -4890,7 +4804,7 @@ class theApp(Qt.QObject):
             count += 1
             if self.progressWasCanceled():
                 self.unlock()
-                self.statusBar.showMessage(tr('canceled by the user'))
+                self.statusBar.showMessage(tr.tr('canceled by the user'))
                 return False
 
             if img.isUsed():
@@ -4922,9 +4836,9 @@ class theApp(Qt.QObject):
                         self.phase_interpolation_order)
 
                     self._phase_align_data = (data[1], data[2], data[0])
-                    self.statusBar.showMessage(tr('shift: ') +
+                    self.statusBar.showMessage(tr.tr('shift: ') +
                                                str(data[1]) + ', ' +
-                                               tr('rotation: ') +
+                                               tr.tr('rotation: ') +
                                                str(data[2]))
                     del img_data
                     if (data[0] is not None and
@@ -4936,7 +4850,7 @@ class theApp(Qt.QObject):
         self._phase_align_data = None
         sw.close()
         self.unlock()
-        self.statusBar.showMessage(tr('DONE'))
+        self.statusBar.showMessage(tr.tr('DONE'))
 
     def getStackingMethod(self, method, framelist, bias_image,
                           dark_image, flat_image, **args):
@@ -5093,15 +5007,15 @@ class theApp(Qt.QObject):
                 pass  # ignore
             else:
                 msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("Cannot open") + " \'" +
+                msgBox.setText(tr.tr("Cannot open") + " \'" +
                                self.master_bias_file + "\':")
-                msgBox.setInformativeText(tr("the file does not exist."))
+                msgBox.setInformativeText(tr.tr("the file does not exist."))
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
         elif self.biasframelist:
-            self.statusBar.showMessage(tr('Creating master-bias') +
-                                       ', '+tr('please wait...'))
+            self.statusBar.showMessage(tr.tr('Creating master-bias') +
+                                       ', '+tr.tr('please wait...'))
             _bas = self.getStackingMethod(bias_method,
                                           self.biasframelist,
                                           None, None, None,
@@ -5120,15 +5034,15 @@ class theApp(Qt.QObject):
                 pass  # ignore
             else:
                 msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("Cannot open") + " \'" +
+                msgBox.setText(tr.tr("Cannot open") + " \'" +
                                self.master_dark_file+"\':")
-                msgBox.setInformativeText(tr("the file does not exist."))
+                msgBox.setInformativeText(tr.tr("the file does not exist."))
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
         elif self.darkframelist:
-            self.statusBar.showMessage(tr('Creating master-dark') +
-                                       +', '+tr('please wait...'))
+            self.statusBar.showMessage(tr.tr('Creating master-dark') +
+                                       ', '+tr.tr('please wait...'))
             _drk = self.getStackingMethod(dark_method,
                                           self.darkframelist,
                                           None, None, None,
@@ -5147,15 +5061,15 @@ class theApp(Qt.QObject):
                 pass  # ignore
             else:
                 msgBox = Qt.QMessageBox()
-                msgBox.setText(tr("Cannot open")+" \'" +
+                msgBox.setText(tr.tr("Cannot open")+" \'" +
                                self.master_dark_file+"\':")
-                msgBox.setInformativeText(tr("the file does not exist."))
+                msgBox.setInformativeText(tr.tr("the file does not exist."))
                 msgBox.setIcon(Qt.QMessageBox.Critical)
                 msgBox.exec_()
                 return False
         elif self.flatframelist:
-            self.statusBar.showMessage(tr('Creating master-flat') +
-                                       ', '+tr('please wait...'))
+            self.statusBar.showMessage(tr.tr('Creating master-flat') +
+                                       ', '+tr.tr('please wait...'))
             _flt = self.getStackingMethod(flat_method,
                                           self.flatframelist,
                                           None, None, None,
@@ -5168,7 +5082,8 @@ class theApp(Qt.QObject):
         if skip_light:
             self.statusBar.clearMessage()
         else:
-            self.statusBar.showMessage(tr('Stacking images, please wait...'))
+            self.statusBar.showMessage(tr.tr('Stacking images')+', ' +
+                                       tr.tr('please wait...'))
 
             _stk = self.getStackingMethod(lght_method,
                                           self.framelist,
@@ -5188,7 +5103,7 @@ class theApp(Qt.QObject):
 
                 self.showResultImage(newtab=True)
                 self.activateResultControls()
-                self.statusBar.showMessage(tr('DONE'))
+                self.statusBar.showMessage(tr.tr('DONE'))
 
         self.unlock()
 
@@ -5354,7 +5269,7 @@ class theApp(Qt.QObject):
 
                 cnt = 0
                 if hot_pixels['global']:
-                    msg = tr("Correcting for hotpixels...")
+                    msg = tr.tr("Correcting for hotpixels...")
                     self.progress_dialog.setLabelText(msg)
                     self.progress_dialog.setValue(0)
                     self.progress_dialog.setMaximum(len(hot_pixels['data']))
@@ -5380,7 +5295,7 @@ class theApp(Qt.QObject):
                     self.progress_dialog.setMaximum(total_progress)
                     self.progress_dialog.show()
                     for c in range(len(hot_pixels['data'])):
-                        msg = tr("Correcting for hotpixels in component")
+                        msg = tr.tr("Correcting for hotpixels in component")
                         msg += " "+str(c)+"..."
                         self.progress_dialog.setLabelText(msg)
                         for hotp in hot_pixels['data'][c]:
@@ -5556,7 +5471,7 @@ class theApp(Qt.QObject):
                     result = operation(chunks, axis=0)
                 else:
                     result = operation(chunks)
-            self.statusBar.showMessage(tr('Computing final image...'))
+            self.statusBar.showMessage(tr.tr('Computing final image...'))
             if post_operation is not None:
                 result = post_operation(result, count)
 
@@ -5587,9 +5502,9 @@ class theApp(Qt.QObject):
                 str(total_subs)+" sub-regions",
                 level=logging.DEBUG)
 
-        self.statusBar.showMessage(tr('Computing') + ' ' +
+        self.statusBar.showMessage(tr.tr('Computing') + ' ' +
                                    str(title) + ', ' +
-                                   tr('please wait...'))
+                                   tr.tr('please wait...'))
         self.progress.reset
         self.progress.setMaximum(total_subs*(len(filelist)+1))
         progress_count = 0
@@ -5642,11 +5557,11 @@ class theApp(Qt.QObject):
                         ' of '+str(total_subs),
                         level=logging.INFO)
 
-                self.statusBar.showMessage(tr('Computing') +
+                self.statusBar.showMessage(tr.tr('Computing') +
                                            ' '+str(title)+' ' +
-                                           tr('on subregion') +
+                                           tr.tr('on subregion') +
                                            ' '+str(count)+' ' +
-                                           tr('of')+' ' +
+                                           tr.tr('of')+' ' +
                                            str(total_subs))
                 QtGui.QApplication.instance().processEvents()
 
@@ -5727,7 +5642,7 @@ class theApp(Qt.QObject):
                 dark_image=None, flat_image=None,
                 **args):
         return self.nativeOperationOnImages(
-            np.add, tr('average'), framelist,
+            np.add, tr.tr('average'), framelist,
             bias_image, dark_image, flat_image,
             post_operation=np.divide, **args)
 
@@ -5737,7 +5652,7 @@ class theApp(Qt.QObject):
         avg = self.average(framelist,  bias_image, dark_image, flat_image)
         return self.nativeOperationOnImages(
             lambda a1, a2: (a2-avg)**2,
-            tr('standard deviation'),
+            tr.tr('standard deviation'),
             framelist,
             dark_image,
             flat_image,
@@ -5750,7 +5665,7 @@ class theApp(Qt.QObject):
         avg = self.average(framelist, bias_image, dark_image, flat_image)
         return self.nativeOperationOnImages(
             lambda a1, a2: (a2-avg)**2,
-            tr('variance'),
+            tr.tr('variance'),
             framelist,
             dark_image,
             flat_image,
@@ -5762,7 +5677,7 @@ class theApp(Qt.QObject):
                   dark_image=None, flat_image=None,
                   **args):
         return self.operationOnImages(self.sigmaClipping,
-                                      tr('sigma clipping'),
+                                      tr.tr('sigma clipping'),
                                       framelist,
                                       bias_image,
                                       dark_image,
@@ -5774,7 +5689,7 @@ class theApp(Qt.QObject):
                dark_image=None, flat_image=None,
                **args):
         return self.operationOnImages(np.median,
-                                      tr('median'),
+                                      tr.tr('median'),
                                       framelist,
                                       bias_image,
                                       dark_image,
@@ -5785,7 +5700,7 @@ class theApp(Qt.QObject):
                 dark_image=None, flat_image=None,
                 **args):
         return self.nativeOperationOnImages(np.max,
-                                            tr('maximum'),
+                                            tr.tr('maximum'),
                                             framelist,
                                             bias_image,
                                             dark_image,
@@ -5797,7 +5712,7 @@ class theApp(Qt.QObject):
                 dark_image=None, flat_image=None,
                 **args):
         return self.nativeOperationOnImages(np.min,
-                                            tr('minimum'),
+                                            tr.tr('minimum'),
                                             framelist,
                                             bias_image,
                                             dark_image,
@@ -5809,7 +5724,7 @@ class theApp(Qt.QObject):
                 dark_image=None, flat_image=None,
                 **args):
         return self.nativeOperationOnImages(np.prod,
-                                            tr('product'),
+                                            tr.tr('product'),
                                             framelist,
                                             bias_image,
                                             dark_image,
@@ -5837,8 +5752,8 @@ class theApp(Qt.QObject):
 
         total = len(framelist)
 
-        self.statusBar.showMessage(tr('Registering images') +
-                                   ', '+tr('please wait...'))
+        self.statusBar.showMessage(tr.tr('Registering images') +
+                                   ', '+tr.tr('please wait...'))
         self.progress.reset()
         self.progress.setMaximum(4*(total-1))
 
@@ -6272,7 +6187,7 @@ class theApp(Qt.QObject):
     def exportNumericDataCSV(self, val):
         file_name = str(Qt.QFileDialog.getSaveFileName(
             self.wnd,
-            tr("Save the project"),
+            tr.tr("Save the project"),
             os.path.join(self.current_dir, 'lightcurves.csv'),
             "CSV *.csv (*.csv);;All files (*.*)",
             None,
@@ -6303,7 +6218,7 @@ class theApp(Qt.QObject):
             self.progress.hide()
             self.progress.reset()
             self.cancelProgress.hide()
-            self.statusBar.showMessage(tr('Operation canceled by user'))
+            self.statusBar.showMessage(tr.tr('Operation canceled by user'))
             self.unlock()
             return True
         else:
@@ -6312,14 +6227,14 @@ class theApp(Qt.QObject):
     def getDestDir(self):
         destdir = str(Qt.QFileDialog.getExistingDirectory(
             self.wnd,
-            tr("Choose the output folder"),
+            tr.tr("Choose the output folder"),
             self.current_dir,
             utils.DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly))
         self.save_dlg.lineEditDestDir.setText(str(destdir))
 
     def saveVideo(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(
-            self.wnd, tr("Save the project"),
+            self.wnd, tr.tr("Save the project"),
             os.path.join(self.current_dir, 'Untitled.avi'),
             "Video *.avi (*.avi);;All files (*.*)",
             None,
@@ -6367,9 +6282,9 @@ class theApp(Qt.QObject):
             estr = str(exc)
             if ('doesn\'t support this codec' in estr):
                 utils.showErrorMsgBox(
-                    tr("Cannot create the video file."),
-                    tr("Try to use a lower resolution and assure " +
-                       "you\nhave the permissions to write the file."),
+                    tr.tr("Cannot create the video file."),
+                    tr.tr("Try to use a lower resolution and assure " +
+                          "you\nhave the permissions to write the file."),
                     caller=self)
 
         log.log(repr(self),
@@ -6392,7 +6307,7 @@ class theApp(Qt.QObject):
             self.lock(False)
             self.progress.setMaximum(len(self.framelist))
             count = 0
-            self.statusBar.showMessage(tr('Writing video, please wait...'))
+            self.statusBar.showMessage(tr.tr('Writing video, please wait...'))
 
             for frm in self.framelist:
                 count += 1
@@ -6471,7 +6386,7 @@ class theApp(Qt.QObject):
 
             vw.release()
             self.unlock()
-            self.statusBar.showMessage(tr('DONE'))
+            self.statusBar.showMessage(tr.tr('DONE'))
             log.log(repr(self),
                     'DONE',
                     level=logging.INFO)
@@ -6490,8 +6405,9 @@ class theApp(Qt.QObject):
         destdir = str(self.save_dlg.lineEditDestDir.text())
 
         while not os.path.isdir(destdir):
-            utils.showWarningMsgBox(tr("The selected output folder is not " +
-                                       "a directory\nor it does not exist!"),
+            utils.showWarningMsgBox(tr.tr("The selected output folder " +
+                                          "is not a directory or it " +
+                                          "does not exist!"),
                                     caller=self)
             if self.save_dlg.exec_() != 1:
                 return False

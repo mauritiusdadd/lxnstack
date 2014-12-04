@@ -1,98 +1,199 @@
 #!/usr/bin/env python2
+#
+# lxnstack is a program to align and stack atronomical images
+# Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#lxnstack is a program to align and stack atronomical images
-#Copyright (C) 2013-2014  Maurizio D'Addona <mauritiusdadd@gmail.com>
 
-#This program is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation, either version 3 of the License, or
-#(at your option) any later version.
-
-#This program is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
-
-#You should have received a copy of the GNU General Public License
-#along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import sys
+import os
+import time
+import argparse
+import logging
 
 from PyQt4 import Qt, QtCore
-import sys, os, time
 
-PROGRAM_VERSION="1.5.0"
+import lxnstack
+import lxnstack.translation as tr
+
+PROGRAM_VERSION = "1.5.0"
 
 if __name__ == "__main__":
-    
-    import lxnstack
-    
-    batch_mode=False
 
-    if len(sys.argv)>1:
-            
-        if ('--user-manual' in sys.argv) or ('-m' in sys.argv):
-            show_help = True
-            print("Loading user manual...")
-        else:
-            show_help = False
-                
-        if ('--version' in sys.argv) or ('-v' in sys.argv):
-            print("\nversion: "+PROGRAM_VERSION+"\n")
-            sys.exit(0)
+    parser = argparse.ArgumentParser(
+        description=tr.tr('lxnstack is aprogram usefull to ' +
+                          'align and stack the astronomical images.'))
 
-        args=sys.argv[1:]
-        
+    parser.add_argument(
+        "-a",
+        "--align",
+        nargs='?',
+        const='align-derotate',
+        choices=['align-only',
+                 'derotate-only',
+                 'align-derotate',
+                 'reset'],
+        metavar='METHOD',
+        help=tr.tr('''Execute the phase correlation alignment
+                   with the given %(metavar)s. The values allowed
+                   for %(metavar)s are: align-only, derotate-only,
+                   align-derotate, reset. If no %(metavar)s is
+                   specified then  %(const)s is used by
+                   default.'''))
+
+    parser.add_argument(
+        "-i",
+        "--add-images",
+        nargs='+',
+        metavar='FILES',
+        help=tr.tr('''Load the images from the files %(metavar)s.'''))
+
+    parser.add_argument(
+        "-m",
+        "--user-manual",
+        action='store_true',
+        help=tr.tr('''Show the use manual in a web browser
+                   and exit.'''))
+
+    parser.add_argument(
+        "-l",
+        "--load-project",
+        nargs='?',
+        metavar='FILE',
+        help=tr.tr('''Load the project from the file %(metavar)s.'''))
+
+    parser.add_argument(
+        "-s",
+        "--save-project",
+        nargs='?',
+        metavar='FILE',
+        default=False,
+        help=tr.tr('''Save the project to the file %(metavar)s
+                   If %(metavar)s is not given and a project is alrady
+                   loaded then the current project will be
+                   overwritten. If %(metavar)s is not given and no
+                   project is loaded, then an error is raised.'''))
+
+    parser.add_argument(
+        "-S",
+        "--stack",
+        nargs='?',
+        const='average',
+        choices=['average',
+                 'median',
+                 'sigma-clipping',
+                 'minimum',
+                 'maximum',
+                 'stddev',
+                 'variance',
+                 'product'],
+        metavar='MODE',
+        help=tr.tr('''Stack the images using the mode %(metavar)s.
+                   The values allowed for %(metavar)s are:
+                   average, median, sigma-clipping, minimum,
+                   maximum, stddev, variance, product.
+                   If no %(metavar)s is given then the %(const)s is
+                   computed.'''))
+
+    parser.add_argument(
+        "--lightcurve",
+        action='store_true',
+        help=tr.tr('''Generate the lightcurves (a project with
+                   lightcurve informations must be loaded).'''))
+
+    parser.add_argument(
+        "-V",
+        "--version",
+        action='store_true',
+        help=tr.tr('''Print the version of the program and exit.'''))
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action='store_true',
+        help=tr.tr('''Increase output verbosity'''))
+
+    parser.add_argument(
+        "--debug",
+        action='store_true',
+        help=tr.tr('''Enable the debug mode: causes a lot of output
+                   and generates big logs'''))
+
+    args = vars(parser.parse_args(sys.argv[1:]))
+
+    if args['version']:
+        print("\nversion: "+PROGRAM_VERSION+"\n")
+        sys.exit(0)
+
+    if args['debug']:
+        verbosity=logging.DEBUG
+    elif args['verbose']:
+        verbosity=logging.INFO
     else:
-        args=[]
-        show_help = False
-    
-    logger = lxnstack.log.createMainLogger()
-    
-    #create main QApplication
+        verbosity=logging.WARNING
+
+    logger = lxnstack.log.createMainLogger(verbosity)
+
+    # create main QApplication
     app = Qt.QApplication(sys.argv)
 
-    splash=lxnstack.guicontrols.SplashScreen()
+    splash = lxnstack.guicontrols.SplashScreen()
     app.aboutToQuit.connect(splash.close)
-    #import the main application
 
-    if ('--verbose' in sys.argv) or ('-d' in sys.argv):
-        _VERBOSE=True
-    else:
-        _VERBOSE=False
-
-    #set some informations
+    # set some informations
     app.setOrganizationName(lxnstack.utils.PROGRAM)
     app.setApplicationName(lxnstack.utils.PROGRAM_NAME)
     splash.setValue(10)
     splash.showMessage('Loading qt environment...')
 
-    #loading translations
+    # loading translations
     qtr = Qt.QTranslator()
     splash.setValue(10)
-    lang=lxnstack.utils.getLocale()
+    lang = tr.getLocale()
     splash.setValue(15)
     qtr.load(lang)
     splash.setValue(20)
     app.installTranslator(qtr)
     splash.setValue(25)
-    
+
     splash.showMessage('loading application settings...')
-    #create the main application
-    mainApp = lxnstack.main_app.theApp(lang,args)
+    # create the main application
+    mainApp = lxnstack.main_app.theApp(lang, args)
     splash.setValue(90)
 
-    if show_help:
+    if args['user_manual']:
         mainApp.showUserMan()
         sys.exit(0)
-        
+
     mainApp.wnd.show()
 
     try:
-        lxnstack.log.log("lxnstack",'loading application settings')
+        lxnstack.log.log("lxnstack",
+                         'loading application settings',
+                         level=logging.INFO)
         mainApp.loadSettings()
     except Exception as exc:
-        #probably the first execution
-        lxnstack.log.log("lxnstack",'an error has occured while loading the application settings:\n'+str(exc),level=logging.ERROR)
-        lxnstack.log.log("lxnstack",'Ignore this warning if it is the first execution after the installation/upgrade.',level=logging.ERROR)
+        # probably this is the first execution
+        lxnstack.log.log("lxnstack",
+                         'an error has occured while loading the ' +
+                         'application settings: '+str(exc),
+                         level=logging.WARNING)
+        lxnstack.log.log("lxnstack",
+                         'Ignore this warning if it is the first ' +
+                         'execution after the installation/upgrade.',
+                         level=logging.WARNING)
         pass
 
     splash.setValue(100)
@@ -102,9 +203,11 @@ if __name__ == "__main__":
 
     splash.close()
     mainApp.executeCommads()
-            
-    retval=app.exec_()
 
-    lxnstack.log.log("lxnstack",'Shutting down...')
+    retval = app.exec_()
+
+    lxnstack.log.log("lxnstack",
+                     'exiting...',
+                     level=logging.INFO)
 
     sys.exit(retval)
