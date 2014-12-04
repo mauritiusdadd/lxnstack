@@ -52,6 +52,27 @@ BIAS_FRAME_TYPE = 'bias frame'
 DARK_FRAME_TYPE = 'dark frame'
 FLAT_FRAME_TYPE = 'flatfield frame'
 
+MSGBOX_ANSWERS = {
+    Qt.QMessageBox.Ok: 'Ok',
+    Qt.QMessageBox.Open: 'Open',
+    Qt.QMessageBox.Save: 'Save',
+    Qt.QMessageBox.Cancel: 'Cancel',
+    Qt.QMessageBox.Close: 'Close',
+    Qt.QMessageBox.Discard: 'Discard',
+    Qt.QMessageBox.Apply: 'Apply',
+    Qt.QMessageBox.Reset: 'Reset',
+    Qt.QMessageBox.RestoreDefaults: 'Restore defaults',
+    Qt.QMessageBox.Help: 'Help',
+    Qt.QMessageBox.SaveAll: 'Save all',
+    Qt.QMessageBox.Yes: 'Yes',
+    Qt.QMessageBox.YesToAll: 'Yes to all',
+    Qt.QMessageBox.No: 'No',
+    Qt.QMessageBox.NoToAll: 'No to all',
+    Qt.QMessageBox.Abort: 'Abort',
+    Qt.QMessageBox.Retry: 'Retry',
+    Qt.QMessageBox.Ignore: 'Ignore',
+    Qt.QMessageBox.NoButton: 'No answer'}
+
 
 def tr(s):
     news = QtCore.QCoreApplication.translate('@default', s)
@@ -68,7 +89,8 @@ def tr(s):
 
 
 def showMsgBox(text, informative_text="", parent=None,
-               buttons=Qt.QMessageBox.Ok, icon=None):
+               buttons=Qt.QMessageBox.Ok, icon=None,
+               caller=None):
     msgBox = Qt.QMessageBox(parent)
     msgBox.setText(str(text))
     msgBox.setInformativeText(str(informative_text))
@@ -76,55 +98,72 @@ def showMsgBox(text, informative_text="", parent=None,
 
     if icon is not None:
         msgBox.setIcon(icon)
+        if icon == Qt.QMessageBox.Critical:
+            loglevel = logging.ERROR
+        elif icon == Qt.QMessageBox.Warning:
+            loglevel = logging.WARNING
+        else:
+            loglevel = logging.DEBUG
+    else:
+        loglevel = logging.DEBUG
 
-    return msgBox.exec_()
+    if caller is None:
+        logname = "<lxnstack.utils module>"
+    else:
+        logname = repr(caller)+" called <lxnstack.utils module>"
+
+    log.log(logname,
+            str(text)+": "+informative_text,
+            level=loglevel)
+
+    answer = msgBox.exec_()
+    try:
+        answered = MSGBOX_ANSWERS[answer]
+    except KeyError:
+        answered = str(answer)
+
+    log.log(logname,
+            "User answered " + answered,
+            level=loglevel)
+
+    return answer
 
 
-def showYesNoMsgBox(text, informative_text="", parent=None):
+def showYesNoMsgBox(text, informative_text="", parent=None, caller=None):
     return showMsgBox(text,
                       informative_text,
                       parent,
                       Qt.QMessageBox.Yes |
                       Qt.QMessageBox.No,
-                      Qt.QMessageBox.Question)
+                      Qt.QMessageBox.Question,
+                      caller=caller)
 
 
-def showYesNoCancelMsgBox(text, informative_text="", parent=None):
+def showYesNoCancelMsgBox(text, informative_text="", parent=None, caller=None):
     return showMsgBox(text,
                       informative_text,
                       parent,
                       Qt.QMessageBox.Yes |
                       Qt.QMessageBox.No |
                       Qt.QMessageBox.Cancel,
-                      Qt.QMessageBox.Question)
+                      Qt.QMessageBox.Question,
+                      caller=caller)
 
 
-def showErrorMsgBox(text, informative_text="", parent=None):
-    if parent is None:
-        logname = "<lxnstack.utils module>"
-    else:
-        logname = repr(parent)
-    log.log(logname,
-            "MessageBox: "+str(text)+": "+informative_text,
-            level=logging.ERROR)
+def showErrorMsgBox(text, informative_text="", parent=None, caller=None):
     return showMsgBox(tr("Error")+": "+str(text),
                       informative_text,
                       parent,
-                      icon=Qt.QMessageBox.Critical)
+                      icon=Qt.QMessageBox.Critical,
+                      caller=caller)
 
 
-def showWarningMsgBox(text, informative_text="", parent=None):
-    if parent is None:
-        logname = "<lxnstack.utils module>"
-    else:
-        logname = repr(parent)
-    log.log(logname,
-            "MessageBox: "+str(text)+": "+informative_text,
-            level=logging.WARN)
+def showWarningMsgBox(text, informative_text="", parent=None, caller=None):
     return showMsgBox(tr("Warning")+": "+str(text),
                       informative_text,
                       parent,
-                      icon=Qt.QMessageBox.Warning)
+                      icon=Qt.QMessageBox.Warning,
+                      caller=caller)
 
 try:
     import numpy as np
@@ -670,7 +709,7 @@ class Frame(Qt.QObject):
                 try:
                     hdu_table = pyfits.open(file_name, ignore_missing_end=True)
                 except Exception as exc2:
-                    showErrorMsgBox(exc2)
+                    showErrorMsgBox(exc2, caller=self)
                     return None
 
             header = hdu_table[0].header
@@ -1413,7 +1452,8 @@ class Frame(Qt.QObject):
                     hdl.info(),
                     level=logging.INFO)
         else:
-            showErrorMsgBox("unsupported data format!")
+            showErrorMsgBox("unsupported data format!",
+                            caller=self)
 
     def _get_fits_hdl(self, name, data, header, compressed=False, outbits=16):
             if compressed:
@@ -1639,9 +1679,11 @@ class Frame(Qt.QObject):
                     if not valid_dir:
                         showWarningMsgBox(tr("The selected output folder " +
                                              "is not a directory\nor it " +
-                                             "does not exist!"))
+                                             "does not exist!"),
+                                          caller=self)
                     if invalid_name:
-                        showWarningMsgBox(tr("The file name is not valid!"))
+                        showWarningMsgBox(tr("The file name is not valid!"),
+                                          caller=self)
 
                     if self.save_dlg.exec_() != 1:
                         log.log(repr(self),
@@ -1773,7 +1815,8 @@ class Frame(Qt.QObject):
                               "with this version of pyfits")
                     msg2 = tr("the image was saved as an " +
                               "uncompressed FITS file.")
-                    showWarningMsgBox(msg1+":\n "+msg2)
+                    showWarningMsgBox(msg1+":\n "+msg2,
+                                      caller=self)
                 else:
                     log.log(repr(self),
                             "Cannot save compressed files with this " +
@@ -1792,7 +1835,8 @@ class Frame(Qt.QObject):
                 showErrorMsgBox(tr("Cannot save image:"),
                                 tr("Unsupported format ") +
                                 str(bits)+"-bit "+tr("for") +
-                                " "+str(frmat))
+                                " "+str(frmat),
+                                caller=self)
                 return False
 
             return self._imwrite_cv2_(rawavg,

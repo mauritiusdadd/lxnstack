@@ -613,7 +613,7 @@ class theApp(Qt.QObject):
 
     def criticalError(self, msg, msgbox=True):
         if msgbox:
-            utils.showErrorMsgBox(msg)
+            utils.showErrorMsgBox(msg, caller=self)
         else:
             log.log(repr(self),
                     msg,
@@ -1101,7 +1101,8 @@ class theApp(Qt.QObject):
                     str(self.currentDepht) +
                     tr(' image channels=') +
                     str(dep),
-                    parent=self.wnd)
+                    parent=self.wnd,
+                    caller=self)
                 return True
             else:
                 return False
@@ -1330,7 +1331,8 @@ class theApp(Qt.QObject):
                 if not i.is_good:
                     utils.showErrorMsgBox(tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
-                                          parent=self.wnd)
+                                          parent=self.wnd,
+                                          caller=self)
                     return False
                 imw = i.width
                 imh = i.height
@@ -1352,13 +1354,14 @@ class theApp(Qt.QObject):
                         tr('current channels=') +
                         str(self.currentDepht) + '\n' +
                         tr('image channels=') + str(dep),
-                        parent=self.wnd)
+                        parent=self.wnd,
+                        caller=self)
                 del i
             except Exception as exc:
                 log.log(repr(self),
                         str(exc),
                         level=logging.ERROR)
-                utils.showErrorMsgBox("", exc)
+                utils.showErrorMsgBox("", exc, caller=self)
 
     def useMasterDark(self, state):
         if state == 2:
@@ -1392,7 +1395,8 @@ class theApp(Qt.QObject):
                 if not i.is_good:
                     utils.showErrorMsgBox(tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
-                                          parent=self.wnd)
+                                          parent=self.wnd,
+                                          caller=self)
                     return False
                 imw = i.width
                 imh = i.height
@@ -1414,13 +1418,14 @@ class theApp(Qt.QObject):
                         tr('current channels=') +
                         str(self.currentDepht) + '\n' +
                         tr('image channels=')+str(dep),
-                        parent=self.wnd)
+                        parent=self.wnd,
+                        caller=self)
                 del i
             except Exception as exc:
                 log.log(repr(self),
                         str(exc),
                         level=logging.ERROR)
-                utils.showErrorMsgBox("", exc)
+                utils.showErrorMsgBox("", exc, caller=self)
 
     def useMasterFlat(self, state):
         if state == 2:
@@ -1453,7 +1458,8 @@ class theApp(Qt.QObject):
                 if not i.is_good:
                     utils.showErrorMsgBox(tr("Cannot open image") +
                                           " \"" + str(i.url) + "\"",
-                                          parent=self.wnd)
+                                          parent=self.wnd,
+                                          caller=self)
                     return False
                 imw = i.width
                 imh = i.height
@@ -1475,13 +1481,14 @@ class theApp(Qt.QObject):
                         tr('current channels=') +
                         str(self.currentDepht) + '\n' +
                         tr('image channels=') + str(dep),
-                        parent=self.wnd)
+                        parent=self.wnd,
+                        caller=self)
                 del i
             except Exception as exc:
                 log.log(repr(self),
                         str(exc),
                         level=logging.ERROR)
-                utils.showErrorMsgBox("", exc)
+                utils.showErrorMsgBox("", exc, caller=self)
 
     # closeEvent callback
     def mainWindowCloseEvent(self, event):
@@ -1489,7 +1496,8 @@ class theApp(Qt.QObject):
             val = utils.showYesNoMsgBox(
                 tr("Do you really want to quit?"),
                 tr("All unsaved changes will be lost!"),
-                parent=self.wnd)
+                parent=self.wnd,
+                caller=self)
 
             if val == Qt.QMessageBox.Yes:
                 self.stopDirectVideoCapture()
@@ -3714,14 +3722,12 @@ class theApp(Qt.QObject):
         else:
             self._save_project()
 
-    def corruptedMsgBox(self, info=None):
-            msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr("The project is invalid or corrupted!"))
-            if info is not None:
-                msgBox.setInformativeText(str(info))
-            msgBox.setIcon(Qt.QMessageBox.Critical)
-            msgBox.exec_()
-            return False
+    def corruptedMsgBox(self, info=""):
+        utils.showErrorMsgBox(tr("The project is invalid or corrupted!"),
+                              info,
+                              parent=self.wnd,
+                              caller=self)
+        return False
 
     def _save_project(self):
         self.lock(False)
@@ -6027,7 +6033,8 @@ class theApp(Qt.QObject):
                         r, strx, stry,
                         i[3], i[4], i[5])
                 except Exception as exc:
-                    utils.showErrorMsgBox(str(exc))
+                    utils.showErrorMsgBox(str(exc),
+                                          caller=self)
                     self.unlock()
                     return False
 
@@ -6362,7 +6369,8 @@ class theApp(Qt.QObject):
                 utils.showErrorMsgBox(
                     tr("Cannot create the video file."),
                     tr("Try to use a lower resolution and assure " +
-                       "you\nhave the permissions to write the file."))
+                       "you\nhave the permissions to write the file."),
+                    caller=self)
 
         log.log(repr(self),
                 'writing video to: \"'+file_name+'\"',
@@ -6469,7 +6477,8 @@ class theApp(Qt.QObject):
                     level=logging.INFO)
 
         else:
-            utils.showErrorMsgBox('Cannot open destination file')
+            utils.showErrorMsgBox('Cannot open destination file',
+                                  caller=self)
 
     def doSaveResult(self, clicked):
         return self.saveResult()
@@ -6482,7 +6491,8 @@ class theApp(Qt.QObject):
 
         while not os.path.isdir(destdir):
             utils.showWarningMsgBox(tr("The selected output folder is not " +
-                                       "a directory\nor it does not exist!"))
+                                       "a directory\nor it does not exist!"),
+                                    caller=self)
             if self.save_dlg.exec_() != 1:
                 return False
             destdir = str(self.save_dlg.lineEditDestDir.text())

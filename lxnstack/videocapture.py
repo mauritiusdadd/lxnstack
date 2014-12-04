@@ -3573,7 +3573,8 @@ class CaptureScheduler(Qt.QObject):
             # This should never never happens.
             utils.showErrorMsgBox(
                 utils.tr("Somethig terrible wrong has happend!\n" +
-                         "Please send a bug report to the author."))
+                         "Please send a bug report to the author."),
+                caller=self)
         elif len(self.jobs) <= 0:
             self._lock_ctrls(True)
         elif (len(self.jobs) > 0):
