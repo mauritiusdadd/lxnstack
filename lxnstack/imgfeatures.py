@@ -120,19 +120,20 @@ class AlignmentPoint(ImageFeature):
 
 class Star(ImageFeature):
 
-    def __init__(self):
+    def __init__(self, x=0, y=0, name="", pid=""):
 
-        ImageFeature.__init__(self)
+        ImageFeature.__init__(self, x, y, name, pid)
 
         self.x = 0
         self.y = 0
-        self.r1 = 0
-        self.r2 = 0
-        self.r3 = 0
+        self.r0 = 0
+        self.r1 = 10
+        self.r2 = 20
+        self.r3 = 30
         self.magnitude = 0
         self.color1 = QtCore.Qt.green
         self.color2 = QtCore.Qt.white
-        self.name = ""
+        self.name = name
         self.reference = False
 
     def draw(self, painter):

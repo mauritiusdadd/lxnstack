@@ -33,7 +33,8 @@ DIFFERENCEVIEWER = "diffviewer"
 
 READY = 0x0001
 UPDATED = 0x0002
-NEEDSUPDATE = 0x0004
+NEEDS_IMAGE_UPDATE = 0x0004
+NEEDS_FEATURES_UPDATE = 0x0004
 
 
 class SplashScreen(Qt.QObject):
@@ -353,6 +354,9 @@ class ImageViewer(QtGui.QWidget):
         self.setZoomMode(1, True)
         self.setOutputLevelsRange((0, 100))
         self.setLevelsFitMode(0)
+
+    def setFeatures(self, flist):
+        self.image_features = flist
 
     def doSaveImage(self):
         if self.mapped_image is not None:

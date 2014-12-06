@@ -68,6 +68,7 @@ class theApp(Qt.QObject):
         self._old_tab_idx = 0
         self.__operating = False           # used to avoid recursion loop
         self.__updating_mdi_ctrls = False  # used to avoid recursion loop
+        self._updating_feature = False     # used to avoid recursion loop
         self._photo_time_clock = 0
         self._phase_align_data = None
 
@@ -119,9 +120,6 @@ class theApp(Qt.QObject):
         self.current_align_method = 0
         self.is_aligning = False
 
-        self.showAlignPoints = True
-        self.showStarPoints = True
-
         self.image_idx = -1
         self.ref_image_idx = -1
         self.dif_image_idx = -1
@@ -152,7 +150,6 @@ class theApp(Qt.QObject):
         self.biasframelist = []
         self.darkframelist = []
         self.flatframelist = []
-        self.starslist = []
         self.lightcurve = {}
 
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,
@@ -1903,34 +1900,6 @@ class theApp(Qt.QObject):
         q.chart_properties['line_width'] = val
         surface.repaint()
 
-    def _drawAlignPoints(self, painter):
-        if(len(self.framelist) == 0) or (not self.showAlignPoints):
-            return False
-        painter.setFont(Qt.QFont("Arial", 8))
-        for i in self.framelist[self.image_idx].alignpoints:
-
-            x = i[0] + 0.5
-            y = i[1] + 0.5
-
-            rect = Qt.QRectF(x+8, y+10, 45, 15)
-
-            painter.setCompositionMode(28)
-            painter.setBrush(QtCore.Qt.NoBrush)
-            painter.setPen(QtCore.Qt.white)
-            utils.drawMarker(painter, x, y)
-            painter.setCompositionMode(0)
-            painter.setBrush(QtCore.Qt.blue)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(rect)
-            painter.setPen(QtCore.Qt.yellow)
-            painter.drawText(rect, QtCore.Qt.AlignCenter, i[2])
-            rect = Qt.QRectF(x-self.aap_rectangle[0]/2,
-                             y-self.aap_rectangle[1]/2,
-                             self.aap_rectangle[0],
-                             self.aap_rectangle[1])
-            painter.setBrush(QtCore.Qt.NoBrush)
-            painter.drawRect(rect)
-
     def deselectAllListWidgetsItems(self):
         self.wnd.lightListWidget.setCurrentItem(None)
         self.wnd.biasListWidget.setCurrentItem(None)
@@ -1997,7 +1966,8 @@ class theApp(Qt.QObject):
         if type(image) == utils.Frame:
             iv.showImage(self.debayerize(image.getData(asarray=True)))
             self.mdi_windows[sw]['references'] = [image, ]
-            iv.image_features = image.alignpoints
+            iv.image_features = image.getAllFeatures()
+            image.featuresChanged.connect(iv.setFeatures)
         else:
             iv.showImage(image)
 
@@ -2098,13 +2068,13 @@ class theApp(Qt.QObject):
                     listwidget = self.wnd.flatListWidget
 
                 try:
-                    lististem = refimg.getProperty('listItem')
-                    listwidget.setCurrentItem(lististem)
-                    self.updateImageFeatures(listwidget, lististem)
+                    listitem = refimg.getProperty('listItem')
+                    listwidget.setCurrentItem(listitem)
+                    self.updateImageFeatures(listwidget, listitem)
                 except:
                     listwidget.setCurrentItem(None)
                 else:
-                    if iv['status'] == guicontrols.NEEDSUPDATE:
+                    if iv['status'] == guicontrols.NEEDS_IMAGE_UPDATE:
                         self.showImage(image=refimg,
                                        title=iv['name'],
                                        mdisubwindow=mdisw,
@@ -2883,16 +2853,19 @@ class theApp(Qt.QObject):
 
     def clearAlignPoinList(self):
         for frm in self.framelist:
-            while len(frm.alignpoints) > 0:  # flush the list and
-                frm.alignpoints.pop()        # force the deletion
+            while frm.alignpoints:      # flush the list and
+                frm.removeAlignPoint()  # force the deletion
         self.wnd.alignPointsListWidget.clear()
         self.wnd.removePointPushButton.setEnabled(False)
+        self.wnd.alignDeleteAllPushButton.setEnabled(False)
 
     def clearStarsList(self):
-        while len(self.starslist) > 0:        # flush the list and
-            self.starslist.alignpoints.pop()  # force the deletion
+        for frm in self.framelist:
+            while frm.stars:      # flush the list and
+                frm.removeStar()  # force the deletion
         self.wnd.starsListWidget.clear()
         self.wnd.removeStarPushButton.setEnabled(False)
+        self.wnd.starsDeleteAllPushButton.setEnabled(False)
         self.action_gen_lightcurves.setEnabled(False)
 
     def setAllListItemsCheckState(self, state):
@@ -2979,7 +2952,7 @@ class theApp(Qt.QObject):
                 "Forcing update of displayed images",
                 level=logging.DEBUG)
         for sw in self.mdi_windows:
-            self.mdi_windows[sw]['status'] = guicontrols.NEEDSUPDATE
+            self.mdi_windows[sw]['status'] = guicontrols.NEEDS_IMAGE_UPDATE
 
         # update the current mdi subwindow
         curr_mdsw = self.mdi.activeSubWindow()
@@ -3150,12 +3123,11 @@ class theApp(Qt.QObject):
 
         if idx >= 0:
             self.wnd.alignGroupBox.setEnabled(True)
-            self.wnd.alignDeleteAllPushButton.setEnabled(True)
         else:
             self.wnd.alignGroupBox.setEnabled(False)
-            self.wnd.alignDeleteAllPushButton.setEnabled(False)
 
     def manualAlignListItemChanged(self, idx):
+        self.star_idx = idx
         item = self.wnd.listWidgetManualAlign.item(idx)
         if item is None:
             return
@@ -3212,6 +3184,9 @@ class theApp(Qt.QObject):
 
     def alignListItemChanged(self, idx):
         self.point_idx = idx
+        if self._updating_feature:
+            return
+        self._updating_feature = True
         if idx >= 0:
             pnt = self.framelist[self.image_idx].alignpoints[idx]
             self.wnd.spinBoxXAlign.setEnabled(True)
@@ -3225,6 +3200,8 @@ class theApp(Qt.QObject):
             self.wnd.removePointPushButton.setEnabled(False)
             self.wnd.spinBoxXAlign.setValue(0)
             self.wnd.spinBoxYAlign.setValue(0)
+        QtGui.QApplication.instance().processEvents()
+        self._updating_feature = False
 
     def updateCurrentAlignPoint(self, pid, pname):
         pnt_lw = self.wnd.alignPointsListWidget
@@ -3235,24 +3212,46 @@ class theApp(Qt.QObject):
         pnt_lw = self.wnd.alignPointsListWidget
         pntitem = pnt_lw.findItems(pname, QtCore.Qt.MatchExactly)[0]
         self.wnd.alignPointsListWidget.setCurrentItem(pntitem)
+        self._updating_feature = True
         self.wnd.spinBoxXAlign.setValue(x)
         self.wnd.spinBoxYAlign.setValue(y)
+        self._updating_feature = False
+
+    def updateStarPosition(self, x, y, pid, pname):
+        str_lw = self.wnd.starsListWidget
+        stritem = str_lw.findItems(pname, QtCore.Qt.MatchExactly)[0]
+        self.wnd.starsListWidget.setCurrentItem(stritem)
+        self._updating_feature = True
+        self.wnd.spinBoxXStar.setValue(x)
+        self.wnd.spinBoxYStar.setValue(y)
+        self._updating_feature = False
 
     def starsListItemChanged(self, q):
+        star_idx = self.wnd.starsListWidget.row(q)
+        pnt = self.framelist[self.image_idx].stars[star_idx]
         if q.checkState() == 0:
-            self.starslist[q.original_id].reference = False
+            pnt.reference = False
             self.wnd.magDoubleSpinBox.setEnabled(False)
         else:
-            self.starslist[q.original_id].reference = True
+            pnt.reference = True
             self.wnd.magDoubleSpinBox.setEnabled(True)
 
     def currentStarsListItemChanged(self, idx):
         self.star_idx = idx
-
+        if self._updating_feature:
+            return
+        self._updating_feature = True
         if idx >= 0:
-            pnt = self.starslist[idx]
+            pnt = self.framelist[self.image_idx].stars[idx]
 
-            if pnt[6] is True:
+            self.wnd.spinBoxXStar.setValue(pnt.x)
+            self.wnd.spinBoxYStar.setValue(pnt.y)
+            self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r1)
+            self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r2)
+            self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r3)
+            self.wnd.magDoubleSpinBox.setValue(pnt.magnitude)
+
+            if pnt.reference:
                 self.wnd.magDoubleSpinBox.setEnabled(True)
             else:
                 self.wnd.magDoubleSpinBox.setEnabled(False)
@@ -3263,14 +3262,14 @@ class theApp(Qt.QObject):
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.removeStarPushButton.setEnabled(True)
-
-            self.wnd.spinBoxXStar.setValue(pnt.x)
-            self.wnd.spinBoxYStar.setValue(pnt.y)
-            self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r1)
-            self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r2)
-            self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r3)
-            self.wnd.magDoubleSpinBox.setValue(pnt.magnitude)
         else:
+            self.wnd.spinBoxXStar.setValue(0)
+            self.wnd.spinBoxYStar.setValue(0)
+            self.wnd.innerRadiusDoubleSpinBox.setValue(0)
+            self.wnd.middleRadiusDoubleSpinBox.setValue(0)
+            self.wnd.outerRadiusDoubleSpinBox.setValue(0)
+            self.wnd.magDoubleSpinBox.setValue(0)
+
             self.wnd.spinBoxXStar.setEnabled(False)
             self.wnd.spinBoxYStar.setEnabled(False)
             self.wnd.innerRadiusDoubleSpinBox.setEnabled(False)
@@ -3278,13 +3277,47 @@ class theApp(Qt.QObject):
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.removeStarPushButton.setEnabled(False)
             self.wnd.magDoubleSpinBox.setEnabled(False)
+        QtGui.QApplication.instance().processEvents()
+        self._updating_feature = False
 
-            self.wnd.spinBoxXStar.setValue(0)
-            self.wnd.spinBoxYStar.setValue(0)
-            self.wnd.innerRadiusDoubleSpinBox.setValue(0)
-            self.wnd.middleRadiusDoubleSpinBox.setValue(0)
-            self.wnd.outerRadiusDoubleSpinBox.setValue(0)
-            self.wnd.magDoubleSpinBox.setValue(0)
+    def addFeature(self, ftype, fstr, listwidget, updateFunc):
+        if not self.framelist:
+            return False
+
+        if issubclass(ftype, imgfeatures.Star):
+            refftrlist = self.framelist[0].stars
+        elif issubclass(ftype, imgfeatures.AlignmentPoint):
+            refftrlist = self.framelist[0].alignpoints
+
+        idx = 1
+        for i in range(listwidget.count()):
+            pname = fstr.format(i+1)
+            if refftrlist[i].name != pname:
+                idx = i + 1
+                break
+            else:
+                idx = i + 2
+
+        pname = fstr.format(idx)
+
+        for frm in self.framelist:
+            ftr = ftype(0, 0, pname)
+            ftr.moved.connect(updateFunc)
+            if issubclass(ftype, imgfeatures.Star):
+                frm.addStar(ftr, idx-1)
+            elif isinstance(ftr, imgfeatures.AlignmentPoint):
+                frm.addAlignPoint(ftr, idx-1)
+
+        q = Qt.QListWidgetItem(pname)
+        tooltip_text = tr.tr('star')+' '+pname
+        q.setToolTip(tooltip_text)
+        listwidget.insertItem(idx-1, q)
+
+        if issubclass(ftype, imgfeatures.Star):
+            q.setCheckState(0)
+
+        listwidget.setCurrentRow(idx-1)
+        return idx - 1
 
     def addAlignPoint(self):
         if self.dlg.autoSizeCheckBox.checkState() == 2:
@@ -3295,165 +3328,142 @@ class theApp(Qt.QObject):
             self.dlg.rWSpinBox.setValue(r_l)
             self.dlg.rHSpinBox.setValue(r_l)
 
-        idx = 1
-        for i in range(self.wnd.alignPointsListWidget.count()):
-            pname = '#{0:05d}'.format(i+1)
-            if self.framelist[0].alignpoints[i].name != pname:
-                idx = i + 1
-                break
-            else:
-                idx = i + 2
-
-        pname = '#{0:05d}'.format(idx)
-        q = Qt.QListWidgetItem(pname)
-        tooltip_text = tr.tr('alignment-point')+' '+pname
-        q.setToolTip(tooltip_text)
-        self.wnd.alignPointsListWidget.insertItem(idx-1, q)
-
-        if(len(self.framelist[self.image_idx].alignpoints) == 0):
-            self.wnd.removePointPushButton.setEnabled(False)
-
-        for frm in self.framelist:
-            alpnt = imgfeatures.AlignmentPoint(0, 0, pname)
-            alpnt.moved.connect(self.updateAlignPointPosition)
-            frm.alignpoints.insert(idx-1, alpnt)
-
-        self.wnd.alignPointsListWidget.setCurrentRow(idx-1)
-        return (idx-1)
+        idx = self.addFeature(imgfeatures.AlignmentPoint,
+                              'ap#{0:05d}',
+                              self.wnd.alignPointsListWidget,
+                              self.updateAlignPointPosition)
+        self.wnd.removePointPushButton.setEnabled(True)
+        self.wnd.alignDeleteAllPushButton.setEnabled(True)
+        return idx
 
     def addStar(self):
-
-        idx = 1
-        for i in range(self.wnd.starsListWidget.count()):
-            pname = 'star#{0:05d}'.format(i+1)
-            if self.starslist[i][2] != pname:
-                idx = i + 1
-                break
-            else:
-                idx = i + 2
-
-        pname = 'star#{0:05d}'.format(idx)
-        q = Qt.QListWidgetItem(pname)
-        q.setCheckState(0)
-        q.original_id = idx - 1
-        self.wnd.starsListWidget.insertItem(idx-1, q)
-
-        if self.starslist:
-            self.wnd.removeStarPushButton.setEnabled(True)
-
-        self.starslist.insert(idx-1, [0, 0, pname, 7, 10, 15, False, 0])
-
-        self.imageLabel.repaint()
-        self.wnd.starsListWidget.setCurrentRow(idx-1)
-
-        if (not self.action_gen_lightcurves.isEnabled() and
-                (self.wnd.starsListWidget.count() > 0)):
-            self.action_gen_lightcurves.setEnabled(True)
-
-        return idx-1
+        idx = self.addFeature(imgfeatures.Star,
+                              'st#{0:05d}',
+                              self.wnd.starsListWidget,
+                              self.updateStarPosition)
+        self.action_gen_lightcurves.setEnabled(True)
+        self.wnd.removeStarPushButton.setEnabled(True)
+        self.wnd.starsDeleteAllPushButton.setEnabled(True)
+        return idx
 
     def removeAlignPoint(self):
-        point_idx = self.wnd.alignPointsListWidget.currentRow()
-
         for frm in self.framelist:
-            frm.alignpoints.pop(point_idx)
+            frm.removeAlignPoint(self.point_idx)
 
-        # needed to avoid bugs
-        self.wnd.alignPointsListWidget.setCurrentRow(-1)
-        item = self.wnd.alignPointsListWidget.takeItem(point_idx)
+        self.updateAlignPointList(self.image_idx)
 
         if not self.framelist[self.image_idx].alignpoints:
             self.wnd.removePointPushButton.setEnabled(False)
-
-        del item
+            self.wnd.alignDeleteAllPushButton.setEnabled(False)
 
     def removeStar(self):
-        star_idx = self.wnd.starsListWidget.currentRow()
+        for frm in self.framelist:
+            frm.removeStar(self.star_idx)
 
-        self.starslist.pop(star_idx)
+        self.updateStarList(self.image_idx)
 
-        # needed to avoid bugs
-        self.wnd.starsListWidget.setCurrentRow(-1)
-        item = self.wnd.starsListWidget.takeItem(star_idx)
-
-        if not self.starslist:
+        if not self.framelist[self.image_idx].stars:
             self.wnd.removeStarPushButton.setEnabled(False)
             self.action_gen_lightcurves.setEnabled(False)
+            self.wnd.starsDeleteAllPushButton.setEnabled(False)
 
-        del item
-
-    def updateImageFeatures(self, listwidget, lististem):
+    def updateImageFeatures(self, listwidget, listitem):
         log.log(repr(self),
                 "Updating image features...",
                 level=logging.DEBUG)
         if listwidget is self.wnd.lightListWidget:
-            self.updateAlignPointList(lististem)
+            image_idx = self.wnd.lightListWidget.row(listitem)
+            self._updating_feature = True
+            self.updateAlignPointList(image_idx)
+            self.updateStarList(image_idx)
+            self._updating_feature = False
 
-    def updateAlignPointList(self, listitem):
+    def updateAlignPointList(self, image_idx):
         log.log(repr(self),
                 "Updating alignment points list...",
                 level=logging.DEBUG)
         self.wnd.alignPointsListWidget.clear()
 
-        if listitem is None:
+        if image_idx < 0:
             # no item selected!
             return
 
-        imagename = listitem.text()
-
-        for pnt in self.framelist[self.image_idx].alignpoints:
+        frm = self.framelist[image_idx]
+        imagename = self.wnd.lightListWidget.item(image_idx).text()
+        for pnt in frm.alignpoints:
             q = Qt.QListWidgetItem(pnt.name, self.wnd.alignPointsListWidget)
             tooltip_text = tr.tr('image')+' '+imagename+" \n"
             tooltip_text += tr.tr('alignment-point')+' '+pnt.name
             q.setToolTip(tooltip_text)
 
+    def updateStarList(self, image_idx):
+        log.log(repr(self),
+                "Updating stars list...",
+                level=logging.DEBUG)
+        self.wnd.starsListWidget.clear()
+
+        if image_idx < 0:
+            # no item selected!
+            return
+
+        frm = self.framelist[image_idx]
+        imagename = self.wnd.lightListWidget.item(image_idx).text()
+        for star in frm.stars:
+            q = Qt.QListWidgetItem(star.name, self.wnd.starsListWidget)
+            tooltip_text = tr.tr('image')+' '+imagename+" \n"
+            tooltip_text += tr.tr('star')+' '+star.name
+            q.setToolTip(tooltip_text)
+            q.setCheckState(2*int(star.reference))
+
     def shiftX(self, val):
-        if self.point_idx >= 0:
+        if self.point_idx >= 0 and not self._updating_feature:
             pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
             pnt.x = val
             pnt.aligned = False
 
     def shiftY(self, val):
-        if self.point_idx >= 0:
+        if self.point_idx >= 0 and not self._updating_feature:
             pnt = self.framelist[self.image_idx].alignpoints[self.point_idx]
             pnt.y = val
             pnt.aligned = False
 
     def shiftStarX(self, val):
-        if self.star_idx >= 0:
-            pnt = self.starslist[self.star_idx]
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
             pnt.x = val
 
     def shiftStarY(self, val):
-        if self.star_idx >= 0:
-            pnt = self.starslist[self.star_idx]
-            pnt.yval
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
+            pnt.y = val
 
     def setInnerRadius(self, val):
-        if (self.star_idx >= 0):
-            pnt = self.starslist[self.star_idx]
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
             pnt.r1 = val
-            if pnt.r2-pnt.r2 < 2:
+            if pnt.r2-pnt.r1 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r1+2)
 
     def setMiddleRadius(self, val):
-        if self.star_idx >= 0:
-            pnt = self.starslist[self.star_idx]
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
             pnt.r2 = val
-            if pnt.r2-pnt[3] < 2:
+            if pnt.r2-pnt.r1 < 2:
                 self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r2-2)
             if pnt.r3-pnt.r2 < 2:
                 self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r2+2)
 
     def setOuterRadius(self, val):
-        if self.star_idx >= 0:
-            pnt = self.starslist[self.star_idx]
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
             pnt.r3 = val
             if pnt.r3-pnt.r2 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r3-2)
 
     def setMagnitude(self, val):
-        self.starslist[self.star_idx][7] = val
+        if self.star_idx >= 0 and not self._updating_feature:
+            pnt = self.framelist[self.image_idx].stars[self.star_idx]
+            pnt.magnitude = val
 
     def shiftOffsetX(self, val):
         if self.dif_image_idx >= 0:
@@ -3477,15 +3487,6 @@ class theApp(Qt.QObject):
         self.ref_image_idx = -1
         QtGui.QApplication.instance().setOverrideCursor(QtCore.Qt.WaitCursor)
 
-        self.showAlignPoints = False
-        self.showStarPoints = False
-
-        if idx == 0:
-            self.showStarPoints = True
-
-        if idx == 1:
-            self.showAlignPoints = True
-
         if idx == 2:
             log.log(repr(self),
                     "Setting up manual alignment controls",
@@ -3503,21 +3504,6 @@ class theApp(Qt.QObject):
                         level=logging.DEBUG)
                 self.wnd.listWidgetManualAlign.setCurrentRow(0)
                 self.showDifference()
-
-        if idx == 6:
-            self.showStarPoints = True
-            try:
-                if self.image_idx >= 0:
-                    # the first enabled frame must be used
-                    for i in range(len(self.framelist)):
-                        if self.framelist[i].isUsed():
-                            self.image_idx = i
-                            break
-                    self.wnd.lightListWidget.setCurrentRow(self.image_idx)
-                    img = self.framelist[self.image_idx]
-                    self.showImage(self.debayerize(img.getData(asarray=True)))
-            except IndexError:
-                pass  # maybe there are no images in the list yet?
 
         self._old_tab_idx = idx
         QtGui.QApplication.instance().restoreOverrideCursor()
@@ -3573,7 +3559,6 @@ class theApp(Qt.QObject):
         self.biasframelist = []
         self.darkframelist = []
         self.flatframelist = []
-        self.starslist = []
         self.lightcurve = {}
 
         self.lockSidebar()
@@ -4347,7 +4332,7 @@ class theApp(Qt.QObject):
         self.biasframelist = biasframelist
         self.darkframelist = darkframelist
         self.flatframelist = flatframelist
-        self.starslist = starslist
+        # FIXME: self.starslist = starslist
         self.image_idx = current_row
         self.master_bias_file = master_bias_url
         self.master_dark_file = master_dark_url

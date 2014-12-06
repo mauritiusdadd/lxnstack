@@ -25,6 +25,24 @@ LOGGERNAME = "lxnstack-root-logger"
 LOG_FILE = os.path.join(paths.HOME_PATH, 'lxnstack.log')
 
 
+class CallStack(object):
+
+    def __init__(self, ctree=[], rev=False):
+        self._tree = ctree
+        if rev:
+            self._tree.reverse()
+
+    def getCallStack(self):
+        return self._tree[:]
+
+    def __str__(self):
+        s = "\n>>--{call stack}--<<\n"
+        for x in self._tree:
+            s += str(x) + "\n"
+        s += ">>----------------<<\n"
+        return s
+
+
 class LogContext(object):
 
     def __getitem__(self, key):
@@ -68,3 +86,10 @@ def log(module, message, level=logging.DEBUG, *arg, **args):
 
     for each_message in str(message).splitlines():
         logging.getLogger(LOGGERNAME).log(level, each_message, extra=args)
+
+
+def getCallStack():
+    lst = []
+    for parent in inspect.stack()[1:]:
+        lst.append(parent[3])
+    return CallStack(lst)

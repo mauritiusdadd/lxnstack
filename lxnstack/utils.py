@@ -418,6 +418,7 @@ class Frame(Qt.QObject):
     """
 
     titleChanged = QtCore.pyqtSignal(str)
+    featuresChanged = QtCore.pyqtSignal(list)
     infoTextChanged = QtCore.pyqtSignal(str)
     progressValueChanged = QtCore.pyqtSignal(int)
     progressMaximumChanged = QtCore.pyqtSignal(int)
@@ -498,6 +499,7 @@ class Frame(Qt.QObject):
             if not ('data' in args):
                 del _tmp_data
 
+        self.stars = []
         self.alignpoints = []
         self.angle = 0
         self.offset = None
@@ -517,7 +519,7 @@ class Frame(Qt.QObject):
                       np.issubdtype(dtyp, np.uint) or
                       np.issubdtype(dtyp, np.uint16) or
                       np.issubdtype(dtyp, np.uint32) or
-                      np.issubdtype(dtyp, np.uint6)):
+                      np.issubdtype(dtyp, np.uint8)):
                     self.mode = 'I'
                 elif np.issubdtype(dtyp, np.bool):
                     self.mode = '1'
@@ -537,7 +539,7 @@ class Frame(Qt.QObject):
                   np.issubdtype(dtyp, np.uint) or
                   np.issubdtype(dtyp, np.uint16) or
                   np.issubdtype(dtyp, np.uint32) or
-                  np.issubdtype(dtyp, np.uint6)):
+                  np.issubdtype(dtyp, np.uint8)):
                 self.mode = 'I'
             elif np.issubdtype(dtyp, np.bool):
                 self.mode = '1'
@@ -612,6 +614,30 @@ class Frame(Qt.QObject):
 
     def setAngle(self, ang):
         self.angle = ang
+
+    def _addFeature(self, ft, ftlist, idx=None):
+        if idx is None:
+            ftlist.append(ft)
+        else:
+            ftlist.insert(idx, ft)
+        self.featuresChanged.emit(self.getAllFeatures())
+
+    def addStar(self, star, idx=None):
+        self._addFeature(star, self.stars, idx)
+
+    def addAlignPoint(self, ap, idx=None):
+        self._addFeature(ap, self.alignpoints, idx)
+
+    def removeStar(self, idx=-1):
+        self.stars.pop(idx)
+        self.featuresChanged.emit(self.getAllFeatures())
+
+    def removeAlignPoint(self, idx=-1):
+        self.alignpoints.pop(idx)
+        self.featuresChanged.emit(self.getAllFeatures())
+
+    def getAllFeatures(self):
+        return self.alignpoints + self.stars
 
     def getData(self, asarray=False, asuint8=False,
                 fit_levels=False, ftype=np.float32,
