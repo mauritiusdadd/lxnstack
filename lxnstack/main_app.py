@@ -37,6 +37,7 @@ import mappedimage
 import guicontrols
 import colormaps as cmaps
 import translation as tr
+import lightcurves as lcurves
 
 
 def Int(val):
@@ -45,10 +46,6 @@ def Int(val):
         return int(i)
     else:
         return int(math.ceil(val))
-
-
-def dist(x1, y1, x2, y2):
-    return (((x2-x1)**2) + ((y2-y1)**2))**0.5
 
 
 class theApp(Qt.QObject):
@@ -96,21 +93,6 @@ class theApp(Qt.QObject):
         self.zoom_fit = False
         self.current_dir = '~'
 
-        self.colors = [(QtCore.Qt.red, tr.tr('red')),
-                       (QtCore.Qt.green, tr.tr('green')),
-                       (QtCore.Qt.blue, tr.tr('blue')),
-                       (QtCore.Qt.yellow, tr.tr('yellow')),
-                       (QtCore.Qt.cyan, tr.tr('cyan')),
-                       (QtCore.Qt.magenta, tr.tr('magenta')),
-                       (QtCore.Qt.darkRed, tr.tr('dark red')),
-                       (QtCore.Qt.gray, tr.tr('gray')),
-                       (QtCore.Qt.darkYellow, tr.tr('dark yellow')),
-                       (QtCore.Qt.darkGreen, tr.tr('dark green')),
-                       (QtCore.Qt.darkCyan, tr.tr('dark cyan')),
-                       (QtCore.Qt.darkBlue, tr.tr('dark blue')),
-                       (QtCore.Qt.darkMagenta, tr.tr('dark magenta')),
-                       (QtCore.Qt.black, tr.tr('black'))]
-
         self.wasCanceled = False
         self.__video_capture_stopped = False
         self.__video_capture_started = False
@@ -150,7 +132,6 @@ class theApp(Qt.QObject):
         self.biasframelist = []
         self.darkframelist = []
         self.flatframelist = []
-        self.lightcurve = {}
 
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,
                                            'main.ui'))
@@ -507,7 +488,6 @@ class theApp(Qt.QObject):
             self.stack(stacking_mode)
 
         if self.args['lightcurve']:
-            self.wnd.toolBox.setCurrentIndex(6)
             self.generateLightCurves(0)
 
         self.setFullyLoaded()
@@ -540,12 +520,6 @@ class theApp(Qt.QObject):
 
     def deactivateResultControls(self):
         self.action_save_result.setEnabled(False)
-
-    def updateChartColors(self):
-        self.wnd.colorADUComboBox.clear()
-        for i in range(len(self.colors)):
-            self.wnd.colorADUComboBox.addItem(self.colors[i][1])
-            self.wnd.colorMagComboBox.addItem(self.colors[i][1])
 
     def updateSaveOptions(self, *args):
 
@@ -1034,12 +1008,16 @@ class theApp(Qt.QObject):
             for i in xrange(self.wnd.toolBox.count()):
                 self.wnd.toolBox.setItemEnabled(i, True)
 
-        if not self.framelist:
-            self.action_enable_rawmode.setEnabled(False)
-        elif self.framelist[0].isRGB():
-            self.action_enable_rawmode.setEnabled(False)
+            if self.framelist[0].isRGB():
+                self.action_enable_rawmode.setEnabled(False)
+            else:
+                self.action_enable_rawmode.setEnabled(True)
+
+            if self.framelist[0].stars:
+                self.action_gen_lightcurves.setEnabled(True)
         else:
-            self.action_enable_rawmode.setEnabled(True)
+            self.action_enable_rawmode.setEnabled(False)
+
 
     def lockSidebar(self):
 
@@ -1563,343 +1541,6 @@ class theApp(Qt.QObject):
 
         self.changeAlignMethod(self.current_align_method)
 
-    def saveADUChart(self, clicked):
-        self.saveChart(self.wnd.aduListWidget,
-                       'adu_chart',
-                       name='ADU',
-                       y_inverted=False)
-
-    def saveMagChart(self, clicked):
-        self.saveChart(self.wnd.magListWidget,
-                       'mag_chart',
-                       name='Mag',
-                       y_inverted=True)
-
-    def saveChart(self, widget, title, name, y_inverted=False):
-        chart = Qt.QImage(1600, 1200, Qt.QImage.Format_ARGB32)
-        fname = str(Qt.QFileDialog.getSaveFileName(
-            self.wnd,
-            tr.tr("Save the chart"),
-            os.path.join(self.current_dir, title+'.jpg'),
-            "JPEG (*.jpg *.jpeg);;" +
-            "PNG (*.png);;PPM (*.ppm);;" +
-            "TIFF (*.tiff *.tif);;" +
-            "All files (*.*)",
-            None,
-            utils.DIALOG_OPTIONS))
-        self.simplifiedLightCurvePaintEvent(widget, chart, name, y_inverted)
-        chart.save(fname, quality=100)
-
-    def aduLabelPaintEvent(self, obj):
-        return self.simplifiedLightCurvePaintEvent(
-            self.wnd.aduListWidget,
-            self.wnd.aduLabel,
-            'ADU',
-            False)
-
-    def magLabelPaintEvent(self, obj):
-        return self.simplifiedLightCurvePaintEvent(
-            self.wnd.magListWidget,
-            self.wnd.magLabel,
-            'Mag',
-            True)
-
-    def simplifiedLightCurvePaintEvent(self, lwig, lbl, name, inv):
-        if self.use_image_time:
-            return self.lightCurvePaintEvent(
-                lwig,
-                lbl,
-                ('time', name),
-                utils.getTimeStr,
-                inverted=inv)
-        else:
-            return self.lightCurvePaintEvent(
-                lwig,
-                lbl,
-                ('index', name),
-                str,
-                inverted=inv)
-
-    def lightCurvePaintEvent(self, listWidget, surface, aname,
-                             xStrFunc=str, yStrFunc=utils.getSciStr,
-                             inverted=False):
-
-        painter = Qt.QPainter(surface)
-        painter.setBrush(QtCore.Qt.white)
-        painter.drawRect(painter.window())
-        painter.setBrush(QtCore.Qt.NoBrush)
-
-        x_off = 60
-        y_off = 50
-
-        if ('time' in self.lightcurve) and (False in self.lightcurve):
-
-            data_x = np.array(self.lightcurve['time'], dtype=np.float64)
-
-            if len(data_x) < 2:
-                return
-
-            ymin = None
-            ymax = None
-
-            there_is_at_least_one_chart = False
-            for i in range(listWidget.count()):
-                q = listWidget.item(i)
-                if q is None:
-                    continue
-                if q.checkState() == 2:
-                    there_is_at_least_one_chart = True
-                    lcurve = self.lightcurve[q.listindex[0]][q.listindex[1]]
-                    data_y = np.array(lcurve['data'])
-                    errors_y = np.array(lcurve['error'])
-
-                    emax = 2.0*errors_y.max()
-
-                    if data_y.shape[0] == 0:
-                        continue
-
-                    if len(data_y.shape) > 1:
-                        data_y = data_y[:, q.listindex[2]]
-
-                    if ymin is None:
-                        ymin = data_y.min()-emax
-                    else:
-                        ymin = min(ymin, data_y.min()-emax)
-
-                    if ymax is None:
-                        ymax = data_y.max()+emax
-                    else:
-                        ymax = max(ymax, data_y.max()+emax)
-
-            if there_is_at_least_one_chart:
-                utils.drawAxis(painter,
-                               (data_x.min(), data_x.max()),
-                               (ymin, ymax),
-                               x_offset=x_off,
-                               y_offset=y_off,
-                               axis_name=aname,
-                               x_str_func=xStrFunc,
-                               y_str_func=yStrFunc,
-                               inverted_y=inverted)
-            else:
-                utils.drawAxis(painter,
-                               (0, 1),
-                               (0, 1),
-                               x_offset=x_off,
-                               y_offset=y_off,
-                               axis_name=aname,
-                               x_str_func=xStrFunc,
-                               y_str_func=yStrFunc,
-                               inverted_y=inverted)
-
-            for i in range(listWidget.count()):
-                q = listWidget.item(i)
-                if q is None:
-                    continue
-                if q.checkState() == 2:
-                    lcurve = self.lightcurve[q.listindex[0]][q.listindex[1]]
-                    data_y = np.array(lcurve['data'])
-                    errors_y = np.array(lcurve['error'])
-
-                    if data_y.shape[0] == 0:
-                        continue
-
-                    if len(data_y.shape) > 1:
-                        data_y = data_y[:, q.listindex[2]]
-                        errors_y = errors_y[:, q.listindex[2]]
-
-                    utils.drawCurves(
-                        painter,
-                        data_x,
-                        data_y,
-                        (ymin, ymax),
-                        inverted_y=inverted,
-                        x_offset=x_off, y_offset=y_off,
-                        errors=errors_y,
-                        bar_type=q.chart_properties['bars'],
-                        line_type=q.chart_properties['line'],
-                        point_type=q.chart_properties['points'],
-                        color=q.chart_properties['color'],
-                        int_param=q.chart_properties['smoothing'],
-                        point_size=q.chart_properties['point_size'],
-                        line_width=q.chart_properties['line_width'])
-        else:
-            utils.drawAxis(painter,
-                           (0, 1),
-                           (0, 1),
-                           x_offset=x_off,
-                           y_offset=y_off,
-                           axis_name=aname,
-                           x_str_func=xStrFunc,
-                           y_str_func=yStrFunc,
-                           inverted_y=inverted)
-
-    def getChartPoint(self, index):
-        return utils.POINTS_TYPE[1+index % (len(utils.POINTS_TYPE)-1)]
-
-    def getChartColor(self, index):
-        try:
-            return self.colors[index % len(self.colors)][0]
-        except Exception:
-            for i in self.colors:
-                if i[1] == str(index):
-                    return i[0]
-                else:
-                    raise ValueError('cannot find chart color '+str(index))
-
-    def getChartColorIndex(self, color):
-        for i in self.colors:
-            if i[0] == color:
-                return self.colors.index(i)
-        raise ValueError('cannot find chart color '+str(color))
-
-    def setCurrentADUCurveColor(self, idx):
-        return self.setCurrentCurveColor(idx,
-                                         self.wnd.aduListWidget,
-                                         self.wnd.aduLabel)
-
-    def setCurrentMagCurveColor(self, idx):
-        return self.setCurrentCurveColor(idx,
-                                         self.wnd.magListWidget,
-                                         self.wnd.magLabel)
-
-    def setCurrentCurveColor(self, idx, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        q.chart_properties['color'] = self.getChartColor(idx)
-        surface.repaint()
-
-    def setCurrentADUCurveLineType(self, idx):
-        return self.setCurrentCurveLineType(idx,
-                                            self.wnd.aduListWidget,
-                                            self.wnd.aduLabel)
-
-    def setCurrentMagCurveLineType(self, idx):
-        return self.setCurrentCurveLineType(idx,
-                                            self.wnd.magListWidget,
-                                            self.wnd.magLabel)
-
-    def setCurrentCurveLineType(self, idx, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        try:
-            linetype = utils.LINES_TYPE[idx]
-        except:
-            linetype = utils.LINES_TYPE[0]
-
-        q.chart_properties['line'] = linetype
-        surface.repaint()
-
-    def setCurrentADUCurvePointsType(self, idx):
-        return self.setCurrentCurvePointsType(idx,
-                                              self.wnd.aduListWidget,
-                                              self.wnd.aduLabel)
-
-    def setCurrentMagCurvePointsType(self, idx):
-        return self.setCurrentCurvePointsType(idx,
-                                              self.wnd.magListWidget,
-                                              self.wnd.magLabel)
-
-    def setCurrentCurvePointsType(self, idx, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-        try:
-            pointstype = utils.POINTS_TYPE[idx]
-        except:
-            pointstype = utils.POINTS_TYPE[0]
-
-        q.chart_properties['points'] = pointstype
-        surface.repaint()
-
-    def setCurrentADUCurveBarsType(self, idx):
-        return self.setCurrentCurveBarsType(idx,
-                                            self.wnd.aduListWidget,
-                                            self.wnd.aduLabel)
-
-    def setCurrentMagCurveBarsType(self, idx):
-        return self.setCurrentCurveBarsType(idx,
-                                            self.wnd.magListWidget,
-                                            self.wnd.magLabel)
-
-    def setCurrentCurveBarsType(self, idx, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        try:
-            barstype = utils.BARS_TYPE[idx]
-        except:
-            barstype = utils.BARS_TYPE[0]
-
-        q.chart_properties['bars'] = barstype
-        surface.repaint()
-
-    def setCurrentADUCurveSmooting(self, idx):
-        return self.setCurrentCurveSmooting(idx,
-                                            self.wnd.aduListWidget,
-                                            self.wnd.aduLabel)
-
-    def setCurrentMagCurveSmooting(self, idx):
-        return self.setCurrentCurveSmooting(idx,
-                                            self.wnd.magListWidget,
-                                            self.wnd.magLabel)
-
-    def setCurrentCurveSmooting(self, val, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        q.chart_properties['smoothing'] = val
-        surface.repaint()
-
-    def setCurrentADUPointSize(self, idx):
-        return self.setCurrentPointSize(idx,
-                                        self.wnd.aduListWidget,
-                                        self.wnd.aduLabel)
-
-    def setCurrentMagPointSize(self, idx):
-        return self.setCurrentPointSize(idx,
-                                        self.wnd.magListWidget,
-                                        self.wnd.magLabel)
-
-    def setCurrentPointSize(self, val, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        q.chart_properties['point_size'] = val
-        surface.repaint()
-
-    def setCurrentADULineWidth(self, idx):
-        return self.setCurrentLineWidth(idx,
-                                        self.wnd.aduListWidget,
-                                        self.wnd.aduLabel)
-
-    def setCurrentMagLineWidth(self, idx):
-        return self.setCurrentLineWidth(idx,
-                                        self.wnd.magListWidget,
-                                        self.wnd.magLabel)
-
-    def setCurrentLineWidth(self, val, listWidget, surface):
-        q = listWidget.currentItem()
-
-        if q is None:
-            return
-
-        q.chart_properties['line_width'] = val
-        surface.repaint()
-
     def deselectAllListWidgetsItems(self):
         self.wnd.lightListWidget.setCurrentItem(None)
         self.wnd.biasListWidget.setCurrentItem(None)
@@ -2110,7 +1751,15 @@ class theApp(Qt.QObject):
         return swlist
 
     def showInMdiWindow(self, widget, wtype, title=""):
-        sw = self.newMdiWindow(widget, wtype, title)
+        existing_titles = []
+        for swnd in self.mdi_windows:
+            existing_titles.append(swnd.windowTitle())
+        sw_title = title
+        title_idx = 0
+        while sw_title in existing_titles:
+            title_idx += 1
+            sw_title = title+" <"+str(title_idx)+">"
+        sw = self.newMdiWindow(widget, wtype, sw_title)
         sw.destroyed.connect(self.clearGenericMdiWindow)
         sw.show()
         return sw
@@ -2358,7 +2007,6 @@ class theApp(Qt.QObject):
 
     def _setUpMainToolBar(self):
         maintoolbar = Qt.QToolBar('Main')
-
         maintoolbar.setObjectName("Main ToolBar")
 
         # TODO: complete this seciton
@@ -2373,7 +2021,6 @@ class theApp(Qt.QObject):
 
     def _setUpStackingToolBar(self):
         toolbar = Qt.QToolBar('Stacking')
-
         toolbar.setObjectName("Stacking ToolBar")
 
         # TODO: complete this seciton
@@ -2384,8 +2031,17 @@ class theApp(Qt.QObject):
 
         return toolbar
 
-    def _setUpMiscToolBar(self):
+    def _setUpPhotometryToolBar(self):
+        toolbar = Qt.QToolBar('Photometry')
+        toolbar.setObjectName("Photometry ToolBar")
 
+        # TODO: complete this seciton
+        
+        toolbar.addAction(self.action_gen_lightcurves)
+
+        return toolbar
+
+    def _setUpMiscToolBar(self):
         toolbar = Qt.QToolBar('Misc')
         toolbar.setObjectName("Misc ToolBar")
 
@@ -2461,8 +2117,10 @@ class theApp(Qt.QObject):
 
         self.addToolBar(self._setUpMainToolBar())
         self.addToolBar(self._setUpMiscToolBar())
-        self.addToolBar(self._setUpVideoCaptureToolBar(), True)
         self.addToolBar(self._setUpStackingToolBar())
+        self.addToolBar(self._setUpPhotometryToolBar(), True)
+        self.addToolBar(self._setUpVideoCaptureToolBar())
+        
 
         self.setToolBarsLock(self.action_lock_toolbars.isChecked())
 
@@ -3123,8 +2781,10 @@ class theApp(Qt.QObject):
 
         if idx >= 0:
             self.wnd.alignGroupBox.setEnabled(True)
+            self.wnd.starsGroupBox.setEnabled(True)
         else:
             self.wnd.alignGroupBox.setEnabled(False)
+            self.wnd.starsGroupBox.setEnabled(False)
 
     def manualAlignListItemChanged(self, idx):
         self.star_idx = idx
@@ -3224,17 +2884,34 @@ class theApp(Qt.QObject):
         self._updating_feature = True
         self.wnd.spinBoxXStar.setValue(x)
         self.wnd.spinBoxYStar.setValue(y)
+        cfrm = self.framelist[self.image_idx]
+        for frm in self.framelist:
+            if frm is not cfrm:
+                st = frm.stars[self.star_idx]
+                st.setPosition(x, y)
         self._updating_feature = False
 
     def starsListItemChanged(self, q):
+        if self._updating_feature:
+            return
         star_idx = self.wnd.starsListWidget.row(q)
-        pnt = self.framelist[self.image_idx].stars[star_idx]
+        cfrm = self.framelist[self.image_idx]
+        pnt = cfrm.stars[star_idx]
+        pnt.rename(str(q.text()))
         if q.checkState() == 0:
             pnt.reference = False
             self.wnd.magDoubleSpinBox.setEnabled(False)
         else:
             pnt.reference = True
             self.wnd.magDoubleSpinBox.setEnabled(True)
+
+        for frm in self.framelist:
+            if frm is not cfrm:
+                st = frm.stars[star_idx]
+                if st is not pnt:
+                    st.reference = pnt.reference
+                    st.rename(str(q.text()))
+        self.wnd.starsListWidget.setCurrentRow(star_idx)
 
     def currentStarsListItemChanged(self, idx):
         self.star_idx = idx
@@ -3302,10 +2979,11 @@ class theApp(Qt.QObject):
 
         for frm in self.framelist:
             ftr = ftype(0, 0, pname)
-            ftr.moved.connect(updateFunc)
             if issubclass(ftype, imgfeatures.Star):
+                ftr.moved_rt.connect(updateFunc)
                 frm.addStar(ftr, idx-1)
             elif isinstance(ftr, imgfeatures.AlignmentPoint):
+                ftr.moved.connect(updateFunc)
                 frm.addAlignPoint(ftr, idx-1)
 
         q = Qt.QListWidgetItem(pname)
@@ -3314,6 +2992,7 @@ class theApp(Qt.QObject):
         listwidget.insertItem(idx-1, q)
 
         if issubclass(ftype, imgfeatures.Star):
+            q.setFlags (q.flags () | QtCore.Qt.ItemIsEditable)
             q.setCheckState(0)
 
         listwidget.setCurrentRow(idx-1)
@@ -3344,6 +3023,7 @@ class theApp(Qt.QObject):
         self.action_gen_lightcurves.setEnabled(True)
         self.wnd.removeStarPushButton.setEnabled(True)
         self.wnd.starsDeleteAllPushButton.setEnabled(True)
+        self.action_gen_lightcurves.setEnabled(True)
         return idx
 
     def removeAlignPoint(self):
@@ -3359,13 +3039,13 @@ class theApp(Qt.QObject):
     def removeStar(self):
         for frm in self.framelist:
             frm.removeStar(self.star_idx)
-
+        self._updating_feature=True
         self.updateStarList(self.image_idx)
-
         if not self.framelist[self.image_idx].stars:
             self.wnd.removeStarPushButton.setEnabled(False)
             self.action_gen_lightcurves.setEnabled(False)
             self.wnd.starsDeleteAllPushButton.setEnabled(False)
+        self._updating_feature=False
 
     def updateImageFeatures(self, listwidget, listitem):
         log.log(repr(self),
@@ -3400,6 +3080,8 @@ class theApp(Qt.QObject):
         log.log(repr(self),
                 "Updating stars list...",
                 level=logging.DEBUG)
+
+        original_star_idx = self.wnd.starsListWidget.currentRow()
         self.wnd.starsListWidget.clear()
 
         if image_idx < 0:
@@ -3414,6 +3096,8 @@ class theApp(Qt.QObject):
             tooltip_text += tr.tr('star')+' '+star.name
             q.setToolTip(tooltip_text)
             q.setCheckState(2*int(star.reference))
+            q.setFlags(q.flags () | QtCore.Qt.ItemIsEditable)
+        self.wnd.starsListWidget.setCurrentRow(original_star_idx)
 
     def shiftX(self, val):
         if self.point_idx >= 0 and not self._updating_feature:
@@ -3429,25 +3113,53 @@ class theApp(Qt.QObject):
 
     def shiftStarX(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
-            pnt.x = val
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            pnt.setAbsolutePosition(val, pnt.y)
+            x, y = pnt.getRTPosition()
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    st = frm.stars[self.star_idx]
+                    if st is not pnt:
+                        st.setPosition(x, y)
 
     def shiftStarY(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
-            pnt.y = val
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            pnt.setAbsolutePosition(pnt.x, val)
+            x, y = pnt.getRTPosition()
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    st = frm.stars[self.star_idx]
+                    if st is not pnt:
+                        st.setPosition(x, y)
+
+    def setStarName(self, name):
+        if self.star_idx >= 0 and not self._updating_feature:
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    frm.stars[self.star_idx].name = val
 
     def setInnerRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
-            pnt.r1 = val
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    frm.stars[self.star_idx].r1 = val
             if pnt.r2-pnt.r1 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r1+2)
 
     def setMiddleRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
-            pnt.r2 = val
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    frm.stars[self.star_idx].r2 = val
             if pnt.r2-pnt.r1 < 2:
                 self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r2-2)
             if pnt.r3-pnt.r2 < 2:
@@ -3455,15 +3167,22 @@ class theApp(Qt.QObject):
 
     def setOuterRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
-            pnt.r3 = val
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    frm.stars[self.star_idx].r3 = val
             if pnt.r3-pnt.r2 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r3-2)
 
     def setMagnitude(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
-            pnt = self.framelist[self.image_idx].stars[self.star_idx]
+            cfrm = self.framelist[self.image_idx]
+            pnt = cfrm.stars[self.star_idx]
             pnt.magnitude = val
+            if pnt.isFixed():
+                for frm in self.framelist:
+                    frm.stars[self.star_idx].magnitude = val
 
     def shiftOffsetX(self, val):
         if self.dif_image_idx >= 0:
@@ -3559,7 +3278,6 @@ class theApp(Qt.QObject):
         self.biasframelist = []
         self.darkframelist = []
         self.flatframelist = []
-        self.lightcurve = {}
 
         self.lockSidebar()
 
@@ -3629,7 +3347,7 @@ class theApp(Qt.QObject):
         self.progress.reset()
         log.log(repr(self),
                 "Saving project to " + str(self.current_project_fname),
-                level=logging.ERROR)
+                level=logging.INFO)
         self.statusBar.showMessage(tr.tr('saving project') + ', ' +
                                    tr.tr('please wait...'))
 
@@ -3718,13 +3436,11 @@ class theApp(Qt.QObject):
         total_dark = len(self.darkframelist)
         total_flat = len(self.flatframelist)
         total_imgs = len(self.framelist)
-        total_strs = len(self.starslist)
 
         progress_max = total_bias
         progress_max += total_dark
         progress_max += total_flat
         progress_max += total_imgs
-        progress_max += total_strs-1
         self.progress.setMaximum(progress_max)
 
         count = 0
@@ -3814,6 +3530,19 @@ class theApp(Qt.QObject):
                 point_node.setAttribute('aligned', str(point.aligned))
                 image_node.appendChild(point_node)
 
+            for s in img.stars:
+                star_node = doc.createElement('star')
+                star_node.setAttribute('x', str(int(s.x)))
+                star_node.setAttribute('y', str(int(s.y)))
+                star_node.setAttribute('name', str(s.name))
+                star_node.setAttribute('id', str(s.id))
+                star_node.setAttribute('inner_radius', str(float(s.r1)))
+                star_node.setAttribute('middle_radius', str(float(s.r2)))
+                star_node.setAttribute('outer_radius', str(float(s.r3)))
+                star_node.setAttribute('reference', str(int(s.reference)))
+                star_node.setAttribute('magnitude', str(float(s.magnitude)))
+                image_node.appendChild(star_node)
+            
             offset_node = doc.createElement('offset')
             offset_node.setAttribute('x', str(float(img.offset[0])))
             offset_node.setAttribute('y', str(float(img.offset[1])))
@@ -3829,23 +3558,7 @@ class theApp(Qt.QObject):
         # photometry section
         img_tm = int(self.use_image_time)
         photometry_node.setAttribute('time_type', str(img_tm))
-        for i in range(len(self.starslist)):
-            s = self.starslist[i]
-            self.progress.setValue(count)
-            count += 1
-
-            star_node = doc.createElement('star')
-            star_node.setAttribute('x', str(int(s.x)))
-            star_node.setAttribute('y', str(int(s.y)))
-            star_node.setAttribute('name', str(s.name))
-            star_node.setAttribute('id', str(s.id))
-            star_node.setAttribute('inner_radius', str(float(s.r1)))
-            star_node.setAttribute('middle_radius', str(float(s.r2)))
-            star_node.setAttribute('outer_radius', str(float(s.r3)))
-            star_node.setAttribute('reference', str(int(s.reference)))
-            star_node.setAttribute('magnitude', str(float(s.magnitude)))
-            star_node.setAttribute('idx', str(int(i)))
-            photometry_node.appendChild(star_node)
+        
 
         try:
             f = open(self.current_project_fname, 'w')
@@ -4232,6 +3945,38 @@ class theApp(Qt.QObject):
                     pnt = imgfeatures.AlignmentPoint(point_x, point_y,
                                                      point_id, point_id)
                     pnt.aligned = point_al
+                    pnt.moved.connect(self.updateAlignPointPosition)
+                    frm.addAlignPoint(pnt)
+                
+                for s in node.getElementsByTagName('star'):
+                    st_x = int(s.getAttribute('x'))
+                    st_y = int(s.getAttribute('y'))
+                    st_name = s.getAttribute('name')
+                    st_id = s.getAttribute('id')
+                    st_r1 = float(s.getAttribute('inner_radius'))
+                    st_r2 =float(s.getAttribute('middle_radius'))
+                    st_r3 =float(s.getAttribute('outer_radius'))
+                    st_ref =bool(int(s.getAttribute('reference')))
+                    st_mag =float(s.getAttribute('magnitude'))
+                    st = imgfeatures.Star(st_x, st_y,
+                                          st_name, st_id)
+                    st.r1 = st_r1
+                    st.r2 = st_r2
+                    st.r3 = st_r3
+                    st.reference = st_ref
+                    st.magnitude = st_mag
+                    st.moved_rt.connect(self.updateStarPosition)
+                    frm.addStar(st)
+                
+                for star in node.getElementsByTagName('align-point'):
+                    point_id = point.getAttribute('id')
+                    point_al = point.getAttribute('aligned').lower()
+                    point_al = bool(point_al == 'True')
+                    point_x = int(point.getAttribute('x'))
+                    point_y = int(point.getAttribute('y'))
+                    pnt = imgfeatures.AlignmentPoint(point_x, point_y,
+                                                     point_id, point_id)
+                    pnt.aligned = point_al
                     frm.alignpoints.append(pnt)
 
                 offset_node = node.getElementsByTagName('offset')[0]
@@ -4260,8 +4005,6 @@ class theApp(Qt.QObject):
                 frm.addProperty('frametype', utils.LIGHT_FRAME_TYPE)
                 framelist.append(frm)
 
-            starslist = []
-            starsListWidgetElements = []
             if has_photometry_section:
                 log.log(repr(self),
                         'reading stars section',
@@ -4270,26 +4013,29 @@ class theApp(Qt.QObject):
                 use_image_time = bool(time_attr)
 
                 # photometry section
-                for star_node in photometry_node.getElementsByTagName('star'):
-                    if self.progressWasCanceled():
-                        return False
-                    is_reference = int(star_node.getAttribute('reference'))
-                    s = imgfeatures.Star()
-                    s.x = int(star_node.getAttribute('x'))
-                    s.y = int(star_node.getAttribute('y'))
-                    s.name = str(star_node.getAttribute('name'))
-                    s.r1 = float(star_node.getAttribute('inner_radius'))
-                    s.r2 = float(star_node.getAttribute('middle_radius'))
-                    s.r3 = float(star_node.getAttribute('outer_radius'))
-                    s.reference = bool(is_reference)
-                    s.magnitude = float(star_node.getAttribute('magnitude'))
-                    s.id = int(star_node.getAttribute('idx'))
 
-                    q = Qt.QListWidgetItem(s.name, None)
-                    q.setCheckState(int(2*s.reference))
-                    q.original_id = s.id
-                    starsListWidgetElements.append(q)
-                    starslist.append(s)
+                # NOTE: stars now are stored in each image, this
+                #       is only for backward compatibility
+                
+                sels = photometry_node.getElementsByTagName('star')
+                if len(sels) > 0 and len(framelist[0].stars) == 0:
+                    for frm in framelist:
+                        for snd in sels:
+                            if self.progressWasCanceled():
+                                return False
+                            is_reference = int(snd.getAttribute('reference'))
+                            s = imgfeatures.Star()
+                            sx = int(snd.getAttribute('x'))
+                            sy = int(snd.getAttribute('y'))
+                            s.name = str(snd.getAttribute('name'))
+                            s.r1 = float(snd.getAttribute('inner_radius'))
+                            s.r2 = float(snd.getAttribute('middle_radius'))
+                            s.r3 = float(snd.getAttribute('outer_radius'))
+                            s.reference = bool(is_reference)
+                            s.magnitude = float(snd.getAttribute('magnitude'))
+                            frm.addStar(s)
+                            s.setPosition(x,y)
+                            s.moved_rt.connect(self.updateStarPosition)
             else:
                 use_image_time = self.use_image_time
 
@@ -4310,9 +4056,6 @@ class theApp(Qt.QObject):
                 'setting up project environment',
                 level=logging.DEBUG)
 
-        for item in starsListWidgetElements:
-            self.wnd.starsListWidget.addItem(item)
-
         for item in biasListWidgetElements:
             self.wnd.biasListWidget.addItem(item)
 
@@ -4332,7 +4075,6 @@ class theApp(Qt.QObject):
         self.biasframelist = biasframelist
         self.darkframelist = darkframelist
         self.flatframelist = flatframelist
-        # FIXME: self.starslist = starslist
         self.image_idx = current_row
         self.master_bias_file = master_bias_url
         self.master_dark_file = master_dark_url
@@ -4347,7 +4089,7 @@ class theApp(Qt.QObject):
 
         if self.framelist:
             self.unlockSidebar()
-
+            self.wnd.manualAlignGroupBox.setEnabled(True)
             if bayer_mode >= 0:
                 self.action_enable_rawmode.setChecked(True)
                 self.bayer_tcb.setCurrentIndex(bayer_mode)
@@ -5824,54 +5566,11 @@ class theApp(Qt.QObject):
                 'generating light curves, please wait...',
                 level=logging.INFO)
 
-        self.stack(skip_light=True)
+        self.stack(skip_light=True, method=method)
 
-        self.wnd.tabWidget.setCurrentIndex(2)
-        self.wnd.chartsTabWidget.setCurrentIndex(1)
-        self.wnd.saveADUChartPushButton.setEnabled(False)
-        self.wnd.saveMagChartPushButton.setEnabled(False)
-        self.wnd.chartsTabWidget.setTabEnabled(1, False)
-        self.wnd.chartsTabWidget.setTabEnabled(2, False)
-        self.wnd.aduListWidget.clear()
-        self.wnd.magListWidget.clear()
         QtGui.QApplication.instance().processEvents()
 
         self.lock()
-
-        # create empty lightcurve dict
-        self.lightcurve = {True: {},
-                           False: {},
-                           'time': [],
-                           'info': [],
-                           'magnitudes': {}}
-        self.progress.reset()
-        self.progress.setMaximum(len(self.framelist))
-
-        cx = self.currentWidth/2.0
-        cy = self.currentHeight/2.0
-
-        count = 0
-
-        for i in self.starslist:
-            self.lightcurve[i[6]][i[2]] = {'magnitude': i[7],
-                                           'data': [],
-                                           'error': []}
-
-            for comp in range(self.getNumberOfComponents()):
-                cname = str(i[2])+'-'+self.getComponentName(comp)
-                self.addLightCurveListElement(cname,
-                                              str(i[2]),
-                                              self.wnd.aduListWidget,
-                                              i[6],
-                                              count,
-                                              16,
-                                              checked=(not i[6]),
-                                              component=comp)
-            count += 1
-
-        count = 0
-
-        self.use_image_time = self.wnd.imageDateCheckBox.checkState() == 2
 
         if 'hotpixel_options' in args:
             hotp_args = args['hotpixel_options']
@@ -5887,8 +5586,33 @@ class theApp(Qt.QObject):
         master_flat = masters[2]
         hot_pixels = masters[3]
 
+        nframes = len(self.framelist)
+        nstars = len(self.framelist[0].stars)
+
+        self.progress.show()
+        self.progress.setMaximum(nframes*nstars - 1)
+
+        stars_dic = {}
+
+        cx = self.currentWidth/2.0
+        cy = self.currentHeight/2.0
+
+        count = 0
+        img_idx = 0
+        self.progress.show()
+
+
+        # building a temporary dictionary to
+        # hold photometric data
+        adu_plots={}
+        for star in self.framelist[0].stars:
+            st_name = str(star.getName())
+            adu_plt = lcurves.LightCurvePlot()
+            adu_plt.setName(st_name)
+            adu_plots[st_name] = adu_plt
+
         for img in self.framelist:
-            count += 1
+            img_idx += 1
             if not img.isUsed():
                 log.log(repr(self),
                         'skipping image '+str(img.name),
@@ -5909,292 +5633,37 @@ class theApp(Qt.QObject):
                                debayerize_result=True)
 
             if self.use_image_time:
-                self.lightcurve['time'].append(img.getProperty('UTCEPOCH'))
+                frm_time = img.getProperty('UTCEPOCH')
             else:
-                self.lightcurve['time'].append(count)
+                frm_time = img_idx
 
-            for i in self.starslist:
+            for st in img.stars:
+                count += 1
+                st_name = str(st.getName())
                 log.log(repr(self),
-                        'computing adu value for star '+str(i[2]),
+                        'computing adu value for star '+st_name,
                         level=logging.INFO)
-
-                di = dist(cx, cy, i[0], i[1])
-                an = math.atan2(cy-i[1], cx-i[0])
-                an2 = img.angle*math.pi/180.0
-
-                strx = cx - di*math.cos(an+an2) + img.offset[0]
-                stry = cy - di*math.sin(an+an2) + img.offset[1]
 
                 if self.progressWasCanceled():
                     return False
 
                 try:
-                    adu_val, adu_delta = utils.getStarMagnitudeADU(
-                        r, strx, stry,
-                        i[3], i[4], i[5])
+                    adu_val, adu_delta = lcurves.getStarMagnitudeADU(st, r)
                 except Exception as exc:
-                    utils.showErrorMsgBox(str(exc),
-                                          caller=self)
+                    utils.showErrorMsgBox(str(exc), caller=self)
                     self.unlock()
                     return False
+                
+                adu_plots[st_name].xdata.append(frm_time)
+                adu_plots[st_name].ydata.append(adu_val)
+                adu_plots[st_name].yerr.append(adu_delta)
 
-                self.lightcurve[i[6]][i[2]]['data'].append(adu_val)
-                self.lightcurve[i[6]][i[2]]['error'].append(adu_delta)
-
-            self.wnd.aduLabel.repaint()
-
-        # converting to ndarray
-        for i in self.lightcurve[False]:
-            curve = self.lightcurve[False][i]
-            curve['data'] = np.array(curve['data'], dtype=self.ftype)
-            curve['error'] = np.array(curve['error'], dtype=self.ftype)
-
-        for i in self.lightcurve[True]:
-            curve = self.lightcurve[True][i]
-            curve['data'] = np.array(curve['data'], dtype=self.ftype)
-            curve['error'] = np.array(curve['error'], dtype=self.ftype)
-
-        self.wnd.saveADUChartPushButton.setEnabled(True)
-
-        self.progress.setMaximum(len(self.lightcurve))
-
-        count = 0
-        # now reference star will be used to compute the actual magnitude
-        if self.lightcurve[True]:
-            for i in self.lightcurve[False]:
-                star = self.lightcurve[False][i]
-                magref = []
-                magerr = []
-
-                if (len(star['data'].shape) == 2):
-                    bb = star['data'][:, 2]
-                    vv = star['data'][:, 1]
-
-                    star_bv_index = -2.5*np.log10(bb/vv)
-                    star_bv_error = []
-
-                    if len(star['error']) > 0:
-                        bd = star['error'][:, 2]
-                        vd = star['error'][:, 1]
-                        star_bv_error = 2.5*(np.abs(bd/bb)+abs(vd/vv))
-
-                    star_bv_error = np.array(star_bv_error)
-
-                    self.lightcurve['magnitudes'][i+'(B-V)'] = {
-                        'data': star_bv_index,
-                        'error': star_bv_error}
-
-                    self.addLightCurveListElement(str(i+'(B-V)'),
-                                                  str(i+'(B-V)'),
-                                                  self.wnd.magListWidget,
-                                                  'magnitudes', count)
-                    count += 1
-
-                self.lightcurve['magnitudes'][i] = {}
-
-                for j in self.lightcurve[True]:
-                    ref = self.lightcurve[True][j]
-                    if (len(star['data'].shape) == 2 and
-                            len(ref['data'].shape) == 2):
-                        rbb = ref['data'][:, 2]
-                        rvv = ref['data'][:, 1]
-
-                        ref_bv_index = -2.5*np.log10(rbb/rvv)
-                        ref_bv_error = []
-
-                        if len(ref['error']) > 0:
-                            rbd = ref['error'][:, 2]
-                            rvd = ref['error'][:, 1]
-                            ref_bv_error = 2.5*(np.abs(rbd/rbb) + abs(rvd/rvv))
-
-                        ref_bv_error = np.array(ref_bv_error)
-
-                        color_dif = 0.1*(star_bv_index - ref_bv_index)
-                        color_err = 0.1*(star_bv_error + ref_bv_error)
-
-                        strval = star['data'].sum(1)
-                        refval = ref['data'].sum(1)
-                        strerr = star['error'].sum(1)
-                        referr = ref['error'].sum(1)
-
-                        mag = ref['magnitude']
-                        mag -= 2.5*np.log10(strval/refval)
-                        mag -= color_dif
-
-                        err = 2.5*(np.abs(strerr/strval) + abs(referr/refval))
-                        err += color_err
-
-                        magref.append(mag)
-                        magerr.append(err)
-                    else:
-
-                        strval = star['data']
-                        refval = ref['data']
-                        strerr = star['error']
-                        referr = ref['error']
-
-                        mag = ref['magnitude']
-                        mag -= 2.5*np.log10(strval/refval)
-
-                        err = 2.5*(np.abs(strerr/strval) + abs(referr/refval))
-
-                        magref.append(mag)
-                        magerr.append(err)
-
-                mag_curve = self.lightcurve['magnitudes'][i]
-                mag_curve['data'] = np.array(magref).mean(0)
-                mag_curve['error'] = np.array(magerr).mean(0)
-
-                self.addLightCurveListElement(str(i),
-                                              str(i),
-                                              self.wnd.magListWidget,
-                                              'magnitudes',
-                                              count,
-                                              checked=True)
-                count += 1
-        self.fillNumericData()
-
-        self.wnd.saveMagChartPushButton.setEnabled(True)
-        self.wnd.chartsTabWidget.setTabEnabled(1, True)
-        self.wnd.chartsTabWidget.setTabEnabled(2, True)
-
+        pv = guicontrols.LightCurveViewer()
+        pv.addPlots(tuple(adu_plots.values()))
+        self.showInMdiWindow(pv, guicontrols.PLOTVIEWER, "ADU Lightcurves")
         self.unlock()
-
-    def fillNumericData(self):
-
-        n1 = len(self.lightcurve[False])
-        n2 = len(self.lightcurve[True])
-        n3 = len(self.lightcurve['magnitudes'])
-
-        shape = self.lightcurve[False].values()[0]['data'].shape
-
-        if len(shape) == 2:
-            ncomp = shape[1]
-        else:
-            ncomp = 1
-
-        tot_cols = 2 + (n1+n2)*ncomp + n3
-        tot_rows = len(self.lightcurve['time'])
-
-        hdr_lbls = ['index', 'date']
-
-        self.wnd.numDataTableWidget.clear()
-        self.wnd.numDataTableWidget.setSortingEnabled(False)
-        self.wnd.numDataTableWidget.setColumnCount(tot_cols)
-        self.wnd.numDataTableWidget.setRowCount(tot_rows)
-
-        row_count = 0
-
-        for i in self.lightcurve['time']:
-            idx_item = Qt.QTableWidgetItem('{0:04d}'.format(row_count+1))
-            dte_item = Qt.QTableWidgetItem(str(i))
-            self.wnd.numDataTableWidget.setItem(row_count, 0, idx_item)
-            self.wnd.numDataTableWidget.setItem(row_count, 1, dte_item)
-            row_count += 1
-
-        col_count = 2
-        for i in self.lightcurve[False]:
-            if ncomp > 1:
-                if ncomp == 3:
-                    hdr_lbls.append(str(i)+'-I (ADU)')
-                    hdr_lbls.append(str(i)+'-V (ADU)')
-                    hdr_lbls.append(str(i)+'-B (ADU)')
-                else:
-                    for c in xrange(ncomp):
-                        hdr_lbls.append(str(i)+'-'+str(c)+' (ADU)')
-
-                row_count = 0
-
-                for vl in self.lightcurve[False][i]['data']:
-                    for v in vl:
-                        val_item = Qt.QTableWidgetItem(str(v))
-                        self.wnd.numDataTableWidget.setItem(row_count,
-                                                            col_count,
-                                                            val_item)
-                        col_count += 1
-                    col_count -= ncomp
-                    row_count += 1
-            else:
-                hdr_lbls.append(str(i)+' (ADU)')
-                row_count = 0
-                for v in self.lightcurve[False][i]['data']:
-                    val_item = Qt.QTableWidgetItem(str(v))
-                    self.wnd.numDataTableWidget.setItem(row_count,
-                                                        col_count,
-                                                        val_item)
-                    row_count += 1
-            col_count += ncomp
-
-        for i in self.lightcurve[True]:
-            if ncomp > 1:
-                if ncomp == 3:
-                    hdr_lbls.append(str(i)+'-I (ADU)')
-                    hdr_lbls.append(str(i)+'-V (ADU)')
-                    hdr_lbls.append(str(i)+'-B (ADU)')
-                else:
-                    for c in xrange(ncomp):
-                        hdr_lbls.append(str(i)+'-'+str(c)+' (ADU)')
-                row_count = 0
-                for vl in self.lightcurve[True][i]['data']:
-                    for v in vl:
-                        val_item = Qt.QTableWidgetItem(str(v))
-                        self.wnd.numDataTableWidget.setItem(row_count,
-                                                            col_count,
-                                                            val_item)
-                        col_count += 1
-                    col_count -= ncomp
-                    row_count += 1
-            else:
-                hdr_lbls.append(str(i)+' (ADU)')
-                row_count = 0
-                for v in self.lightcurve[True][i]['data']:
-                    val_item = Qt.QTableWidgetItem(str(v))
-                    self.wnd.numDataTableWidget.setItem(row_count,
-                                                        col_count,
-                                                        val_item)
-                    row_count += 1
-            col_count += ncomp
-
-        for i in self.lightcurve['magnitudes']:
-            hdr_lbls.append(str(i)+' (Mag)')
-            row_count = 0
-            for v in self.lightcurve['magnitudes'][i]['data']:
-                val_item = Qt.QTableWidgetItem(str(v))
-                self.wnd.numDataTableWidget.setItem(row_count,
-                                                    col_count,
-                                                    val_item)
-                row_count += 1
-            col_count += 1
-
-        self.wnd.numDataTableWidget.setHorizontalHeaderLabels(hdr_lbls)
-        self.wnd.numDataTableWidget.setSortingEnabled(True)
-
-    def exportNumericDataCSV(self, val):
-        file_name = str(Qt.QFileDialog.getSaveFileName(
-            self.wnd,
-            tr.tr("Save the project"),
-            os.path.join(self.current_dir, 'lightcurves.csv'),
-            "CSV *.csv (*.csv);;All files (*.*)",
-            None,
-            utils.DIALOG_OPTIONS))
-
-        utils.exportTableCSV(self, self.wnd.numDataTableWidget,
-                             file_name, sep='\t', newl='\n')
-
-    def addLightCurveListElement(self, name, obj_name, widget,
-                                 index, points, smoothing=8,
-                                 checked=False, component=0):
-        q = Qt.QListWidgetItem(name, widget)
-        q.setCheckState(2*checked)
-        q.listindex = (index, obj_name, component)
-        q.chart_properties = {
-            'color': self.getChartColor(component),
-            'line': False,
-            'points': self.getChartPoint(points),
-            'bars': '|',
-            'smoothing': smoothing,
-            'point_size': 2,
-            'line_width': 1}
+        self.progress.hide()
+        self.progress.reset()
 
     def progressWasCanceled(self):
         QtGui.QApplication.instance().processEvents()

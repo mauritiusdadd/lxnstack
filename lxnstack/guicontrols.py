@@ -18,10 +18,12 @@ import math
 import os
 import paths
 import logging
+import time
 
 from PyQt4 import Qt, QtCore, QtGui
 
 import translation as tr
+import plotting
 import utils
 import colormaps as cmaps
 import mappedimage
@@ -30,6 +32,7 @@ import log
 
 IMAGEVIEWER = "imageviewer"
 DIFFERENCEVIEWER = "diffviewer"
+PLOTVIEWER = "plotviewer"
 
 READY = 0x0001
 UPDATED = 0x0002
@@ -550,10 +553,7 @@ class ImageViewer(QtGui.QWidget):
                 painter.drawImage(0, 0, self.mapped_image.getQImage())
 
         for feature in self.image_features:
-            try:
-                feature.draw(painter)
-            except:
-                pass
+            feature.draw(painter)
 
         del painter
         return QtGui.QLabel.paintEvent(self.imageLabel, obj)
@@ -985,3 +985,431 @@ class DifferenceViewer(ImageViewer):
             painter.drawLine(-3, 40, 0, 50)
             painter.drawLine(3, 40, 0, 50)
         del painter
+
+class PlotSubWidget(QtGui.QWidget):
+
+    def __init__(self, parent=None):
+        assert isinstance(parent, PlotWidget), "parent is not a PlotWidget"
+        QtGui.QWidget.__init__(self, parent)
+        self._click_offset = QtCore.QPoint()
+        self.padding=(10,10)
+        self.resize(150,100)
+        self._grip_size=6
+        self._gripes={(0.0, 0.0): QtCore.Qt.SizeFDiagCursor,
+                      (0.5, 0.0): QtCore.Qt.SizeVerCursor,
+                      (1.0, 0.0): QtCore.Qt.SizeBDiagCursor,
+                      (0.0, 0.5): QtCore.Qt.SizeHorCursor,
+                      (1.0, 0.5): QtCore.Qt.SizeHorCursor,
+                      (0.0, 1.0): QtCore.Qt.SizeBDiagCursor,
+                      (0.5, 1.0): QtCore.Qt.SizeVerCursor,
+                      (1.0, 1.0): QtCore.Qt.SizeFDiagCursor,}
+        self._resizing=False
+        self.setCursor(QtCore.Qt.SizeAllCursor)
+        self.setMouseTracking(True)
+
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+
+        self.setMinimumSize(100,50)
+
+
+    def _mouseOverGrip(self, pos):
+        x = pos.x()
+        y = pos.y()
+
+        for grip in self._gripes.keys():
+            grip_x = (self.width()-self._grip_size)*grip[0]
+            grip_y = (self.height()-self._grip_size)*grip[1]
+            if (x > grip_x and y > grip_y and
+                    x < grip_x + self._grip_size and
+                    y < grip_y + self._grip_size):
+                return self._gripes[grip]
+        return False
+
+    def mousePressEvent(self, event):
+        self._click_offset = event.pos()
+        # is cursor over a grip?
+        self._resizing = self._mouseOverGrip(self._click_offset)
+
+    def mouseReleaseEvent(self, event):
+        self._resizing=False
+        self.setCursor(QtCore.Qt.SizeAllCursor)
+
+    def mouseMoveEvent(self, event):
+        if not self.hasFocus():
+            self.setCursor(QtCore.Qt.PointingHandCursor)
+            return
+
+        x = event.x()
+        y = event.y()
+
+        cx = self.width()/2
+        cy = self.height()/2
+
+        if self._resizing == QtCore.Qt.SizeVerCursor:
+            self.setCursor(self._resizing)
+            if y < cy:
+                self.move(self.x(), self.mapToParent(event.pos()).y())
+                self.resize(self.width(), self.height() - y)
+            else:
+                self.resize(self.width(), y)
+        elif self._resizing == QtCore.Qt.SizeHorCursor:
+            self.setCursor(self._resizing)
+            if x < cx:
+                self.move(self.mapToParent(event.pos()).x(), self.y())
+                self.resize(self.width() - x, self.height())
+            else:
+                self.resize(x, self.height())
+        elif self._resizing == QtCore.Qt.SizeBDiagCursor:
+            self.setCursor(self._resizing)
+            if x < cx:
+                self.move(self.mapToParent(event.pos()).x(), self.y())
+                self.resize(self.width() - x, y)
+            else:
+                self.move(self.x(),self.mapToParent(event.pos()).y())
+                self.resize(x, self.height() - y)
+        elif self._resizing == QtCore.Qt.SizeFDiagCursor:
+            self.setCursor(self._resizing)
+            if x < cx:
+                self.move(self.mapToParent(event.pos()))
+                self.resize(self.width() - x, self.height() - y)
+            else:
+                self.resize(x, y)
+        else:
+            cursor = self._mouseOverGrip(event.pos())
+            if cursor:
+                self.setCursor(cursor)
+            else:
+                self.setCursor(QtCore.Qt.SizeAllCursor)
+            if event.buttons() & QtCore.Qt.LeftButton:
+                self.move(self.mapToParent(event.pos() - self._click_offset))
+
+    def draw(self, painter):
+        pass  # user implemented
+
+    def _paintGripes(self, painter):
+        oldbrush = painter.brush()
+        oldpen = painter.pen()
+        painter.setPen(QtCore.Qt.gray)
+        painter.setBrush(QtCore.Qt.green)
+        for grip in self._gripes.keys():
+            x = (self.width()-self._grip_size)*grip[0]
+            y = (self.height()-self._grip_size)*grip[1]
+            painter.drawRect(x, y, self._grip_size, self._grip_size)
+        painter.setBrush(oldbrush)
+        painter.setPen(oldpen)
+        pass
+
+    def paintEvent(self, event):
+        painter = Qt.QPainter(self)
+        painter.setRenderHint(painter.Antialiasing)
+        surface_window = painter.window()
+
+        w = surface_window.width()
+        h = surface_window.height()
+        f = painter.font()
+
+        rect1 = QtCore.QRectF(0, 0, w, h)
+        rect2 = QtCore.QRectF(self.padding[0],
+                              self.padding[1],
+                              w - 2*self.padding[0],
+                              h - 2*self.padding[1])
+
+        painter.setPen(QtCore.Qt.black)
+        painter.setBrush(QtCore.Qt.white)
+        painter.drawRect(rect1)
+
+        f.setBold(True)
+        painter.setFont(f)
+        painter.drawText(rect2,
+                         QtCore.Qt.AlignHCenter | 
+                         QtCore.Qt.AlignTop,
+                         self.windowTitle())
+        f.setBold(False)
+        painter.setFont(f)
+
+        self.draw(painter)
+        if self.hasFocus():
+            self._paintGripes(painter)
+        
+
+
+class PlotLegendWidget(PlotSubWidget):
+
+    def draw(self, painter):
+        if self.parent()._backend is None:
+            count = 0
+            y_off = painter.fontMetrics().xHeight()
+            for plot in self.parent().plots:
+                if plot.isVisible():
+                    elx = self.padding[0]
+                    ely = 3*self.padding[1] + y_off + 20*count
+                    plot.drawQtLegendElement(painter, elx, ely)
+                    count += 1
+
+class PlotWidget(QtGui.QWidget):
+
+    def __init__(self, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+
+        self.plots = []
+        self._backend=None
+        self._inverted_y = True
+        self._x_offset = 60.0
+        self._y_offset = 60.0
+        self._x_fmt_func = utils.getTimeStr
+        self._x_legend = -1
+        self._y_legend = -1
+        self._legend = PlotLegendWidget(self)
+        
+        self._legend.setWindowTitle(tr.tr("Legend"))
+
+        _init_legend_x = 0
+        _init_legend_y = self._y_offset
+        self._legend.move(_init_legend_x, _init_legend_y)
+        self.setFocusPolicy(QtCore.Qt.ClickFocus)
+
+    def showLegend(self):
+        self._legend.show()
+
+    def hideLegend(self):
+        self._legend.hide()
+
+    def addPlot(self, plt):
+        self.plots.append(plt)
+        plt.setInvertedY(self._inverted_y)
+    
+    def setInvertedY(self, inverted=True):
+        self._inverted_y=inverted
+        for plt in self.plots:
+            plt.setInvertedY(inverted)
+
+    def resizeEvent(self, event):
+        oldx = self._legend.x()
+        oldy = self._legend.y()
+
+        oldw = event.oldSize().width()
+        oldh = event.oldSize().height()
+
+        neww = event.size().width()
+
+        if oldw < 0:
+            # This is probabli the first resize
+            # executed when the widget is created
+            newx = neww - self._x_offset - self._legend.width()
+            self._legend.move(newx, oldy)
+        else:
+            deltaw = neww - oldw
+
+            self._legend.move(oldx + deltaw, oldy)
+
+    def paintEvent(self, event):
+        painter = Qt.QPainter(self)
+        painter.setRenderHint(painter.Antialiasing)
+        surface_window = painter.window()
+
+        w = surface_window.width()
+        h = surface_window.height()
+        
+        painter.setBrush(QtCore.Qt.white)
+        painter.drawRect(0, 0, w, h)
+
+        if not self.plots:
+            # no plots to draw
+            return
+        
+        # computing plot range
+        vmin, vmax = self.plots[0].getYMinMax()
+        hmin, hmax = self.plots[0].getXMinMax()
+        for plot in self.plots[1:]:
+            if plot.isHidden():
+                continue
+            pvmin, pvmax = plot.getYMinMax()
+            phmin, phmax = plot.getXMinMax()
+            vmin = min(vmin, pvmin)
+            vmax = max(vmax, pvmax)
+            hmin = min(hmin, phmin)
+            hmax = max(hmax, phmax)
+        
+        vmval, vmexp = utils.getSciVal(vmax)
+        vmax = (vmval+0.5)*(10**vmexp)
+        
+        if hmin == hmax:
+            hmax = hmin + 1
+        if vmin == vmax:
+            hmax = hmin + 1
+
+        # drawing axes
+        plotting.drawAxis(
+            painter,
+            data_x=(hmin, hmax),
+            data_y=(vmin, vmax),
+            inverted_y = self._inverted_y,
+            axis_name=('time', 'ADU'),
+            x_str_func = self._x_fmt_func)
+
+        # drawing plots
+        painter.setBrush(QtCore.Qt.white)
+        for plot in self.plots:
+            if self._backend is None:
+                plot.drawQt(painter,
+                            (vmin, vmax),
+                            (self._x_offset, self._y_offset))                    
+        
+
+class PlotViewer(QtGui.QWidget):
+
+    _pltprp_grb_txt = tr.tr("Plot properties")
+
+    def __init__(self, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+
+        self._pw = PlotWidget(parent=self)
+        self.current_plot_idx = -1
+
+        self.plt_prp_qgb = QtGui.QGroupBox(self._pltprp_grb_txt)
+        self.plt_lst_qlw = QtGui.QListWidget()
+
+        self._int_ord_dsp = QtGui.QDoubleSpinBox()
+        self._lne_wdt_dsp = QtGui.QDoubleSpinBox()
+        self._mrk_sze_dsp = QtGui.QDoubleSpinBox()
+        self._mrk_tpe_qcb = QtGui.QComboBox()
+        self._lne_tpe_qcb = QtGui.QComboBox()
+        self._plt_clr_qcb = QtGui.QComboBox()
+
+        for i in plotting.MARKER_TYPES:
+            self._mrk_tpe_qcb.addItem(i[1])
+
+        for i in plotting.LINE_TYPES:
+            self._lne_tpe_qcb.addItem(i[1])
+
+        for i in plotting.COLORS:
+            self._plt_clr_qcb.addItem(i[1])
+
+        self.plt_prp_qgb.setMaximumWidth(250)
+        self.plt_lst_qlw.setMaximumWidth(250)
+
+        self._int_ord_dsp.setSingleStep(0.1)
+        self._lne_wdt_dsp.setSingleStep(0.1)
+        self._mrk_sze_dsp.setSingleStep(0.5)
+
+        self.plt_lst_qlw.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
+                              QtGui.QSizePolicy.Expanding))
+
+        self.plt_prp_qgb.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
+                              QtGui.QSizePolicy.MinimumExpanding))
+
+        self._pw.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+                              QtGui.QSizePolicy.Expanding))
+
+        mainlayout = Qt.QHBoxLayout(self)
+        sidelayout = Qt.QVBoxLayout()
+        gboxlayout = Qt.QGridLayout()
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line color")), 0, 0)
+        gboxlayout.addWidget(self._plt_clr_qcb, 0, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line type")), 1, 0)
+        gboxlayout.addWidget(self._lne_tpe_qcb, 1, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker type")), 2, 0)
+        gboxlayout.addWidget(self._mrk_tpe_qcb, 2, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line width")), 3, 0)
+        gboxlayout.addWidget(self._lne_wdt_dsp, 3, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker size")), 4, 0)
+        gboxlayout.addWidget(self._mrk_sze_dsp, 4, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("interpolation")), 5, 0)
+        gboxlayout.addWidget(self._int_ord_dsp, 5, 1)
+
+        sidelayout.addWidget(self.plt_lst_qlw)
+        sidelayout.addWidget(self.plt_prp_qgb)
+
+        mainlayout.addLayout(sidelayout)
+        mainlayout.addWidget(self._pw)
+
+        self.setLayout(mainlayout)
+        self.plt_prp_qgb.setLayout(gboxlayout)
+
+        self.plt_prp_qgb.setEnabled(False)
+
+        self.plt_lst_qlw.currentRowChanged.connect(self.currentPlotChanged)
+        self._int_ord_dsp.valueChanged.connect(self.setInterpolationOrder)
+        self._mrk_sze_dsp.valueChanged.connect(self.setMarkerSize)
+        self._lne_wdt_dsp.valueChanged.connect(self.setLineWidth)
+        self._mrk_tpe_qcb.currentIndexChanged.connect(self.setMarkerType)
+        self._plt_clr_qcb.currentIndexChanged.connect(self.setColor)
+        self._lne_tpe_qcb.currentIndexChanged.connect(self.setLineType)
+
+    def addPlots(self, plots):
+        idx = len(self._pw.plots)
+        for plot in plots:
+            if plot not in self._pw.plots:
+                plot.setColor(plotting.getColor(idx))
+                self.plt_lst_qlw.addItem(plot.name)
+                self._pw.addPlot(plot)
+                idx+=1
+
+    def setInterpolationOrder(self, val):
+        self.getSelectedPlot().setIterpolationOrder(val)
+        self._pw.repaint()
+
+    def setMarkerSize(self, val):
+        self.getSelectedPlot().setMarkerSize(val)
+        self._pw.repaint()
+
+    def setLineWidth(self, val):
+        self.getSelectedPlot().setLineWidth(val)
+        self._pw.repaint()
+
+    def setColor(self, idx):
+        self.getSelectedPlot().setColorIndex(idx)
+        self._pw.repaint()
+
+    def setMarkerType(self, idx):
+        self.getSelectedPlot().setMarkerTypeIndex(idx)
+        self._pw.repaint()
+
+    def setLineType(self, idx):
+        self.getSelectedPlot().setLineTypeIndex(idx)
+        self._pw.repaint()
+
+    def getSelectedPlot(self):
+        if self.current_plot_idx < 0:
+            self.plt_prp_qgb.setEnabled(False)
+            return None
+        else:
+            self.plt_prp_qgb.setEnabled(True)
+            return self._pw.plots[self.current_plot_idx]
+
+    def currentPlotChanged(self, plot_idx):
+        self.current_plot_idx = plot_idx
+        self.updatePlotControls()
+
+    def updatePlotControls(self):
+        plot = self.getSelectedPlot()
+
+        int_ord = float(plot.getIterpolationOrder())
+        mrk_sze = float(plot.getMarkerSize())
+        lne_wdt = float(plot.getLineWidth())
+
+        mrk_tpe_idx = plotting.getMarkerTypeIndex(plot.getMarkerType())
+        lne_tpe_idx = plotting.getLineTypeIndex(plot.getLineType())
+        plt_clr_idc = plotting.getColorIndex(plot.getColor())
+
+        self._int_ord_dsp.setValue(int_ord)
+        self._mrk_sze_dsp.setValue(mrk_sze)
+        self._lne_wdt_dsp.setValue(lne_wdt)
+        self._mrk_tpe_qcb.setCurrentIndex(mrk_tpe_idx)
+        self._lne_tpe_qcb.setCurrentIndex(lne_tpe_idx)
+        self._plt_clr_qcb.setCurrentIndex(plt_clr_idc)
+
+
+class LightCurveViewer(PlotViewer):
+
+    _pltprp_grb_txt = tr.tr("Lightcurve properties")
+

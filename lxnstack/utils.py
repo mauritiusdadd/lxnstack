@@ -44,10 +44,6 @@ CUSTOM_EXTENSIONS = {
     '.mpg': 'VIDEO',
     '.mpeg': 'VIDEO'}
 
-POINTS_TYPE = ['', 'o', 'd', 's', '+', '*']
-LINES_TYPE = ['', '-', '--', '..', '-.', '-..']
-BARS_TYPE = ['', '|']
-
 LIGHT_FRAME_TYPE = 'light frame'
 BIAS_FRAME_TYPE = 'bias frame'
 DARK_FRAME_TYPE = 'dark frame'
@@ -284,6 +280,10 @@ def Int(val):
         return int(i)
     else:
         return int(math.ceil(val))
+
+
+def dist(x1, y1, x2, y2):
+    return (((x2-x1)**2) + ((y2-y1)**2))**0.5
 
 
 def timeouted_loop(func, t_step=0.5, timeout=10, c_val=None, arg=(), args={}):
@@ -615,7 +615,178 @@ class Frame(Qt.QObject):
     def setAngle(self, ang):
         self.angle = ang
 
+    def getForwardTPosition(self, x, y):
+        """
+        getForwardTPosition(x, y)
+
+        input:
+
+            x : the horizontal position relative to
+                the top-left corner of the image.
+
+            y : the vertical position relative to
+                the top-left corner of the image.
+
+        output:
+
+            (rx, ry): the new position relative to
+                      the top-left corner of the image
+
+        description:
+
+            given the coordinates (x, y) relative to the
+            top-left corner of the image, this function
+            returns the position (rx, ry) of the Point P
+            that will have coordinates (x, y) after the
+            image is derotated and shifted.
+        """
+        cx = self.width/2.0
+        cy = self.height/2.0
+
+        di = dist(cx, cy, x, y)
+        an = math.atan2(cy-y, cx-x)
+        an2 = self.angle*math.pi/180.0
+
+        rx = cx - di*math.cos(an2+an) + self.offset[0]
+        ry = cy - di*math.sin(an2+an) + self.offset[1]
+        
+        return rx, ry
+
+    def getReverseTPosition(self, rx, ry):
+        """
+        input:
+
+            rx : the horizontal position relative to
+                 the top-left corner of the image.
+
+            ry : the vertical position relative to
+                 the top-left corner of the image.
+
+        output:
+
+            (x, y): the new position relative to
+                    the top-left corner of the image
+
+        description:
+
+            this is the inverse function of getForwardTPosition(rx, ry)
+
+        example:
+        
+            x = 100.0
+            y = 250.0
+
+            x2, y2 = self.getReverseTPosition(*self.getForwardTPosition(x, y))
+            
+            print("{0:0.1f}, {1:0.1f}".format(x2, y2))
+            >>> 100.0, 250.0
+            
+        """
+        cx = self.width/2.0
+        cy = self.height/2.0
+
+        di = dist(cx, cy, rx, ry)
+        an2 = self.angle*math.pi/180.0
+        
+        cos_an2 = math.cos(an2)
+        sin_an2 = math.sin(an2)
+
+        # We must invert the following equations that we used
+        # in getReverseTPosition:
+        #
+        #    rx = cx - di*math.cos(an2+an) + self.offset[0]
+        #    ry = cy - di*math.sin(an2+an) + self.offset[1]
+        #
+        # we can define
+        #
+        #    dx = -di*math.cos(an2+an)
+        #    dy = -di*math.sin(an2+an)
+        #
+        # obtaining
+        #
+
+        dx = rx - cx - self.offset[0]
+        dy = ry - cy - self.offset[1]
+
+        #
+        # that can be simplified using the sinus and cosinus addition
+        # formulas
+        #
+        #    dx = -di*cos(an2)*cos(an) + di*sin(an2)sin(an)
+        #    dy = -di*sin(an2)*cos(an) - di*cos(an2)sin(an)
+        #
+        # Now we must solve this simple linear euqations system
+        #
+        # | cos(an)*cos(an2) - sin(an)*sin(an2) = -dx/di
+        # | cos(an)*sin(an2) + sin(an)*cos(an2) = -dy/di
+        #
+        # that in maticial form is
+        #
+        #       A*X = B
+        #
+        # where A is the matrix associated to the system
+        #
+        #
+        #            | cos(an2)  -sin(an2) |
+        #        A = |                     |
+        #            | sin(an2)   cos(an2) |
+        #
+        # X is the matrix of the unknowns and B is the
+        # matrix of constanant terms
+        #
+        #        | cos(an) |        | -dx/di |
+        #    X = |         |    B = |        |
+        #        | sin(an) |        | -dy/di |
+        #
+        # NOTE that det(A) = cosna2**2 + sinna2**2 = 1
+        # so we can simply apply the Cramer's rule:
+        #
+        # defining the matrixes A1 and A2 as
+        #
+        #         | -dx/di  -sin(an2) |         | cos(an2)   -dx/di |
+        #    A1 = |                   |    A2 = |                   |
+        #         | -dy/di   cos(an2) |         | sin(an2)   -dy/di |
+        #
+        # we obtain
+        #
+        #                 cos(an2)*dx     sin(an2)*dy
+        #    det(A1) = - ------------- - -------------
+        #                      di             di
+        #
+        #                 cos(an2)*dy     sin(an2)*dx
+        #    det(A2) = - ------------- + -------------
+        #                      di             di
+        #
+        # and
+        #
+        #                 det(A1)
+        #    cos(an) = ------------- = det(A1)
+        #                 det(A)
+        #
+        #                 det(A2)
+        #    sin(an) = ------------- = det(A2)
+        #                 det(A)
+        #
+        # finally we can compute the original value of x and y by
+        # inverting the relation an = math.atan2(cy-y, cx-x):
+        #
+        #               (cy - y)/di      sin(an)
+        #    tan(an) = -------------- = ---------
+        #               (cx - x)/di      cos(an)
+        #
+        # from wich we obtain
+        #
+        #    x = cx - di*cos(an) = cy + cos(an2)*dx + sin(an2)*dy
+        #    y = cy - di*sin(an) = cy + cos(an2)*dy - sin(an2)*dx
+        #
+
+        x = cx + cos_an2*dx + sin_an2*dy
+        y = cy + cos_an2*dy - sin_an2*dx
+
+        return x, y
+
     def _addFeature(self, ft, ftlist, idx=None):
+        ft.setParent(self)
         if idx is None:
             ftlist.append(ft)
         else:
@@ -627,6 +798,34 @@ class Frame(Qt.QObject):
 
     def addAlignPoint(self, ap, idx=None):
         self._addFeature(ap, self.alignpoints, idx)
+
+    def getStarIndex(self, ft):
+        try:
+            return self.stars.index(ft)
+        except ValueError:
+            return -1
+
+    def getAlignPointIndex(self, pt):
+        try:
+            return self.alignpoints.index(pt)
+        except ValueError:
+            return -1
+
+    def findFeatureByName(self, name, featurelist=None):
+        if featurelist is None:
+            for flist in self._featurelists:
+                for ft in flist:
+                    if ft.name == name:
+                        return ft
+        else:
+            for ft in featurelist:
+                if ft.name == name:
+                    return ft
+
+    def findStarByName(self, name):
+        for ft in self.stars:
+            if ft.name == name:
+                return ft
 
     def removeStar(self, idx=-1):
         self.stars.pop(idx)
@@ -2377,101 +2576,12 @@ def getSciStr(val):
 
 
 def getTimeStr(val):
-    return time.strftime('%H:%M:%S', time.gmtime(val))
+    ms, sec = math.modf(val)
+    ms_str = "{0:.3f}".format(ms)[1:]
+    return time.strftime('%H:%M:%S', time.gmtime(val)) + ms_str
 
-
-def drawMarker(painter, x, y, r=7, l=4, ring=True, cross=True, square=False):
-    if ring:
-        painter.drawEllipse(Qt.QPointF(x, y), r, r)
-    if square:
-        painter.drawRect(Qt.QRectF(x-r/2.0, y-r/2.0, r, r))
-    if cross:
-        painter.drawLine(Qt.QPointF(x-r-l, y), Qt.QPointF(x-r+l, y))
-        painter.drawLine(Qt.QPointF(x+r-l, y), Qt.QPointF(x+r+l, y))
-        painter.drawLine(Qt.QPointF(x, y-l-r), Qt.QPointF(x, y-r+l))
-        painter.drawLine(Qt.QPointF(x, y+r+l), Qt.QPointF(x, y+r-l))
-
-    if not (cross or ring or square):
-        painter.drawPolygon(Qt.QPointF(x-r, y), Qt.QPointF(x, y-r),
-                            Qt.QPointF(x+r, y), Qt.QPointF(x, y+r))
-
-
-def drawAxis(painter, data_x=(0, 1), data_y=(0, 1),
-             x_offset=60.0, y_offset=30.0, axis_name=('x', 'y'),
-             inverted_y=False, x_str_func=str, y_str_func=getSciStr):
-
-    surface_window = painter.window()
-
-    w = surface_window.width()
-    h = surface_window.height()
-
-    miny = data_y[0]
-    maxy = data_y[-1]
-    minx = data_x[0]
-    maxx = data_x[-1]
-
-    if inverted_y:
-        x1 = x_offset
-        y1 = y_offset
-        x2 = w - x_offset
-        y2 = h - y_offset
-        y3 = 10
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = (h - 2*y_offset) / (maxy-miny)
-    else:
-        x1 = x_offset
-        y1 = h - y_offset
-        x2 = w - x_offset
-        y2 = y_offset
-        y3 = -10
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = -(h - 2*y_offset) / (maxy-miny)
-
-    pxy1 = Qt.QPointF(x1, y1)
-    px2 = Qt.QPointF(x2, y1)
-    py2 = Qt.QPointF(x1, y2)
-
-    # draw x-axis
-    painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-    painter.drawLine(pxy1, py2)
-    painter.drawText(Qt.QPointF(x2, y1-y3), brakets(axis_name[0]))
-    count = 0
-    for x in getChartDivision(minx, maxx, w/50):
-        if x <= minx:
-            continue
-        elif x > maxx:
-            break
-        stxt_off = 0.75 + 1.25*(count % 2)
-        painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-        p1 = Qt.QPointF((x-minx)*x_scale + x1, y1)
-        p2 = Qt.QPointF((x-minx)*x_scale + x1, y1 - stxt_off*y3)
-        p3 = Qt.QPointF((x-minx)*x_scale + x1-25, y1 - stxt_off*y3-1.25*y3)
-        p4 = Qt.QPointF((x-minx)*x_scale + x1, y2)
-        painter.drawLine(p1, p2)
-        painter.drawText(p3, x_str_func(x))
-        painter.setPen(Qt.QPen(QtCore.Qt.gray, 1, QtCore.Qt.DotLine))
-        painter.drawLine(p1, p4)
-        count += 1
-
-    # draw y-axis
-    painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-    painter.drawLine(pxy1, px2)
-    painter.drawText(Qt.QPointF(10, y2-y3-20), brakets(axis_name[1]))
-    for y in getChartDivision(miny, maxy, h/50):
-        if y <= miny:
-            continue
-        elif y > maxy:
-            break
-        painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-        p1 = Qt.QPointF(2*x1/3, (y-miny)*y_scale + y1)
-        p2 = Qt.QPointF(x1, (y-miny)*y_scale + y1)
-        p3 = Qt.QPointF(5, (y-miny)*y_scale + y1)
-        p4 = Qt.QPointF(x2, (y-miny)*y_scale + y1)
-        painter.drawLine(p1, p2)
-        painter.drawText(p3, y_str_func(y))
-        painter.setPen(Qt.QPen(QtCore.Qt.gray, 1, QtCore.Qt.DotLine))
-        painter.drawLine(p2, p4)
-
+def getDateStr(val):
+    return time.strftime('%Y %m %d', time.gmtime(val))
 
 def getSciVal(val):
     if val != 0.0:
@@ -2482,22 +2592,36 @@ def getSciVal(val):
         return (0.0, 0)
 
 
-def ceil5(val):
-    val *= 10
+def ceil5(val, rounding=1):
+    tens = 10**rounding
+    val *= tens
     vmod = val % 10
     if vmod >= 5:
-        return int(val+10-vmod)/10.0
+        return float(int(val+10-vmod))/tens
     else:
-        return int(val+5-vmod)/10.0
+        return float(int(val+5-vmod))/tens
 
 
-def floor5(val):
-    val *= 10
+def floor5(val, rounding=1):
+    tens = 10**rounding
+    val *= tens
     vmod = val % 10
     if vmod >= 5:
-        return int(val+5-vmod)/10.0
+        return float(int(val+5-vmod))/tens
     else:
-        return int(val-vmod)/10.0
+        return float(int(val-vmod))/tens
+
+
+def sciFloor5(val, rounding=2):
+    scival, valexp = getSciVal(val)
+    newval = floor5(scival, rounding)
+    return newval*(10**valexp)
+
+
+def sciCeil5(val, rounding=2):
+    scival, valexp = getSciVal(val)
+    newval = ceil5(scival, rounding)
+    return newval*(10**valexp)
 
 
 def getSciRange(vmin, vmax):
@@ -2509,121 +2633,6 @@ def getSciRange(vmin, vmax):
     ivmin = floor5(s2*(10**(-de+e2))) * (10**(de))
 
     return (ivmin, ivmax)
-
-
-def getChartDivision(vmin, vmax, n=10):
-    step = (vmax-vmin)/float(n)
-    arr = np.arange(vmin, vmax, step)
-    return arr
-
-
-def drawCurves(painter, data_x, data_y, min_max, color=0, errors=None,
-               point_type='s', line_type=False, bar_type=False, int_param=64,
-               point_size=2, line_width=1, x_offset=60.0, y_offset=30.0,
-               inverted_y=False):
-
-    surface_window = painter.window()
-    w = surface_window.width()
-    h = surface_window.height()
-
-    pcount = len(data_y)
-
-    miny = min_max[0]
-    maxy = min_max[1]
-    minx = data_x.min()
-    maxx = data_x.max()
-
-    if inverted_y:
-        x1 = x_offset
-        y1 = y_offset
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = (h - 2*y_offset) / (maxy-miny)
-    else:
-        x1 = x_offset
-        y1 = h - y_offset
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = -(h - 2*y_offset) / (maxy-miny)
-
-    painter.setPen(color)
-
-    showpoints = True
-    showline = True
-    # showbars=True
-
-    if point_type == POINTS_TYPE[4]:
-        cross = True
-        ring = False
-        square = False
-        r1 = point_size
-        r2 = point_size
-        painter.setBrush(0)
-    elif point_type == POINTS_TYPE[1]:
-        cross = False
-        ring = True
-        square = False
-        r1 = point_size
-        r2 = point_size
-        painter.setBrush(color)
-    elif point_type == POINTS_TYPE[5]:
-        cross = True
-        ring = True
-        square = False
-        r1 = 3.0*point_size/2.0
-        r2 = point_size/2.0
-        painter.setBrush(0)
-    elif point_type == POINTS_TYPE[2]:
-        cross = False
-        ring = False
-        square = False
-        r1 = point_size+1
-        r2 = point_size+1
-        painter.setBrush(color)
-    elif point_type == POINTS_TYPE[3]:
-        cross = False
-        ring = False
-        square = True
-        r1 = point_size+1
-        r2 = point_size+1
-        painter.setBrush(color)
-    else:
-        showpoints = False
-
-    if line_type == LINES_TYPE[1]:
-        linetype = QtCore.Qt.SolidLine
-    elif line_type == LINES_TYPE[2]:
-        linetype = QtCore.Qt.DashLine
-    elif line_type == LINES_TYPE[3]:
-        linetype = QtCore.Qt.DotLine
-    elif line_type == LINES_TYPE[4]:
-        linetype = QtCore.Qt.DashDotLine
-    elif line_type == LINES_TYPE[5]:
-        linetype = QtCore.Qt.DashDotDotLine
-    else:
-        showline = False
-
-    painter.setPen(color)
-    if showpoints:
-        for i in range(pcount):
-            x = (data_x[i]-minx)*x_scale + x1
-            y = (data_y[i]-miny)*y_scale + y1
-            drawMarker(painter, x, y, r1, r2, ring, cross, square)
-            if errors is not None:
-                if bar_type == BARS_TYPE[1]:
-                    ys = (data_y[i]+errors[i]-miny)*y_scale + y1
-                    yl = (data_y[i]-errors[i]-miny)*y_scale + y1
-                    painter.drawLine(Qt.QPointF(x, yl), Qt.QPointF(x, ys))
-
-    if showline:
-        painter.setPen(Qt.QPen(color, line_width, linetype))
-        points = []
-        # Now signal will be interpolated and all
-        # high frequency noise will be removed
-        for p in interpolate(data_x, data_y, 10, 4, int_param):
-            x = (p[0]-minx)*x_scale + x1
-            y = (p[1]-miny)*y_scale + y1
-            points.append(Qt.QPointF(x, y))
-            # drawMarker(painter,x,y,r1,r2,False,True) # debug purpose only
-        painter.drawPolyline(*points)
 
 
 def interpolate(data_x, data_y, upsample_factor=4.0,
@@ -3356,47 +3365,3 @@ def drawHistograhm(painter, hists, xmin=None, xmax=None,
 
         if num_of_components == 2:
                 break
-
-
-def getStarMagnitudeADU(ndimg, star_x, star_y, inner_radius,
-                        middle_radius, outer_radius):
-    # Light curves generation function
-    val_adu = []
-    bkg_adu = []
-    ir2 = inner_radius**2
-    mr2 = middle_radius**2
-    or2 = outer_radius**2
-
-    for x in range(-int(inner_radius)-1, int(inner_radius)+1):
-        for y in range(-int(inner_radius)-1, int(inner_radius)+1):
-            p = (x**2 + y**2)
-            if p <= ir2:
-                val_adu.append(ndimg[star_y+y, star_x+x])
-
-    for x in range(-int(outer_radius)-1, int(outer_radius)+1):
-        for y in range(-int(outer_radius)-1, int(outer_radius)+1):
-            p = (x**2 + y**2)
-            if (p <= or2) and (p > mr2):
-                bkg_adu.append(ndimg[star_y+y, star_x+x])
-
-    val_adu = np.array(val_adu)
-    bkg_adu = np.array(bkg_adu)
-
-    total_star_pixels = len(val_adu)
-
-    total_val_adu = val_adu.sum(0)  # total value for the star
-    mean_bkg_adu = bkg_adu.mean(0)  # average for the background
-
-    total_val_adu_delta = val_adu.shape[0]  # error value for the star
-    mean_bkg_adu_sigma = bkg_adu.std(0)  # average for the background
-
-    # best value for the star
-    mean_adu = total_val_adu - mean_bkg_adu*total_star_pixels
-    mean_adu_delta = total_val_adu_delta/3.0 + mean_bkg_adu_sigma
-
-    # this avoids negative or null value:
-    if (mean_adu > 0).all():
-        return (mean_adu, mean_adu_delta)
-    else:
-        raise ValueError('Negative or null ADU values are not allowed!\n' +
-                         'Please set the star marker correctly.')
