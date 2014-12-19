@@ -5611,6 +5611,10 @@ class theApp(Qt.QObject):
             adu_plt.setName(st_name)
             adu_plots[st_name] = adu_plt
 
+        pv = guicontrols.LightCurveViewer()
+        pv.addPlots(tuple(adu_plots.values()))
+        self.showInMdiWindow(pv, guicontrols.PLOTVIEWER, "ADU Lightcurves")
+
         for img in self.framelist:
             img_idx += 1
             if not img.isUsed():
@@ -5657,10 +5661,8 @@ class theApp(Qt.QObject):
                 adu_plots[st_name].xdata.append(frm_time)
                 adu_plots[st_name].ydata.append(adu_val)
                 adu_plots[st_name].yerr.append(adu_delta)
+                pv.repaint()
 
-        pv = guicontrols.LightCurveViewer()
-        pv.addPlots(tuple(adu_plots.values()))
-        self.showInMdiWindow(pv, guicontrols.PLOTVIEWER, "ADU Lightcurves")
         self.unlock()
         self.progress.hide()
         self.progress.reset()

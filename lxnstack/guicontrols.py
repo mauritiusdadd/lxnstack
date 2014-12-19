@@ -1153,7 +1153,7 @@ class PlotWidget(QtGui.QWidget):
 
         self.plots = []
         self._backend=None
-        self._inverted_y = True
+        self._inverted_y = False
         self._x_offset = 60.0
         self._y_offset = 60.0
         self._x_fmt_func = utils.getTimeStr
@@ -1170,18 +1170,27 @@ class PlotWidget(QtGui.QWidget):
 
     def showLegend(self):
         self._legend.show()
+        self.repaint()
 
     def hideLegend(self):
         self._legend.hide()
+        self.repaint()
+
+    def setLegendVisible(self, val):
+        if val:
+            self.showLegend()
+        else:
+            self.hideLegend()
 
     def addPlot(self, plt):
         self.plots.append(plt)
         plt.setInvertedY(self._inverted_y)
     
     def setInvertedY(self, inverted=True):
-        self._inverted_y=inverted
+        self._inverted_y=bool(inverted)
         for plt in self.plots:
             plt.setInvertedY(inverted)
+        self.repaint()
 
     def resizeEvent(self, event):
         oldx = self._legend.x()
@@ -1238,7 +1247,7 @@ class PlotWidget(QtGui.QWidget):
         if vmin == vmax:
             hmax = hmin + 1
 
-        # drawing axes
+        # drawing axis
         plotting.drawAxis(
             painter,
             data_x=(hmin, hmax),
@@ -1269,12 +1278,42 @@ class PlotViewer(QtGui.QWidget):
         self.plt_prp_qgb = QtGui.QGroupBox(self._pltprp_grb_txt)
         self.plt_lst_qlw = QtGui.QListWidget()
 
+        toolbar = Qt.QToolBar('PlotViewerToolBar')
+
         self._int_ord_dsp = QtGui.QDoubleSpinBox()
         self._lne_wdt_dsp = QtGui.QDoubleSpinBox()
         self._mrk_sze_dsp = QtGui.QDoubleSpinBox()
         self._mrk_tpe_qcb = QtGui.QComboBox()
         self._lne_tpe_qcb = QtGui.QComboBox()
         self._plt_clr_qcb = QtGui.QComboBox()
+
+        save_plot_action = QtGui.QAction(
+            utils.getQIcon("save-plot"),
+            tr.tr('Save the displayed plot to a file'),
+            self)
+        
+        export_cvs_action = QtGui.QAction(
+            utils.getQIcon("text-csv"),
+            tr.tr('Export plot data to a cvs file'),
+            self)
+
+        invert_y_action = QtGui.QAction(
+            utils.getQIcon("invert-y-axis"),
+            tr.tr('Invert the Y axis'),
+            self)
+        invert_y_action.setCheckable(True)
+
+        show_legend_action = QtGui.QAction(
+            utils.getQIcon("legend"),
+            tr.tr('Show plot legend'),
+            self)
+        show_legend_action.setCheckable(True)
+        show_legend_action.setChecked(True)
+
+        toolbar.addAction(save_plot_action)
+        toolbar.addAction(export_cvs_action)
+        toolbar.addAction(invert_y_action)
+        toolbar.addAction(show_legend_action)
 
         for i in plotting.MARKER_TYPES:
             self._mrk_tpe_qcb.addItem(i[1])
@@ -1305,6 +1344,7 @@ class PlotViewer(QtGui.QWidget):
                               QtGui.QSizePolicy.Expanding))
 
         mainlayout = Qt.QHBoxLayout(self)
+        plotlayout = Qt.QVBoxLayout()
         sidelayout = Qt.QVBoxLayout()
         gboxlayout = Qt.QGridLayout()
 
@@ -1329,14 +1369,20 @@ class PlotViewer(QtGui.QWidget):
         sidelayout.addWidget(self.plt_lst_qlw)
         sidelayout.addWidget(self.plt_prp_qgb)
 
+        plotlayout.addWidget(toolbar)
+        plotlayout.addWidget(self._pw)
+
         mainlayout.addLayout(sidelayout)
-        mainlayout.addWidget(self._pw)
+        mainlayout.addLayout(plotlayout)
 
         self.setLayout(mainlayout)
         self.plt_prp_qgb.setLayout(gboxlayout)
 
         self.plt_prp_qgb.setEnabled(False)
 
+
+        show_legend_action.toggled.connect(self._pw.setLegendVisible)
+        invert_y_action.toggled.connect(self._pw.setInvertedY)
         self.plt_lst_qlw.currentRowChanged.connect(self.currentPlotChanged)
         self._int_ord_dsp.valueChanged.connect(self.setInterpolationOrder)
         self._mrk_sze_dsp.valueChanged.connect(self.setMarkerSize)

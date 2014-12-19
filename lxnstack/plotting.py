@@ -372,10 +372,16 @@ class Plot(object):
         return self.name
 
     def getYMinMax(self):
-        return min(self.ydata), max(self.ydata)
+        if self.ydata:
+            return min(self.ydata), max(self.ydata)
+        else:
+            return (0, 1)
     
     def getXMinMax(self):
-        return min(self.xdata), max(self.xdata)
+        if self.xdata:
+            return min(self.xdata), max(self.xdata)
+        else:
+            return (0, 1)
 
     def setColor(self, color):
         self.color=color
@@ -454,7 +460,8 @@ class Plot(object):
                 y = (p[1]-miny)*y_scale + y1
                 points.append(Qt.QPointF(x, y))
                 # drawMarker(painter,x,y,r1,r2,False,True) # debug purpose only
-            painter.drawPolyline(*points)
+            if points:
+                painter.drawPolyline(*points)
 
         painter.setPen(Qt.QPen(border_color, self.marker_size/10))
         painter.setBrush(maincolor)
@@ -486,7 +493,9 @@ class Plot(object):
 
 
 def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
-    
+    if not data_x or not data_y:
+        return (0, 1, 0, 1)
+
     miny = data_y[0]
     maxy = data_y[-1]
     minx = utils.floor5(data_x[0], 2)

@@ -2639,6 +2639,8 @@ def interpolate(data_x, data_y, upsample_factor=4.0,
                 downsample_factor=1.0, mask_factor=0,
                 padding=20):
     ON = len(data_y)
+    if ON < 2:
+        return []
 
     # padding for better results
     yst = data_y[0]
