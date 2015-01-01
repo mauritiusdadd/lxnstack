@@ -57,7 +57,10 @@ LINE_TYPES = [
     ('-.',tr.tr('dash dot')),
     ('-..',tr.tr('dash dot dot'))]
 
-BAR_TYPES = ['', '|', '_', '+']
+BAR_TYPES = [('',tr.tr('None')),
+             ('|',tr.tr('Vertical only')),
+             ('_',tr.tr('Horizontal only')),
+             ('+',tr.tr('Both'))]
 
 COLORS = [
     ('cyan', tr.tr('cyan')),
@@ -88,6 +91,8 @@ def getMarkerType(index):
 def getLineType(index):
     return LINE_TYPES[index % len(LINE_TYPES)][0]
 
+def getBarType(index):
+    return BAR_TYPES[index % len(BAR_TYPES)][0]
 
 def getColor(index):
     return COLORS[index % len(COLORS)][0]
@@ -105,6 +110,11 @@ def getMarkerTypeIndex(marker):
             return MARKER_TYPES.index(i)
     raise ValueError('cannot find marker type '+str(marker))
 
+def getBarTypeIndex(bar):
+    for i in BAR_TYPES:
+        if i[0] == bar:
+            return BAR_TYPES.index(i)
+    raise ValueError('cannot find line type '+str(bar))
 
 def getColorIndex(color):
     for i in COLORS:
@@ -311,18 +321,31 @@ def drawMarker(painter, x, y, size, marker_type=""):
     else:
         pass
 
+def drawErroBar(painter, x, y, xh, xl, yh, yl, bar_type):
+    
+    if bar_type == '|':
+        painter.drawLine(Qt.QPointF(x, y+yh), Qt.QPointF(x, y-yl))
+    elif bar_type == '_':
+        painter.drawLine(Qt.QPointF(x+xh, y), Qt.QPointF(x-xl, y))
+    elif bar_type == '+':
+        painter.drawLine(Qt.QPointF(x, y+yh), Qt.QPointF(x, y-yl))
+        painter.drawLine(Qt.QPointF(x+xh, y), Qt.QPointF(x-xl, y))
+    else:
+        pass
+
 
 class Plot(object):
 
     def __init__(self):
         self.xdata = []
         self.ydata = []
+        self.xerr = []
         self.yerr = []
         self.name = ""
         self.color = "cyan"
         self.marker_type='s'
         self.line_type='-'
-        self.bar_type=False
+        self.bar_type="|"
         self.int_param=4
         self.marker_size=6
         self.line_width=1.25
@@ -341,6 +364,12 @@ class Plot(object):
     def isVisible(self):
         return self._shown
 
+    def setVisible(self, val):
+        if val:
+            self.show()
+        else:
+            self.hide()
+
     def setInvertedY(self, inverted=True):
         self._inverted_y=inverted
 
@@ -358,6 +387,9 @@ class Plot(object):
 
     def getLineType(self):
         return self.line_type
+
+    def getBarType(self):
+        return self.bar_type
 
     def getLineWidth(self):
         return self.line_width
@@ -392,6 +424,9 @@ class Plot(object):
     def setLineTypeIndex(self, index):
         self.line_type=getLineType(index)
 
+    def setBarTypeIndex(self, index):
+        self.bar_type=getBarType(index)
+
     def setMarkerTypeIndex(self, index):
         self.marker_type=getMarkerType(index)
 
@@ -418,13 +453,17 @@ class Plot(object):
         painter.drawText(x+30, y+txth/2, self.getName())
 
     def drawQt(self, painter, hrange, vrange=(0, 1), offset=(60, 60)):
+        if self.isHidden():
+            return
+
         surface_window = painter.window()
         w = surface_window.width()
         h = surface_window.height()
 
         data_x = self.xdata
         data_y = self.ydata
-        errors = None
+        xerr = self.xerr
+        yerr = self.yerr
 
         pcount = len(data_y)
 
@@ -465,16 +504,39 @@ class Plot(object):
 
         painter.setPen(Qt.QPen(border_color, self.marker_size/10))
         painter.setBrush(maincolor)
-        if self.marker_type:
-            for i in range(pcount):
-                x = (data_x[i]-minx)*x_scale + x1
-                y = (data_y[i]-miny)*y_scale + y1
+        
+        for i in range(pcount):
+            x = (data_x[i]-minx)*x_scale + x1
+            y = (data_y[i]-miny)*y_scale + y1
+            if self.marker_type:
                 drawMarker(painter, x, y, self.marker_size, self.marker_type)
-                if self.yerr:
-                    if self.bar_type == '|':
-                        ys = (data_y[i]+errors[i]-miny)*y_scale + y1
-                        yl = (data_y[i]-errors[i]-miny)*y_scale + y1
-                        painter.drawLine(Qt.QPointF(x, yl), Qt.QPointF(x, ys))
+            if self.bar_type:
+                yr = yerr[i]
+                xr = xerr[i]
+
+                try:
+                    if isinstance(yr, (tuple, list, np.ndarray)) and len(yr)>1:
+                        yh = yr[0]*y_scale
+                        yl = yr[1]*y_scale
+                    else:
+                        yh = yr*y_scale
+                        yl = yh
+                except:
+                    yh = 0
+                    yl = 0
+
+                try:
+                    if isinstance(xr, (tuple, list, np.ndarray)) and len(xr)>1:
+                        xh = xr[0]*x_scale
+                        xl = xr[1]*x_scale
+                    else:
+                        xh = xr*x_scale
+                        xl = xh
+                except:
+                    xh = 0
+                    xl = 0
+
+                drawErroBar(painter, x, y,  xh, xl, yh, yl, self.bar_type)
 
     def savePlot(self, widget, title, name, y_inverted=False):
         plot = Qt.QImage(1600, 1200, Qt.QImage.Format_ARGB32)
@@ -516,6 +578,8 @@ def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
 
 
 def getChartDivision(vmin, vmax, n=10):
+    if n == 0:
+        return []
     step = (vmax-vmin)/float(n)
     arr = np.arange(vmin, vmax, step)
     return arr

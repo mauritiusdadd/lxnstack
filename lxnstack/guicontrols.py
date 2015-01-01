@@ -141,16 +141,152 @@ class SplashScreen(Qt.QObject):
             qapp.processEvents()
 
 
+class TaggedLineEdit(QtGui.QLineEdit):
+    
+    def __init__(self):
+        QtGui.QLineEdit.__init__(self)
+        self.textcolor = QtGui.QColor(67, 172, 232)
+        self.boxcolor = QtGui.QColor(175, 210, 255)
+        self.setReadOnly(True)
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        surface_window = painter.window()
+        font = self.font()
+        font.setBold(True)
+        pal = self.palette()
+        opt = QtGui.QStyleOptionFrame()
+        style = self.style()
+
+        opt.init(self)
+        painter.setFont(font)
+        style.drawPrimitive(
+            QtGui.QStyle.PE_FrameLineEdit,
+            opt,
+            painter,
+            self)
+        
+        painter.setClipRect(surface_window)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(surface_window)
+
+        painter.setPen(self.textcolor)
+        painter.setBrush(self.boxcolor)
+        fm = painter.fontMetrics()
+        
+        spacing = fm.width(' ')
+        xoff = spacing
+        for element in str(self.text()).split(','):
+            if not element.strip():
+                continue
+            etxt = "+"+element
+            w = fm.width(etxt)+2*spacing
+            rect = QtCore.QRectF(xoff, 3, w, surface_window.height()-6)
+            painter.drawRect(rect)
+            painter.drawText(rect,
+                             QtCore.Qt.AlignCenter |
+                             QtCore.Qt.AlignVCenter,
+                             etxt)
+            xoff += w+3*spacing
+
+class CCBStyledItemDelegate (QtGui.QStyledItemDelegate):
+    
+    def paint(self, painter, options, index):
+        newopts = QtGui.QStyleOptionViewItem(options)
+        # Disabling decoration for selected items
+        # and for items under mouse cursor
+        newopts.showDecorationSelected = False
+        newopts.state &= ~QtGui.QStyle.State_HasFocus
+        newopts.state &= ~QtGui.QStyle.State_MouseOver
+        # proced with object drawing
+        QtGui.QStyledItemDelegate.paint(self, painter, newopts, index)
+
+
+class ComboCheckBox(QtGui.QComboBox):
+
+    itemChanged = QtCore.pyqtSignal(QtGui.QStandardItem)
+    checkStateChanged = QtCore.pyqtSignal()
+    def __init__(self, *arg, **args):
+        QtGui.QComboBox.__init__(self, *arg, **args)
+        model =  QtGui.QStandardItemModel(0, 1)
+        self.setModel(model)
+        self.setItemDelegate(CCBStyledItemDelegate(self))
+        self.setMinimumHeight(30)
+        self.setLineEdit(TaggedLineEdit())
+        self.setEditable(True)
+        self.setInsertPolicy(QtGui.QComboBox.NoInsert)
+        self.setEditText("")
+
+        self.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
+                              QtGui.QSizePolicy.Minimum))
+
+        model.itemChanged.connect(self.itemChanged.emit)
+        model.itemChanged.connect(self._emitCheckStateChanged)
+        self.checkStateChanged.connect(self._updateEditText)
+        self.editTextChanged.connect(self._test)
+
+    def _test(self, txt):
+        self._updateEditText()
+
+    def _updateEditText(self):
+        txt = ""
+        model = self.model()
+        total = model.rowCount()*model.columnCount()
+        count = 0
+        for row in xrange(model.rowCount()):
+            for col in xrange(model.columnCount()):
+                item = model.item(row, col)
+                if item.checkState():
+                    count += 1
+                    txt += item.text() +", "
+        if count == total:
+            txt = tr.tr('All')
+        elif not txt:
+            txt = tr.tr('None')
+        self.setEditText(txt)
+
+    def addItem(self, *arg, **args):
+        """
+            arg:
+                see QtGui.QStandardItem for
+            
+            args:
+                checked (bool)
+        """
+        item = QtGui.QStandardItem(*arg)
+
+        item.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        item.setData(QtCore.Qt.Unchecked, QtCore.Qt.CheckStateRole)
+
+        if "checked" in args and args["checked"]:
+            item.setCheckState(2)
+        else:
+            item.setCheckState(0)
+
+        self.model().appendRow(item)
+        self._updateEditText()
+        return item
+    
+    def addItems(self, strlist):
+        for txt in strlist:
+            self.addItem(txt)
+
+    def _emitCheckStateChanged(self):
+        self.checkStateChanged.emit()
+
+
 class ToolComboBox(Qt.QFrame):
+
+    _selector = QtGui.QComboBox
 
     def __init__(self, title="", tooltip="", useframe=True):
 
         Qt.QFrame.__init__(self)
 
         self.setFrameStyle(Qt.QFrame.Plain)
-
+        self.setToolTip(tooltip)
         self._label = Qt.QLabel(title)
-        self._selector = Qt.QComboBox()
+        self._selector = self._selector()
 
         vLayout = Qt.QHBoxLayout(self)
         vLayout.addWidget(self._label)
@@ -171,6 +307,16 @@ class ToolComboBox(Qt.QFrame):
 
         self.setFrame(useframe)
 
+
+class ToolComboCheckBox(ToolComboBox):
+    
+    _selector = ComboCheckBox
+    
+    def __init__(self, title="", tooltip="", useframe=True):
+        ToolComboBox.__init__(self, title, tooltip, useframe)
+        self._selector.setMinimumWidth(200)
+
+        self.itemChanged = self._selector.itemChanged
 
 class ImageViewer(QtGui.QWidget):
 
@@ -986,11 +1132,29 @@ class DifferenceViewer(ImageViewer):
             painter.drawLine(3, 40, 0, 50)
         del painter
 
+
+class DropDownWidget(QtGui.QWidget):
+    
+    def __init__(self, parent=None):
+        QtGui.QWidget.__init__(self, parent)
+
+    def paintEvent(self, event):
+        opt = QtGui.QStyleOption()
+        opt.init(self)
+        painter = QtGui.QPainter(self)
+        self.style().drawPrimitive(QtGui.QStyle.PE_Widget,
+                                   opt,
+                                   painter,
+                                   self)
+
+
 class PlotSubWidget(QtGui.QWidget):
 
     def __init__(self, parent=None):
         assert isinstance(parent, PlotWidget), "parent is not a PlotWidget"
         QtGui.QWidget.__init__(self, parent)
+        gboxlayout = Qt.QGridLayout()
+        
         self._click_offset = QtCore.QPoint()
         self.padding=(10,10)
         self.resize(150,100)
@@ -1004,6 +1168,18 @@ class PlotSubWidget(QtGui.QWidget):
                       (0.5, 1.0): QtCore.Qt.SizeVerCursor,
                       (1.0, 1.0): QtCore.Qt.SizeFDiagCursor,}
         self._resizing=False
+        self._tlt_lbl = QtGui.QLabel()
+        self.close_button = QtGui.QPushButton('x', self._tlt_lbl)
+        
+        self._tlt_lbl.setAlignment(QtCore.Qt.AlignCenter)
+        self._tlt_lbl.setObjectName("Title")
+
+        self.close_button.setObjectName("Close")
+        self.close_button.setMaximumSize(25, 25)
+        self.close_button.resize(15, 15)
+        self.close_button.move(0, 0)
+        self.close_button.setCursor(QtCore.Qt.PointingHandCursor)
+
         self.setCursor(QtCore.Qt.SizeAllCursor)
         self.setMouseTracking(True)
 
@@ -1011,6 +1187,16 @@ class PlotSubWidget(QtGui.QWidget):
 
         self.setMinimumSize(100,50)
 
+        gboxlayout.setContentsMargins(self._grip_size, self._grip_size,
+                                      self._grip_size, self._grip_size)
+        gboxlayout.addWidget(self._tlt_lbl, 0, 0, 1, 2)
+
+        self.setLayout(gboxlayout)
+        self.setEnabled(True)
+        self.close_button.clicked.connect(self.hide)
+
+    def setWindowTitle(self, title):
+        self._tlt_lbl.setText(str(title))
 
     def _mouseOverGrip(self, pos):
         x = pos.x()
@@ -1084,7 +1270,10 @@ class PlotSubWidget(QtGui.QWidget):
                 self.move(self.mapToParent(event.pos() - self._click_offset))
 
     def draw(self, painter):
-        pass  # user implemented
+        opt = QtGui.QStyleOption()
+        opt.init(self)
+        style = self.style()
+        style.drawPrimitive(QtGui.QStyle.PE_Widget, opt, painter, self)
 
     def _paintGripes(self, painter):
         oldbrush = painter.brush()
@@ -1130,10 +1319,27 @@ class PlotSubWidget(QtGui.QWidget):
         self.draw(painter)
         if self.hasFocus():
             self._paintGripes(painter)
-        
 
 
 class PlotLegendWidget(PlotSubWidget):
+
+    def __init__(self, parent=None):
+        PlotSubWidget.__init__(self, parent)
+        self.setWindowTitle(tr.tr("Legend"))
+        self.setStyleSheet(
+            """
+            QLabel#Title
+            {
+                background-color: none;
+                font: bold;
+            }
+            """)
+        self.close_button.hide()
+        self.close_button.deleteLater()
+        self.close_button.setParent(None)
+        del self.close_button
+        gboxlayout = self.layout()
+        gboxlayout.setRowStretch(1, 1)
 
     def draw(self, painter):
         if self.parent()._backend is None:
@@ -1145,6 +1351,185 @@ class PlotLegendWidget(PlotSubWidget):
                     ely = 3*self.padding[1] + y_off + 20*count
                     plot.drawQtLegendElement(painter, elx, ely)
                     count += 1
+
+
+class PlotPropertyDialogWidget(PlotSubWidget):
+
+    def __init__(self, parent=None):
+        PlotSubWidget.__init__(self, parent)
+        self.setWindowTitle(tr.tr("Plot properties"))
+        self._selected_plot_idx = -1
+        self.resize(250,225)
+        self.move(32,32)
+        gboxlayout = self.layout()
+        
+        if gboxlayout is None:
+            gboxlayout = QtGui.QGridLayout()
+            self.setLayout(gboxlayout)
+
+        self._cur_plt_qcb = QtGui.QComboBox()
+        self._int_ord_dsp = QtGui.QDoubleSpinBox()
+        self._lne_wdt_dsp = QtGui.QDoubleSpinBox()
+        self._mrk_sze_dsp = QtGui.QDoubleSpinBox()
+        self._mrk_tpe_qcb = QtGui.QComboBox()
+        self._lne_tpe_qcb = QtGui.QComboBox()
+        self._bar_tpe_qcb = QtGui.QComboBox()
+        self._plt_clr_qcb = QtGui.QComboBox()
+
+        for i in plotting.MARKER_TYPES:
+            self._mrk_tpe_qcb.addItem(i[1])
+
+        for i in plotting.LINE_TYPES:
+            self._lne_tpe_qcb.addItem(i[1])
+
+        for i in plotting.BAR_TYPES:
+            self._bar_tpe_qcb.addItem(i[1])
+
+        for i in plotting.COLORS:
+            self._plt_clr_qcb.addItem(i[1])
+
+        self.setStyleSheet(
+            """
+            QLabel#Title
+            {
+                background-color: lightgray;
+            }
+            
+            QPushButton#Close
+            {
+                background-color: transparent;
+                color: black;
+                border: none;
+                font: bold;
+            }
+            
+            QPushButton#Close:hover:!pressed
+            {
+                background-color: black;
+                color: white;
+            }
+            
+            QPushButton#Close:pressed
+            {
+                background-color: red;
+                color: white;
+            }
+            """)
+
+        self._int_ord_dsp.setSingleStep(0.1)
+        self._lne_wdt_dsp.setSingleStep(0.1)
+        self._mrk_sze_dsp.setSingleStep(0.5)
+
+        gboxlayout.addWidget(self._cur_plt_qcb, 1, 0, 1, 2)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line color")), 2, 0)
+        gboxlayout.addWidget(self._plt_clr_qcb, 2, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line type")), 3, 0)
+        gboxlayout.addWidget(self._lne_tpe_qcb, 3, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker type")), 4, 0)
+        gboxlayout.addWidget(self._mrk_tpe_qcb, 4, 1)
+        
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("errorbars type")), 5, 0)
+        gboxlayout.addWidget(self._bar_tpe_qcb, 5, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line width")), 6, 0)
+        gboxlayout.addWidget(self._lne_wdt_dsp, 6, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker size")), 7, 0)
+        gboxlayout.addWidget(self._mrk_sze_dsp, 7, 1)
+
+        gboxlayout.addWidget(QtGui.QLabel(tr.tr("interpolation")), 8, 0)
+        gboxlayout.addWidget(self._int_ord_dsp, 8, 1)
+
+        self.setEnabled(True)
+
+        self._cur_plt_qcb.currentIndexChanged.connect(self.currentPlotChanged)
+        self._int_ord_dsp.valueChanged.connect(self.setInterpolationOrder)
+        self._mrk_sze_dsp.valueChanged.connect(self.setMarkerSize)
+        self._lne_wdt_dsp.valueChanged.connect(self.setLineWidth)
+        self._mrk_tpe_qcb.currentIndexChanged.connect(self.setMarkerType)
+        self._plt_clr_qcb.currentIndexChanged.connect(self.setColor)
+        self._lne_tpe_qcb.currentIndexChanged.connect(self.setLineType)
+        self._bar_tpe_qcb.currentIndexChanged.connect(self.setBarType)
+
+    def setPlots(self, plots):
+        self._cur_plt_qcb.clear()
+        for plot in plots:
+            self._cur_plt_qcb.addItem(plot.getName())
+
+    def setInterpolationOrder(self, val):
+        self.getSelectedPlot().setIterpolationOrder(val)
+        self.parent().repaint()
+
+    def setMarkerSize(self, val):
+        self.getSelectedPlot().setMarkerSize(val)
+        self.parent().repaint()
+
+    def setLineWidth(self, val):
+        self.getSelectedPlot().setLineWidth(val)
+        self.parent().repaint()
+
+    def setColor(self, idx):
+        self.getSelectedPlot().setColorIndex(idx)
+        self.parent().repaint()
+
+    def setMarkerType(self, idx):
+        self.getSelectedPlot().setMarkerTypeIndex(idx)
+        self.parent().repaint()
+
+    def setLineType(self, idx):
+        self.getSelectedPlot().setLineTypeIndex(idx)
+        self.parent().repaint()
+    
+    def setBarType(self, idx):
+        self.getSelectedPlot().setBarTypeIndex(idx)
+        self.parent().repaint()
+
+    def updatePlotControls(self):
+        plot = self.getSelectedPlot()
+        if plot is None:
+            return
+        
+        int_ord = float(plot.getIterpolationOrder())
+        mrk_sze = float(plot.getMarkerSize())
+        lne_wdt = float(plot.getLineWidth())
+
+        mrk_tpe_idx = plotting.getMarkerTypeIndex(plot.getMarkerType())
+        lne_tpe_idx = plotting.getLineTypeIndex(plot.getLineType())
+        bar_tpe_idx = plotting.getBarTypeIndex(plot.getBarType())
+        plt_clr_idc = plotting.getColorIndex(plot.getColor())
+
+        self._int_ord_dsp.setValue(int_ord)
+        self._mrk_sze_dsp.setValue(mrk_sze)
+        self._lne_wdt_dsp.setValue(lne_wdt)
+        self._mrk_tpe_qcb.setCurrentIndex(mrk_tpe_idx)
+        self._lne_tpe_qcb.setCurrentIndex(lne_tpe_idx)
+        self._bar_tpe_qcb.setCurrentIndex(bar_tpe_idx)
+        self._plt_clr_qcb.setCurrentIndex(plt_clr_idc)
+
+    def currentPlotChanged(self, plot_idx):
+        self._selected_plot_idx = plot_idx
+        self.updatePlotControls()
+
+    def getSelectedPlot(self):
+        if self._selected_plot_idx < 0:
+            self._int_ord_dsp.setEnabled(False)
+            self._lne_wdt_dsp.setEnabled(False)
+            self._mrk_sze_dsp.setEnabled(False)
+            self._mrk_tpe_qcb.setEnabled(False)
+            self._lne_tpe_qcb.setEnabled(False)
+            self._plt_clr_qcb.setEnabled(False)
+            return None
+        else:
+            self._int_ord_dsp.setEnabled(True)
+            self._lne_wdt_dsp.setEnabled(True)
+            self._mrk_sze_dsp.setEnabled(True)
+            self._mrk_tpe_qcb.setEnabled(True)
+            self._lne_tpe_qcb.setEnabled(True)
+            self._plt_clr_qcb.setEnabled(True)
+            return self.parent().plots[self._selected_plot_idx]
 
 class PlotWidget(QtGui.QWidget):
 
@@ -1160,8 +1545,18 @@ class PlotWidget(QtGui.QWidget):
         self._x_legend = -1
         self._y_legend = -1
         self._legend = PlotLegendWidget(self)
-        
+        self._dialog = PlotPropertyDialogWidget(self)
+        self._prop_qpb = Qt.QPushButton(self)
         self._legend.setWindowTitle(tr.tr("Legend"))
+
+        self._prop_qpb.setIcon(utils.getQIcon("gear"))
+        self._prop_qpb.setIconSize(QtCore.QSize(16, 16))
+        self._prop_qpb.move(2, 2)
+        self._prop_qpb.setFlat(True)
+
+        self._dialog.hide()
+
+        self._prop_qpb.clicked.connect(self._dialog.show)
 
         _init_legend_x = 0
         _init_legend_y = self._y_offset
@@ -1184,53 +1579,71 @@ class PlotWidget(QtGui.QWidget):
 
     def addPlot(self, plt):
         self.plots.append(plt)
+        self._dialog.setPlots(self.plots)
         plt.setInvertedY(self._inverted_y)
     
     def setInvertedY(self, inverted=True):
         self._inverted_y=bool(inverted)
         for plt in self.plots:
             plt.setInvertedY(inverted)
+        newy = self.height() - self._legend.y() - self._legend.height()
+        self._legend.move(self._legend.x(),newy)
         self.repaint()
 
     def resizeEvent(self, event):
         oldx = self._legend.x()
         oldy = self._legend.y()
 
+        lwdt = self._legend.width()
+        lght = self._legend.height()
+
         oldw = event.oldSize().width()
         oldh = event.oldSize().height()
 
         neww = event.size().width()
+        newh = event.size().height()
 
         if oldw < 0:
-            # This is probabli the first resize
+            # This is probably the first resize
             # executed when the widget is created
-            newx = neww - self._x_offset - self._legend.width()
-            self._legend.move(newx, oldy)
+            newx = neww - self._x_offset - lwdt
+            if self._inverted_y:
+                newy = newy - self._y_offset - lght
+            else:
+                newy = self._y_offset
         else:
-            deltaw = neww - oldw
+            xcorr = lwdt/2.0
+            ycorr = lght/2.0
 
-            self._legend.move(oldx + deltaw, oldy)
+            xperc = float(oldx + xcorr)/float(oldw)
+            yperc = float(oldy + ycorr)/float(oldh)
+
+            newx = xperc*neww - xcorr
+            newy = yperc*newh - ycorr
+
+        self._legend.move(newx, newy)
 
     def paintEvent(self, event):
         painter = Qt.QPainter(self)
         painter.setRenderHint(painter.Antialiasing)
         surface_window = painter.window()
 
-        w = surface_window.width()
-        h = surface_window.height()
-        
         painter.setBrush(QtCore.Qt.white)
-        painter.drawRect(0, 0, w, h)
+        painter.drawRect(surface_window)
 
         if not self.plots:
             # no plots to draw
             return
         
         # computing plot range
-        vmin, vmax = self.plots[0].getYMinMax()
-        hmin, hmax = self.plots[0].getXMinMax()
-        for plot in self.plots[1:]:
+        there_is_a_plot = False
+        for plot in self.plots:
             if plot.isHidden():
+                continue
+            elif not there_is_a_plot:
+                there_is_a_plot = True
+                vmin, vmax = plot.getYMinMax()
+                hmin, hmax = plot.getXMinMax()
                 continue
             pvmin, pvmax = plot.getYMinMax()
             phmin, phmax = plot.getXMinMax()
@@ -1238,6 +1651,12 @@ class PlotWidget(QtGui.QWidget):
             vmax = max(vmax, pvmax)
             hmin = min(hmin, phmin)
             hmax = max(hmax, phmax)
+        
+        if not there_is_a_plot:
+            vmin = 0
+            vmax = 1
+            hmin = 0
+            hmax = 1
         
         vmval, vmexp = utils.getSciVal(vmax)
         vmax = (vmval+0.5)*(10**vmexp)
@@ -1267,25 +1686,17 @@ class PlotWidget(QtGui.QWidget):
 
 class PlotViewer(QtGui.QWidget):
 
-    _pltprp_grb_txt = tr.tr("Plot properties")
-
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
 
         self._pw = PlotWidget(parent=self)
-        self.current_plot_idx = -1
 
-        self.plt_prp_qgb = QtGui.QGroupBox(self._pltprp_grb_txt)
-        self.plt_lst_qlw = QtGui.QListWidget()
-
+        self._plt_lst_qlw = ToolComboCheckBox(
+            tr.tr("lightcurves:"),
+            tr.tr("Select the lightcurves to show"))
+        self._plt_lst_qlw.itemChanged.connect(self._ccbItemChanged)
+        
         toolbar = Qt.QToolBar('PlotViewerToolBar')
-
-        self._int_ord_dsp = QtGui.QDoubleSpinBox()
-        self._lne_wdt_dsp = QtGui.QDoubleSpinBox()
-        self._mrk_sze_dsp = QtGui.QDoubleSpinBox()
-        self._mrk_tpe_qcb = QtGui.QComboBox()
-        self._lne_tpe_qcb = QtGui.QComboBox()
-        self._plt_clr_qcb = QtGui.QComboBox()
 
         save_plot_action = QtGui.QAction(
             utils.getQIcon("save-plot"),
@@ -1314,145 +1725,35 @@ class PlotViewer(QtGui.QWidget):
         toolbar.addAction(export_cvs_action)
         toolbar.addAction(invert_y_action)
         toolbar.addAction(show_legend_action)
-
-        for i in plotting.MARKER_TYPES:
-            self._mrk_tpe_qcb.addItem(i[1])
-
-        for i in plotting.LINE_TYPES:
-            self._lne_tpe_qcb.addItem(i[1])
-
-        for i in plotting.COLORS:
-            self._plt_clr_qcb.addItem(i[1])
-
-        self.plt_prp_qgb.setMaximumWidth(250)
-        self.plt_lst_qlw.setMaximumWidth(250)
-
-        self._int_ord_dsp.setSingleStep(0.1)
-        self._lne_wdt_dsp.setSingleStep(0.1)
-        self._mrk_sze_dsp.setSingleStep(0.5)
-
-        self.plt_lst_qlw.setSizePolicy(
-            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
-                              QtGui.QSizePolicy.Expanding))
-
-        self.plt_prp_qgb.setSizePolicy(
-            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
-                              QtGui.QSizePolicy.MinimumExpanding))
+        toolbar.addWidget(self._plt_lst_qlw)
 
         self._pw.setSizePolicy(
             QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
                               QtGui.QSizePolicy.Expanding))
 
-        mainlayout = Qt.QHBoxLayout(self)
-        plotlayout = Qt.QVBoxLayout()
-        sidelayout = Qt.QVBoxLayout()
-        gboxlayout = Qt.QGridLayout()
+        mainlayout = Qt.QVBoxLayout(self)
 
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line color")), 0, 0)
-        gboxlayout.addWidget(self._plt_clr_qcb, 0, 1)
-
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line type")), 1, 0)
-        gboxlayout.addWidget(self._lne_tpe_qcb, 1, 1)
-
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker type")), 2, 0)
-        gboxlayout.addWidget(self._mrk_tpe_qcb, 2, 1)
-
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("line width")), 3, 0)
-        gboxlayout.addWidget(self._lne_wdt_dsp, 3, 1)
-
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker size")), 4, 0)
-        gboxlayout.addWidget(self._mrk_sze_dsp, 4, 1)
-
-        gboxlayout.addWidget(QtGui.QLabel(tr.tr("interpolation")), 5, 0)
-        gboxlayout.addWidget(self._int_ord_dsp, 5, 1)
-
-        sidelayout.addWidget(self.plt_lst_qlw)
-        sidelayout.addWidget(self.plt_prp_qgb)
-
-        plotlayout.addWidget(toolbar)
-        plotlayout.addWidget(self._pw)
-
-        mainlayout.addLayout(sidelayout)
-        mainlayout.addLayout(plotlayout)
+        mainlayout.addWidget(toolbar)
+        mainlayout.addWidget(self._pw)
 
         self.setLayout(mainlayout)
-        self.plt_prp_qgb.setLayout(gboxlayout)
-
-        self.plt_prp_qgb.setEnabled(False)
-
 
         show_legend_action.toggled.connect(self._pw.setLegendVisible)
         invert_y_action.toggled.connect(self._pw.setInvertedY)
-        self.plt_lst_qlw.currentRowChanged.connect(self.currentPlotChanged)
-        self._int_ord_dsp.valueChanged.connect(self.setInterpolationOrder)
-        self._mrk_sze_dsp.valueChanged.connect(self.setMarkerSize)
-        self._lne_wdt_dsp.valueChanged.connect(self.setLineWidth)
-        self._mrk_tpe_qcb.currentIndexChanged.connect(self.setMarkerType)
-        self._plt_clr_qcb.currentIndexChanged.connect(self.setColor)
-        self._lne_tpe_qcb.currentIndexChanged.connect(self.setLineType)
+
+    def _ccbItemChanged(self, item):
+        plot = self._pw.plots[item.index().row()]
+        plot.setVisible(item.checkState())
+        self.repaint()
 
     def addPlots(self, plots):
         idx = len(self._pw.plots)
         for plot in plots:
             if plot not in self._pw.plots:
                 plot.setColor(plotting.getColor(idx))
-                self.plt_lst_qlw.addItem(plot.name)
+                self._plt_lst_qlw.addItem(plot.name, checked=plot.isVisible())
                 self._pw.addPlot(plot)
                 idx+=1
-
-    def setInterpolationOrder(self, val):
-        self.getSelectedPlot().setIterpolationOrder(val)
-        self._pw.repaint()
-
-    def setMarkerSize(self, val):
-        self.getSelectedPlot().setMarkerSize(val)
-        self._pw.repaint()
-
-    def setLineWidth(self, val):
-        self.getSelectedPlot().setLineWidth(val)
-        self._pw.repaint()
-
-    def setColor(self, idx):
-        self.getSelectedPlot().setColorIndex(idx)
-        self._pw.repaint()
-
-    def setMarkerType(self, idx):
-        self.getSelectedPlot().setMarkerTypeIndex(idx)
-        self._pw.repaint()
-
-    def setLineType(self, idx):
-        self.getSelectedPlot().setLineTypeIndex(idx)
-        self._pw.repaint()
-
-    def getSelectedPlot(self):
-        if self.current_plot_idx < 0:
-            self.plt_prp_qgb.setEnabled(False)
-            return None
-        else:
-            self.plt_prp_qgb.setEnabled(True)
-            return self._pw.plots[self.current_plot_idx]
-
-    def currentPlotChanged(self, plot_idx):
-        self.current_plot_idx = plot_idx
-        self.updatePlotControls()
-
-    def updatePlotControls(self):
-        plot = self.getSelectedPlot()
-
-        int_ord = float(plot.getIterpolationOrder())
-        mrk_sze = float(plot.getMarkerSize())
-        lne_wdt = float(plot.getLineWidth())
-
-        mrk_tpe_idx = plotting.getMarkerTypeIndex(plot.getMarkerType())
-        lne_tpe_idx = plotting.getLineTypeIndex(plot.getLineType())
-        plt_clr_idc = plotting.getColorIndex(plot.getColor())
-
-        self._int_ord_dsp.setValue(int_ord)
-        self._mrk_sze_dsp.setValue(mrk_sze)
-        self._lne_wdt_dsp.setValue(lne_wdt)
-        self._mrk_tpe_qcb.setCurrentIndex(mrk_tpe_idx)
-        self._lne_tpe_qcb.setCurrentIndex(lne_tpe_idx)
-        self._plt_clr_qcb.setCurrentIndex(plt_clr_idc)
 
 
 class LightCurveViewer(PlotViewer):

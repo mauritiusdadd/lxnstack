@@ -60,7 +60,7 @@ def getStarMagnitudeADU(star, ndimg=None):
 
     # best value for the star
     mean_adu = total_val_adu - mean_bkg_adu*total_star_pixels
-    mean_adu_delta = total_val_adu_delta/3.0 + mean_bkg_adu_sigma
+    mean_adu_delta = total_val_adu_delta + 3*mean_bkg_adu_sigma
 
     # this avoids negative or null value:
     if (mean_adu > 0).all():

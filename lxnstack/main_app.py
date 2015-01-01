@@ -5660,7 +5660,8 @@ class theApp(Qt.QObject):
                 
                 adu_plots[st_name].xdata.append(frm_time)
                 adu_plots[st_name].ydata.append(adu_val)
-                adu_plots[st_name].yerr.append(adu_delta)
+                adu_plots[st_name].xerr.append(0)
+                adu_plots[st_name].yerr.append(np.float32(adu_delta))
                 pv.repaint()
 
         self.unlock()
