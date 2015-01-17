@@ -1683,20 +1683,20 @@ class theApp(Qt.QObject):
             return
 
         self.__updating_mdi_ctrls = True
-
-        sw_type = self.mdi_windows[mdisw]['type']
+        sw_prop = self.mdi_windows[mdisw]
+        sw_type = sw_prop['type']
 
         log.log(repr(self),
                 "Updating mdi subwindow "+str(mdisw)+" type="+str(sw_type),
                 level=logging.DEBUG)
 
         if sw_type == guicontrols.IMAGEVIEWER:
-            iv = self.mdi_windows[mdisw]['widget']
+            iv = sw_prop['widget']
 
             self.deselectAllListWidgetsItems()
 
             try:
-                refimg = self.mdi_windows[mdisw]['references'][0]
+                refimg = sw_prop['references'][0]
                 frametype = refimg.getProperty('frametype')
 
                 if frametype == utils.LIGHT_FRAME_TYPE:
@@ -1715,11 +1715,11 @@ class theApp(Qt.QObject):
                 except:
                     listwidget.setCurrentItem(None)
                 else:
-                    if iv['status'] == guicontrols.NEEDS_IMAGE_UPDATE:
+                    if sw_prop['status'] == guicontrols.NEEDS_IMAGE_UPDATE:
                         self.showImage(image=refimg,
-                                       title=iv['name'],
+                                       title=sw_prop['name'],
                                        mdisubwindow=mdisw,
-                                       context_subtitle=iv['context'])
+                                       context_subtitle=sw_prop['context'])
             except:
                 pass
         else:
@@ -2553,7 +2553,7 @@ class theApp(Qt.QObject):
             # NOTE: Cv2 uses BRG images, so we must use
             #       the complementery bayer matrix type.
             #       For example, if you want to convert
-            #       a row image taken with a RGGB matrix,
+            #       a raw image taken with a RGGB matrix,
             #       the BGGR model (BG2RGB) must be used.
 
             if bayer == 0:
@@ -3699,7 +3699,7 @@ class theApp(Qt.QObject):
 
             imw = int(information_node.getAttribute('width'))
             imh = int(information_node.getAttribute('height'))
-            dep = information_node.getAttribute('mode')
+            dep = information_node.getAttribute('mode').split(';')[0]
 
             try:
                 bayer_mode = int(information_node.getAttribute('bayer-mode'))

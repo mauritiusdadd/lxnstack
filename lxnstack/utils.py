@@ -1407,7 +1407,7 @@ class Frame(Qt.QObject):
                     img = Image.open(file_name)
                     img.seek(page)
 
-                    self.mode = img.mode
+                    self.mode = img.mode.split(';')[0]
                     self.width = img.size[0]
                     self.height = img.size[1]
 
