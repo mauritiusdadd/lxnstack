@@ -4034,7 +4034,7 @@ class theApp(Qt.QObject):
                             s.reference = bool(is_reference)
                             s.magnitude = float(snd.getAttribute('magnitude'))
                             frm.addStar(s)
-                            s.setPosition(x,y)
+                            s.setPosition(sx,sy)
                             s.moved_rt.connect(self.updateStarPosition)
             else:
                 use_image_time = self.use_image_time
@@ -5550,6 +5550,12 @@ class theApp(Qt.QObject):
 
         return mdn
 
+    def getNumberOfComponents(self):
+        if self.isBayerUsed():
+            return 3
+        else:
+            return utils.getNumberOfComponents(self.currentDepht)
+
     def doGenerateLightCurves(self):
         return self.generateLightCurves()
 
@@ -5607,16 +5613,27 @@ class theApp(Qt.QObject):
         adu_plots={}
         for star in self.framelist[0].stars:
             st_name = str(star.getName())
-            adu_plt = lcurves.LightCurvePlot()
-            adu_plt.setName(st_name)
-            adu_plots[st_name] = adu_plt
+            adu_plots[st_name]={}
+            for cn in range(self.getNumberOfComponents()):
+                # NOTE:
+                # adu_plt = lcurves.LightCurvePlot() may be used in conjunction
+                # to adu_plt.append(...) in order to fill the plot. However,
+                # we know that there will be one point per eache frame and this
+                # makes a totla of len(self.framelist) points 
+                adu_plt = lcurves.LightCurvePlot(len(self.framelist))
+                adu_plt.setName(st_name + "C"+str(cn))
+                adu_plots[st_name][cn] = adu_plt
+            
 
-        pv = guicontrols.LightCurveViewer()
-        pv.addPlots(tuple(adu_plots.values()))
-        self.showInMdiWindow(pv, guicontrols.PLOTVIEWER, "ADU Lightcurves")
+        pv_adu = guicontrols.LightCurveViewer()
+        pv_adu.setAxisName('time', 'ADU')
+        for plots in adu_plots.values():
+            pv_adu.addPlots(tuple(plots.values()))
+        self.showInMdiWindow(pv_adu, guicontrols.PLOTVIEWER, "ADU Lightcurves")
+
+        allstars = {}
 
         for img in self.framelist:
-            img_idx += 1
             if not img.isUsed():
                 log.log(repr(self),
                         'skipping image '+str(img.name),
@@ -5647,23 +5664,217 @@ class theApp(Qt.QObject):
                 log.log(repr(self),
                         'computing adu value for star '+st_name,
                         level=logging.INFO)
+                allstars[st_name]=(bool(st.reference), st.magnitude)
 
                 if self.progressWasCanceled():
                     return False
 
                 try:
-                    adu_val, adu_delta = lcurves.getStarMagnitudeADU(st, r)
+                    adu_val, adu_delta = lcurves.getInstMagnitudeADU(st, r)
                 except Exception as exc:
                     utils.showErrorMsgBox(str(exc), caller=self)
                     self.unlock()
                     return False
-                
-                adu_plots[st_name].xdata.append(frm_time)
-                adu_plots[st_name].ydata.append(adu_val)
-                adu_plots[st_name].xerr.append(0)
-                adu_plots[st_name].yerr.append(np.float32(adu_delta))
-                pv.repaint()
 
+                for cn in range(len(adu_val)):
+                    val =  (frm_time, adu_val[cn], 0, np.float(adu_delta[cn]))
+                    adu_plots[st_name][cn][img_idx] = val
+                    # NOTE:
+                    # if adu_plt = lcurves.LightCurvePlot() was used above then
+                    # you should replace the above line with:
+                    #
+                    # adu_plots[st_name][cn].append(*val)
+                    #
+                pv_adu.repaint()
+            img_idx += 1
+
+        # checking for reference stars:
+        
+        ref_stars = []
+        var_stars = []
+
+        for stname in allstars.keys():
+            if allstars[stname][0]:
+                # this is a reference star and we assume
+                # ist brightness is fixed over the time
+                ref_stars.append(stname)
+            else:
+                # this is a star for which we want to
+                # compute the magnitude lightcurve
+                var_stars.append(stname)
+
+        instr_clr_corr = 0.1
+        airmas_corr = 0.0 # TODO: improve airmass correction
+        airmas_err = 0.0
+        
+        # NOTE: for now we assume the reference star is near the
+        #       variable star so there is a null airmass correction
+
+        pv_mag = guicontrols.LightCurveViewer(inverted_y=True)
+        pv_mag.setAxisName('time', 'Mag')
+        self.showInMdiWindow(pv_mag, guicontrols.PLOTVIEWER, "Mag Lightcurves")
+
+        LOGE10 = utils.LOGE10
+        mag_plots=[]
+        for st_name in var_stars:
+            subplots = adu_plots[st_name]
+            pltncomp = len(subplots)
+            if pltncomp > 1:
+                # computing star color
+                
+                b_comp = 2
+                v_comp = 1
+                
+                bb=subplots[b_comp]
+                vv=subplots[v_comp]
+                
+                star_bv_index = -2.5 * np.log10(bb.getYData()/vv.getYData())
+                
+                star_bv_error=[]
+
+                # A simple error propagation (see below)
+
+                bb_rer=np.abs(bb.getYError()/(bb.getYData()*LOGE10))
+                vv_rer=np.abs(vv.getYError()/(vv.getYData()*LOGE10))
+
+                star_bv_error = 2.5 * (bb_rer+vv_rer)                    
+                star_bv_error = np.array(star_bv_error)
+            
+            abs_mag_data = ([], [], [], [])
+            for rf_name in  ref_stars:
+                # Here we compute absolute magnitude using each reference star
+                refplots = adu_plots[rf_name]
+                refncomp = len(refplots)
+                ref_mag = allstars[rf_name][1]
+                if refncomp > 1 and pltncomp > 1:
+                    # Just an extra check as refplots subplots should have
+                    # always the same size
+
+                    rbb=refplots[b_comp]
+                    rvv=refplots[v_comp]
+                    
+                    rbv_frac = rbb.getYData()/rvv.getYData()
+                    ref_bv_index = -2.5 * np.log10(rbv_frac)
+                    
+                    # A simple error propagation (see below)
+
+                    rbb_rer = np.abs(rbb.getYError()/(rbb.getYData()*LOGE10))
+                    rvv_rer = np.abs(rvv.getYError()/(rvv.getYData()*LOGE10))
+                    ref_bv_error = 2.5 * (rbb_rer+rvv_rer)
+                    
+                    color_dif = instr_clr_corr * (star_bv_index-ref_bv_index)
+                    color_err = instr_clr_corr * (star_bv_error+ref_bv_error)
+                    
+                    # We shall use the total flux of the star, but we only
+                    # have measures of the flux (measured as ADU) in different
+                    # spectral bands, however we can approximate the tototal 
+                    # flux to the sum of each measures flux in all the
+                    # available spectral bands.
+                    #
+                    # NOTE: We assume here that the corresponding values of
+                    #       the flux in different bands are measured about at
+                    #       the same time!
+
+                    bol_str_ydat = sum(map(lcurves.LightCurvePlot.getYData,
+                                           subplots.values()))
+                    bol_str_xdat = sum(map(lcurves.LightCurvePlot.getXData,
+                                           subplots.values()))/pltncomp
+                    bol_str_yerr = sum(map(lcurves.LightCurvePlot.getYError,
+                                           subplots.values()))
+                    bol_str_xerr = sum(map(lcurves.LightCurvePlot.getXError,
+                                           subplots.values()))/pltncomp
+
+                    bol_ref_ydat = sum(map(lcurves.LightCurvePlot.getYData,
+                                           refplots.values()))
+                    bol_ref_xdat = sum(map(lcurves.LightCurvePlot.getXData,
+                                           refplots.values()))/refncomp
+                    bol_ref_yerr = sum(map(lcurves.LightCurvePlot.getYError,
+                                           refplots.values()))
+                    bol_ref_xerr = sum(map(lcurves.LightCurvePlot.getXError,
+                                           refplots.values()))/refncomp
+                    #
+                    # A simple error propagation:
+                    #  
+                    #  if V = f(A,B) then the error for V is
+                    #
+                    #  DV = |DA*df(A,B)/dA| + |DB*df(A,B)/dB|
+                    #
+                    #  for this reason the, since bol_mag is 
+
+                    bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
+
+                    #   A = bol_str_ydat DA = bol_str_yerr
+                    #   B = bol_ref_ydat DB = bol_ref_yerr
+                    #   f = log10
+                    #
+                    # the error on bol_mag is:
+                    #
+                    #  bol_err = 2.5 * (|DA * df(A,B)/dA| + |DB * df(A,B)/dB|)
+                    #    = 2.5 * (|DA * 1/[A*ln(10)]| + |DB * -1/[B*ln(10)|)
+                    #    = 2.5 * (|DA/[A*ln(10)]| + |DB/[B*ln(10)]|)
+                    
+                    bol_err = np.abs(bol_str_yerr/(bol_str_ydat*LOGE10))
+                    bol_err += np.abs(bol_ref_yerr/(bol_ref_ydat*LOGE10))
+                    bol_err *= 2.5
+
+                    # Transformation Equation
+                    abs_mag = ref_mag - bol_mag - color_dif + airmas_corr
+                    abs_mag_err = bol_err + color_err + airmas_err
+                    abs_tme = bol_str_xdat
+                    abs_tme_err = bol_str_xerr
+                    
+                    abs_mag_data[0].append(abs_tme)
+                    abs_mag_data[1].append(abs_mag)
+                    abs_mag_data[2].append(abs_tme_err)
+                    abs_mag_data[3].append(abs_mag_err)
+                else:
+                    
+                    bol_str_ydat=subplots[0].getYData()
+                    bol_str_xdat=subplots[0].getXData()
+                    bol_str_yerr=subplots[0].getYError()
+                    bol_str_xerr=subplots[0].getXError()
+
+                    bol_ref_ydat=refplots[0].getYData()
+                    bol_ref_yerr=refplots[0].getYError()
+
+                    bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
+
+                    # A simple error propagation (see above)
+
+                    bol_err = np.abs(bol_str_yerr/(bol_str_ydat*LOGE10))
+                    bol_err += np.abs(bol_ref_yerr/(bol_ref_ydat*LOGE10))
+                    bol_err *= 2.5
+                    
+                    # NOTE: We have no color correction here because we have
+                    #       only one spectral band
+                    
+                    abs_mag = ref_mag - bol_mag + airmas_corr
+                    abs_mag_err = bol_err + airmas_err
+                    abs_tme = bol_str_xdat
+                    abs_tme_err = bol_str_xerr
+                    
+                    abs_mag_data[0].append(abs_tme)
+                    abs_mag_data[1].append(abs_mag)
+                    abs_mag_data[2].append(abs_tme_err)
+                    abs_mag_data[3].append(abs_mag_err)
+            
+            # Finally we compute the mean value for the absolute magnitude...
+            mean_abs_tme = np.mean(abs_mag_data[0], 0)
+            mean_abs_mag = np.mean(abs_mag_data[1], 0)
+            mean_tme_err = np.mean(abs_mag_data[2], 0)
+            mean_mag_err = np.mean(abs_mag_data[3], 0)
+            del abs_mag_data
+
+            # ...and build a LightCurvePlot
+            plt = lcurves.LightCurvePlot()
+            plt.setName(st_name)
+            plt.setData(
+                mean_abs_tme, mean_abs_mag,
+                mean_tme_err, mean_mag_err)
+            mag_plots.append(plt)
+        
+        pv_mag.addPlots(mag_plots)
+        pv_mag.repaint()
         self.unlock()
         self.progress.hide()
         self.progress.reset()

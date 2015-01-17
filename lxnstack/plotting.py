@@ -336,11 +336,25 @@ def drawErroBar(painter, x, y, xh, xl, yh, yl, bar_type):
 
 class Plot(object):
 
-    def __init__(self):
-        self.xdata = []
-        self.ydata = []
-        self.xerr = []
-        self.yerr = []
+    def __init__(self, init_len=0, init_val=None):
+        if init_val is None:
+            self._xdata = np.empty(init_len, dtype=np.float64)
+            self._ydata = np.empty(init_len, dtype=np.float64)
+            self._xerr = np.empty(init_len, dtype=np.float64)
+            self._yerr = np.empty(init_len, dtype=np.float64)
+            self._init_mask = np.zeros(init_len, dtype=np.bool)
+        else:
+            if init_val == 0:
+                self._xdata = np.zeros(init_len, dtype=np.float64)
+                self._ydata = np.zeros(init_len, dtype=np.float64)
+                self._xerr = np.zeros(init_len, dtype=np.float64)
+                self._yerr = np.zeros(init_len, dtype=np.float64)
+            else:
+                self._xdata = init_val*np.ones(init_len, dtype=np.float64)
+                self._ydata = init_val*np.ones(init_len, dtype=np.float64)
+                self._xerr = init_val*np.ones(init_len, dtype=np.float64)
+                self._yerr = init_val*np.ones(init_len, dtype=np.float64)
+            self._init_mask = np.ones(init_len, dtype=np.bool)
         self.name = ""
         self.color = "cyan"
         self.marker_type='s'
@@ -351,6 +365,31 @@ class Plot(object):
         self.line_width=1.25
         self._shown=True
         self._inverted_y=False
+
+    def __getitem__(self, i):
+        if not self._init_mask[i]:
+            raise ValueError("Element "+str(i)+" is not inizialized!")
+        x = self._xdata[i]
+        y = self._ydata[i]
+        xerr = self._xerr[i]
+        yerr = self._yerr[i]
+        return np.array((x, y, xerr, yerr))
+
+    def __setitem__(self, i, val):
+        val = np.array(val)
+        if val.shape != (4,):
+            raise ValueError("val must have shape (4,)")
+        self._xdata[i] = val[0]
+        self._ydata[i] = val[1]
+        self._xerr[i] = val[2]
+        self._yerr[i] = val[3]
+        self._init_mask[i] = True
+
+    def append(self, x, y, xerr=0, yerr=0):
+        self._xdata = np.append(self._xdata, x)
+        self._ydata = np.append(self._ydata, y)
+        self._xerr = np.append(self._xerr, xerr)
+        self._yerr = np.append(self._yerr, yerr)
 
     def hide(self):
         self._shown=False
@@ -403,15 +442,29 @@ class Plot(object):
     def getName(self):
         return self.name
 
+    def getYData(self):
+        return self._ydata[self._init_mask]
+    
+    def getXData(self):
+        return self._xdata[self._init_mask]
+
+    def getYError(self):
+        return self._yerr[self._init_mask]
+
+    def getXError(self):
+        return self._xerr[self._init_mask]
+
     def getYMinMax(self):
-        if self.ydata:
-            return min(self.ydata), max(self.ydata)
+        masked = self._ydata[self._init_mask]
+        if len(masked) > 0:
+            return masked.min(), masked.max()
         else:
             return (0, 1)
     
     def getXMinMax(self):
-        if self.xdata:
-            return min(self.xdata), max(self.xdata)
+        masked = self._xdata[self._init_mask]
+        if len(masked) > 0:
+            return masked.min(), masked.max()
         else:
             return (0, 1)
 
@@ -435,6 +488,13 @@ class Plot(object):
 
     def setLineWidth(self, val):
         self.line_width=val
+    
+    def setData(self, xdata, ydata, xerr=None, yerr=None):
+        self._xdata = xdata
+        self._ydata = ydata
+        self._xerr = xerr
+        self._yerr = yerr
+        self._init_mask = np.ones_like(xdata, dtype=np.bool)
 
     def drawQtLegendElement(self, painter, x, y):
         maincolor = getQtColor(self.color)
@@ -460,10 +520,10 @@ class Plot(object):
         w = surface_window.width()
         h = surface_window.height()
 
-        data_x = self.xdata
-        data_y = self.ydata
-        xerr = self.xerr
-        yerr = self.yerr
+        data_x = self.getXData()
+        data_y = self.getYData()
+        xerr = self.getXError()
+        yerr = self.getYError()
 
         pcount = len(data_y)
 
@@ -555,7 +615,7 @@ class Plot(object):
 
 
 def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
-    if not data_x or not data_y:
+    if not len(data_x) or not len(data_y):
         return (0, 1, 0, 1)
 
     miny = data_y[0]

@@ -70,7 +70,6 @@ MSGBOX_ANSWERS = {
     Qt.QMessageBox.Ignore: 'Ignore',
     Qt.QMessageBox.NoButton: 'No answer'}
 
-
 def showMsgBox(text, informative_text="", parent=None,
                buttons=Qt.QMessageBox.Ok, icon=None,
                caller=None):
@@ -247,6 +246,18 @@ except Exception as exc:
             level=logging.WARNING)
     FORMAT_BLACKLIST.append('CR2')
 
+
+#
+# Some useful constants
+#
+
+LOGE10 = np.log(10)
+LOGE2 = np.log(2)
+LOG10E = np.log10(np.e)
+LOG102 = np.log10(2)
+LOG210 = np.log2(10)
+LOG2E = np.log2(np.e)
+
 # it seems that kde's native dialogs work correctly while, on the contrary,
 # gnome's dialogs (and also dialogs of other desktop environmetns?) will not
 # display correclty! In this case the Qt (non native) dialogs will be
@@ -409,6 +420,33 @@ def getQIcon(name="", verbose=False):
                     level=logging.WARNING)
             return QtGui.QIcon("")
 
+def getNumberOfComponents(mode):
+    if '1' in mode:
+        return 1
+    elif 'L' in mode:
+        return 1
+    elif 'P' in mode:
+        return 1
+    elif 'RGBA' in mode:
+        return 4
+    elif 'RGB' in mode:
+        return 3
+    elif 'CMYK' in mode:
+        return 4
+    elif 'YCbCr' in mode:
+        return 3
+    elif 'LAB' in mode:
+        return 3
+    elif 'HSV' in mode:
+        return 3
+    elif 'I' in mode:
+        return 1
+    elif 'F' in mode:
+        return 1
+    elif 'M' in mode:
+        return len(mode)
+    else:
+        return 0
 
 class Frame(Qt.QObject):
 
@@ -554,33 +592,8 @@ class Frame(Qt.QObject):
     def isRGB(self):
         return ('RGB' in self.mode)
 
-    def getNumeberOfComponents(self):
-        if '1' in self.mode:
-            return 1
-        elif 'L' in self.mode:
-            return 1
-        elif 'P' in self.mode:
-            return 1
-        elif 'RGBA' in self.mode:
-            return 4
-        elif 'RGB' in self.mode:
-            return 3
-        elif 'CMYK' in self.mode:
-            return 4
-        elif 'YCbCr' in self.mode:
-            return 3
-        elif 'LAB' in self.mode:
-            return 3
-        elif 'HSV' in self.mode:
-            return 3
-        elif 'I' in self.mode:
-            return 1
-        elif 'F' in self.mode:
-            return 1
-        elif 'M' in self.mode:
-            return len(self.mode)
-        else:
-            return 0
+    def getNumberOfComponents(self):
+        return getNumberOfComponents(self.mode)
 
     def isUsed(self):
         check = self.getProperty('listItem')

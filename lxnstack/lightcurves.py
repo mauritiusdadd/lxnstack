@@ -14,10 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# http://www.aavso.org/differential-vs-absolute-photometry
-# http://brucegary.net/DifferentialPhotometry/dp.htm#1._
-# http://www.britastro.org/vss/ccd_photometry.htm
-
+# Some useful resources I found on the web:
+# - http://www.aavso.org/differential-vs-absolute-photometry
+# - http://brucegary.net/DifferentialPhotometry/dp.htm#1._
+# - http://www.britastro.org/vss/ccd_photometry.htm
+# - http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
 
 import numpy as np
 import plotting
@@ -25,7 +26,6 @@ import utils
 
 
 class LightCurvePlot(plotting.Plot):
-    pass
 
     def exportNumericDataCSV(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(
@@ -38,7 +38,7 @@ class LightCurvePlot(plotting.Plot):
         # utils.exportTableCSV(self, self.wnd.numDataTableWidget,
         #                      file_name, sep='\t', newl='\n')
 
-def getStarMagnitudeADU(star, ndimg=None):
+def getInstMagnitudeADU(star, ndimg=None):
     val_adu = []
     bkg_adu = []
     ir2 = star.r1**2
@@ -79,7 +79,10 @@ def getStarMagnitudeADU(star, ndimg=None):
 
     # this avoids negative or null value:
     if (mean_adu > 0).all():
-        return (mean_adu, mean_adu_delta)
+        if mean_adu.shape:
+            return (mean_adu, mean_adu_delta)
+        else:
+            return (np.array((mean_adu,)), np.array((mean_adu_delta,)))
     else:
         raise ValueError('Negative or null ADU values are not allowed!\n' +
                          'Please set the star marker correctly.')

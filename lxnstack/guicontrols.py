@@ -1538,6 +1538,7 @@ class PlotWidget(QtGui.QWidget):
 
         self.plots = []
         self._backend=None
+        self.axis_name=('x', 'y')
         self._inverted_y = False
         self._x_offset = 60.0
         self._y_offset = 60.0
@@ -1608,7 +1609,7 @@ class PlotWidget(QtGui.QWidget):
             # executed when the widget is created
             newx = neww - self._x_offset - lwdt
             if self._inverted_y:
-                newy = newy - self._y_offset - lght
+                newy = newh - self._y_offset - lght
             else:
                 newy = self._y_offset
         else:
@@ -1672,7 +1673,7 @@ class PlotWidget(QtGui.QWidget):
             data_x=(hmin, hmax),
             data_y=(vmin, vmax),
             inverted_y = self._inverted_y,
-            axis_name=('time', 'ADU'),
+            axis_name=self.axis_name,
             x_str_func = self._x_fmt_func)
 
         # drawing plots
@@ -1686,10 +1687,10 @@ class PlotWidget(QtGui.QWidget):
 
 class PlotViewer(QtGui.QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, inverted_y=False):
         QtGui.QWidget.__init__(self, parent)
 
-        self._pw = PlotWidget(parent=self)
+        self._pv = PlotWidget(parent=self)
 
         self._plt_lst_qlw = ToolComboCheckBox(
             tr.tr("lightcurves:"),
@@ -1719,7 +1720,6 @@ class PlotViewer(QtGui.QWidget):
             tr.tr('Show plot legend'),
             self)
         show_legend_action.setCheckable(True)
-        show_legend_action.setChecked(True)
 
         toolbar.addAction(save_plot_action)
         toolbar.addAction(export_cvs_action)
@@ -1727,32 +1727,38 @@ class PlotViewer(QtGui.QWidget):
         toolbar.addAction(show_legend_action)
         toolbar.addWidget(self._plt_lst_qlw)
 
-        self._pw.setSizePolicy(
+        self._pv.setSizePolicy(
             QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
                               QtGui.QSizePolicy.Expanding))
 
         mainlayout = Qt.QVBoxLayout(self)
 
         mainlayout.addWidget(toolbar)
-        mainlayout.addWidget(self._pw)
+        mainlayout.addWidget(self._pv)
 
         self.setLayout(mainlayout)
 
-        show_legend_action.toggled.connect(self._pw.setLegendVisible)
-        invert_y_action.toggled.connect(self._pw.setInvertedY)
+        show_legend_action.toggled.connect(self._pv.setLegendVisible)
+        invert_y_action.toggled.connect(self._pv.setInvertedY)
+        
+        show_legend_action.setChecked(True)
+        invert_y_action.setChecked(inverted_y)
+
+    def setAxisName(self, xname, yname):
+        self._pv.axis_name=(str(xname), str(yname))
 
     def _ccbItemChanged(self, item):
-        plot = self._pw.plots[item.index().row()]
+        plot = self._pv.plots[item.index().row()]
         plot.setVisible(item.checkState())
         self.repaint()
 
     def addPlots(self, plots):
-        idx = len(self._pw.plots)
+        idx = len(self._pv.plots)
         for plot in plots:
-            if plot not in self._pw.plots:
+            if plot not in self._pv.plots:
                 plot.setColor(plotting.getColor(idx))
                 self._plt_lst_qlw.addItem(plot.name, checked=plot.isVisible())
-                self._pw.addPlot(plot)
+                self._pv.addPlot(plot)
                 idx+=1
 
 
