@@ -194,6 +194,7 @@ except ImportError:
 try:
     import astropy.io.fits as pyfits
     FITS_SUPPORT = True
+    HAS_ASTROPY = True
     log.log("<lxnstack.utils module>",
             "FITS support enabled",
             level=logging.INFO)
@@ -202,6 +203,7 @@ except ImportError:
     try:
         import pyfits
         FITS_SUPPORT = True
+        HAS_ASTROPY = False
         log.log("<lxnstack.utils module>",
                 "FITS support enabled",
                 level=logging.INFO)

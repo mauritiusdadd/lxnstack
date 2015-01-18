@@ -20,10 +20,11 @@
 # - http://www.britastro.org/vss/ccd_photometry.htm
 # - http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
 
-import numpy as np
-import plotting
 import utils
-
+import plotting
+import numpy as np
+import scipy as sp
+import scipy.stats
 
 class LightCurvePlot(plotting.Plot):
 
@@ -62,20 +63,65 @@ def getInstMagnitudeADU(star, ndimg=None):
             if (p <= or2) and (p > mr2):
                 bkg_adu.append(ndimg[sty+y, stx+x])
 
-    val_adu = np.array(val_adu)
-    bkg_adu = np.array(bkg_adu)
+    # This is basically a counting experiment and hence the
+    # Poisson probability distribution can be applied.
+    # In such situation, if for each photodiode (pixel) k we
+    # measure a number of photons A_k, the best value for its
+    # uncertainty is DA_k = sqrt(A_k)
 
+    val_adu = np.array(val_adu)
     total_star_pixels = len(val_adu)
 
-    total_val_adu = val_adu.sum(0)  # total ADU value for the star
-    mean_bkg_adu = bkg_adu.mean(0)  # average for the background
+    # NOTE(1):
+    #     we use sigmaclip here to remove evetual cosmic rays
+    #     or hot-pixels present in the sky background
+    bkg_adu = sp.stats.sigmaclip(np.array(bkg_adu),4,4)[0]
 
-    total_val_adu_delta = val_adu.shape[0]  # error value for the star
-    mean_bkg_adu_sigma = bkg_adu.std(0)  # average for the background
+    # val_adu_sigma = np.sqrt(val_adu)
+    # bkg_adu_sigma = np.sqrt(bkg_adu)
+    # Computing these values is only a waste of resources, see NOTE(2)
+
+
+    # These are the total counts of ADUs (directly poportional
+    # to the number of photons hitting the photodiode, unless
+    # we are near the saturation)
+    total_val_adu = val_adu.sum(0)
+    mean_bkg_adu = bkg_adu.mean(0)
+
+    # NOTE(2): 
+    #     Applying the error propagation, the error for total_val_adu
+    #     should be:
+    #
+    #         total_val_adu_sigma = np.sqrt((val_adu_sigma**2).sum(0))
+    #
+    #     however, a simple calculation leads to the following value:
+    #
+    #         total_val_adu_sigma = np.sqrt((val_adu_sigma**2).sum(0)) =
+    #         = np.sqrt((np.sqrt(val_adu)**2).sum(0)) =
+    #         = np.sqrt((val_adu).sum(0)) =
+    #         = np.sqrt(total_val_adu))
+    #
+    #     as espected for the Poisson probability distribution.
+    #     A similar calculation ca be done for mean_bkg_adu_sigma:
+    #
+    #     if we define N = len(bkg_adu_sigma) = len(bkg_adu) then,
+    #     since mean_bkg_adu = bkg_adu.mean(0), we have
+    #
+    #         mean_bkg_adu_sigma = np.sqrt((bkg_adu_sigma**2).sum(0))/N =
+    #         = np.sqrt(bkg_adu.sum(0)) / N =
+    #         = np.sqrt(bkg_adu.sum(0) / N**2) =
+    #         = np.sqrt(bkg_adu.mean(0) / N) =
+    #         = np.sqrt(mean_bkg_adu / N) =
+    #         = np.sqrt(mean_bkg_adu / len(bkg_adu))
+
+    total_val_adu_sigma = np.sqrt(total_val_adu)
+    mean_bkg_adu_sigma = np.sqrt(mean_bkg_adu / len(bkg_adu))
 
     # best value for the star
     mean_adu = total_val_adu - mean_bkg_adu*total_star_pixels
-    mean_adu_delta = total_val_adu_delta + 3*mean_bkg_adu_sigma
+    delta_a = total_val_adu_sigma**2
+    delta_b = (total_star_pixels*mean_bkg_adu_sigma)**2
+    mean_adu_delta = np.sqrt(delta_a + delta_b)
 
     # this avoids negative or null value:
     if (mean_adu > 0).all():
