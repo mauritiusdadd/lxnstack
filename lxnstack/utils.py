@@ -2702,39 +2702,6 @@ def interpolate(data_x, data_y, upsample_factor=4.0,
     return result
 
 
-def exportTableCSV(self, qtable, fname, sep='\t', newl='\n', unit=','):
-
-    try:
-        f = open(fname, 'w')
-    except Exception as exc:
-        msgBox = Qt.QMessageBox()
-        msgBox.setText(tr.tr("Cannot create the data file: ")+str(exc))
-        msgBox.setInformativeText(
-            tr.tr("Assure you have the authorization to write the file."))
-        msgBox.setIcon(Qt.QMessageBox.Critical)
-        msgBox.exec_()
-    else:
-        line = ''
-        rows = xrange(qtable.rowCount())
-        cols = xrange(qtable.columnCount())
-
-        for c in cols:
-            itm = qtable.horizontalHeaderItem(c)
-            line += str(itm.text()).replace(' ', '_')+str(sep)
-
-        line = line[:-1]+str(newl)
-        f.write(line)
-
-        for r in rows:
-            line = ''
-            for c in cols:
-                itm = qtable.item(r, c)
-                line += str(itm.text()).replace('.', unit)+str(sep)
-            line = line[:-1] + str(newl)
-            f.write(line)
-        f.close()
-
-
 def cepstrum(img):
     # This function is a test for future de-blurring feature
     result = []

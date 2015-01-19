@@ -1738,9 +1738,10 @@ class PlotViewer(QtGui.QWidget):
 
         self.setLayout(mainlayout)
 
+        export_cvs_action.triggered.connect(self.exportNumericDataCSV)
         show_legend_action.toggled.connect(self._pv.setLegendVisible)
         invert_y_action.toggled.connect(self._pv.setInvertedY)
-        
+
         show_legend_action.setChecked(True)
         invert_y_action.setChecked(inverted_y)
 
@@ -1760,6 +1761,80 @@ class PlotViewer(QtGui.QWidget):
                 self._plt_lst_qlw.addItem(plot.name, checked=plot.isVisible())
                 self._pv.addPlot(plot)
                 idx+=1
+
+    def exportNumericDataCSV(self):
+        file_name = str(Qt.QFileDialog.getSaveFileName(
+            None,
+            tr.tr("Export data to CSV file"),
+            os.path.join('lightcurves.csv'),
+            "CSV *.csv (*.csv);;All files (*.*)",
+            None,
+            utils.DIALOG_OPTIONS))
+        
+        csvtable = {}
+        
+        for plot in self._pv.plots:
+            csvtable[plot.getName()] = [
+                plot.getXData(),
+                plot.getYData(),
+                plot.getXError(),
+                plot.getYError(),
+            ]
+
+        csvdata = ""
+        csvsep = ","
+        padding = csvsep*5
+
+        # Header
+        header = []
+        for plotname in csvtable.keys():
+            header.append(plotname)
+            csvdata += str(plotname) + padding
+        csvdata += '\n'
+        
+        for head in header:
+            csvdata += "time" + csvsep
+            csvdata += "value" + csvsep
+            csvdata += "time error" + csvsep
+            csvdata += "value error" + csvsep
+            csvdata += csvsep
+        csvdata += '\n'
+
+        # Curve data
+        i = 0
+        notcompleted = True
+        while notcompleted:
+            notcompleted = False
+            s = ""
+            for head in header:
+                plotdata = csvtable[head]
+                try:
+                    s += str(plotdata[0][i]) + csvsep
+                    s += str(plotdata[1][i]) + csvsep
+                    s += str(plotdata[2][i]) + csvsep
+                    s += str(plotdata[3][i]) + csvsep
+                    s += csvsep
+                except IndexError:
+                    s += padding
+                else:
+                    notcompleted = True
+            csvdata += s+'\n'
+            i += 1
+
+        try:
+            f = open(file_name, 'w')
+        except Exception as exc:
+            msgBox = Qt.QMessageBox()
+            msgBox.setText(tr.tr("Cannot create the data file: ")+str(exc))
+            msgBox.setInformativeText(
+                tr.tr("Assure you have the authorization to write the file."))
+            msgBox.setIcon(Qt.QMessageBox.Critical)
+            msgBox.exec_()
+        else:
+            f.write(csvdata)
+
+    def exportNumericDataODS(self):
+        raise NotImplementedError()
 
 
 class LightCurveViewer(PlotViewer):

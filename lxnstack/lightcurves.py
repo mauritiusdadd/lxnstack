@@ -29,15 +29,8 @@ import scipy.stats
 class LightCurvePlot(plotting.Plot):
 
     def exportNumericDataCSV(self):
-        file_name = str(Qt.QFileDialog.getSaveFileName(
-            None,
-            tr.tr("Save the project"),
-            os.path.join(self.current_dir, 'lightcurves.csv'),
-            "CSV *.csv (*.csv);;All files (*.*)",
-            None,
-            utils.DIALOG_OPTIONS))
-        # utils.exportTableCSV(self, self.wnd.numDataTableWidget,
-        #                      file_name, sep='\t', newl='\n')
+        utils.exportTableCSV(self, self.wnd.numDataTableWidget,
+                             file_name, sep='\t', newl='\n')
 
 def getInstMagnitudeADU(star, ndimg=None):
     val_adu = []
