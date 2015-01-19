@@ -20,19 +20,36 @@
 # - http://www.britastro.org/vss/ccd_photometry.htm
 # - http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
 
-import utils
 import plotting
 import numpy as np
 import scipy as sp
 import scipy.stats
 
+
 class LightCurvePlot(plotting.Plot):
 
-    def exportNumericDataCSV(self):
-        utils.exportTableCSV(self, self.wnd.numDataTableWidget,
-                             file_name, sep='\t', newl='\n')
+    def exportNumericDataCSV(self, csvsep):
+        csvdata = str(self.getName()) + csvsep*3 + '\n'
+
+        csvdata += "time" + csvsep
+        csvdata += "value" + csvsep
+        csvdata += "time error" + csvsep
+        csvdata += "value error" + csvsep
+        csvdata += '\n'
+
+        # Plot data
+        for i in range(len(self._xdata)):
+            csvdata += str(self._xdata[i]) + csvsep
+            csvdata += str(self._ydata[i]) + csvsep
+            csvdata += str(self._xerr[i]) + csvsep
+            csvdata += str(self._yerr[i]) + csvsep
+            csvdata += '\n'
+
+        return csvdata
+
 
 def getInstMagnitudeADU(star, ndimg=None):
+
     val_adu = []
     bkg_adu = []
     ir2 = star.r1**2
@@ -68,12 +85,11 @@ def getInstMagnitudeADU(star, ndimg=None):
     # NOTE(1):
     #     we use sigmaclip here to remove evetual cosmic rays
     #     or hot-pixels present in the sky background
-    bkg_adu = sp.stats.sigmaclip(np.array(bkg_adu),4,4)[0]
+    bkg_adu = sp.stats.sigmaclip(np.array(bkg_adu), 4, 4)[0]
 
     # val_adu_sigma = np.sqrt(val_adu)
     # bkg_adu_sigma = np.sqrt(bkg_adu)
     # Computing these values is only a waste of resources, see NOTE(2)
-
 
     # These are the total counts of ADUs (directly poportional
     # to the number of photons hitting the photodiode, unless
@@ -81,7 +97,7 @@ def getInstMagnitudeADU(star, ndimg=None):
     total_val_adu = val_adu.sum(0)
     mean_bkg_adu = bkg_adu.mean(0)
 
-    # NOTE(2): 
+    # NOTE(2):
     #     Applying the error propagation, the error for total_val_adu
     #     should be:
     #

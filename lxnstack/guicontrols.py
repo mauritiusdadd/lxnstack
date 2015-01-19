@@ -18,7 +18,6 @@ import math
 import os
 import paths
 import logging
-import time
 
 from PyQt4 import Qt, QtCore, QtGui
 
@@ -142,18 +141,19 @@ class SplashScreen(Qt.QObject):
 
 
 class TaggedLineEdit(QtGui.QLineEdit):
-    
+
     def __init__(self):
         QtGui.QLineEdit.__init__(self)
         self.textcolor = QtGui.QColor(67, 172, 232)
         self.boxcolor = QtGui.QColor(175, 210, 255)
         self.setReadOnly(True)
+
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         surface_window = painter.window()
         font = self.font()
         font.setBold(True)
-        pal = self.palette()
+        # pal = self.palette()
         opt = QtGui.QStyleOptionFrame()
         style = self.style()
 
@@ -164,7 +164,7 @@ class TaggedLineEdit(QtGui.QLineEdit):
             opt,
             painter,
             self)
-        
+
         painter.setClipRect(surface_window)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(surface_window)
@@ -172,7 +172,7 @@ class TaggedLineEdit(QtGui.QLineEdit):
         painter.setPen(self.textcolor)
         painter.setBrush(self.boxcolor)
         fm = painter.fontMetrics()
-        
+
         spacing = fm.width(' ')
         xoff = spacing
         for element in str(self.text()).split(','):
@@ -188,8 +188,9 @@ class TaggedLineEdit(QtGui.QLineEdit):
                              etxt)
             xoff += w+3*spacing
 
+
 class CCBStyledItemDelegate (QtGui.QStyledItemDelegate):
-    
+
     def paint(self, painter, options, index):
         newopts = QtGui.QStyleOptionViewItem(options)
         # Disabling decoration for selected items
@@ -205,9 +206,10 @@ class ComboCheckBox(QtGui.QComboBox):
 
     itemChanged = QtCore.pyqtSignal(QtGui.QStandardItem)
     checkStateChanged = QtCore.pyqtSignal()
+
     def __init__(self, *arg, **args):
         QtGui.QComboBox.__init__(self, *arg, **args)
-        model =  QtGui.QStandardItemModel(0, 1)
+        model = QtGui.QStandardItemModel(0, 1)
         self.setModel(model)
         self.setItemDelegate(CCBStyledItemDelegate(self))
         self.setMinimumHeight(30)
@@ -238,7 +240,7 @@ class ComboCheckBox(QtGui.QComboBox):
                 item = model.item(row, col)
                 if item.checkState():
                     count += 1
-                    txt += item.text() +", "
+                    txt += item.text() + ", "
         if count == total:
             txt = tr.tr('All')
         elif not txt:
@@ -249,7 +251,7 @@ class ComboCheckBox(QtGui.QComboBox):
         """
             arg:
                 see QtGui.QStandardItem for
-            
+
             args:
                 checked (bool)
         """
@@ -266,7 +268,7 @@ class ComboCheckBox(QtGui.QComboBox):
         self.model().appendRow(item)
         self._updateEditText()
         return item
-    
+
     def addItems(self, strlist):
         for txt in strlist:
             self.addItem(txt)
@@ -309,14 +311,15 @@ class ToolComboBox(Qt.QFrame):
 
 
 class ToolComboCheckBox(ToolComboBox):
-    
+
     _selector = ComboCheckBox
-    
+
     def __init__(self, title="", tooltip="", useframe=True):
         ToolComboBox.__init__(self, title, tooltip, useframe)
         self._selector.setMinimumWidth(200)
 
         self.itemChanged = self._selector.itemChanged
+
 
 class ImageViewer(QtGui.QWidget):
 
@@ -1134,7 +1137,7 @@ class DifferenceViewer(ImageViewer):
 
 
 class DropDownWidget(QtGui.QWidget):
-    
+
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
 
@@ -1154,23 +1157,25 @@ class PlotSubWidget(QtGui.QWidget):
         assert isinstance(parent, PlotWidget), "parent is not a PlotWidget"
         QtGui.QWidget.__init__(self, parent)
         gboxlayout = Qt.QGridLayout()
-        
+
         self._click_offset = QtCore.QPoint()
-        self.padding=(10,10)
-        self.resize(150,100)
-        self._grip_size=6
-        self._gripes={(0.0, 0.0): QtCore.Qt.SizeFDiagCursor,
-                      (0.5, 0.0): QtCore.Qt.SizeVerCursor,
-                      (1.0, 0.0): QtCore.Qt.SizeBDiagCursor,
-                      (0.0, 0.5): QtCore.Qt.SizeHorCursor,
-                      (1.0, 0.5): QtCore.Qt.SizeHorCursor,
-                      (0.0, 1.0): QtCore.Qt.SizeBDiagCursor,
-                      (0.5, 1.0): QtCore.Qt.SizeVerCursor,
-                      (1.0, 1.0): QtCore.Qt.SizeFDiagCursor,}
-        self._resizing=False
+        self.padding = (10, 10)
+        self.resize(150, 100)
+        self._grip_size = 6
+        self._gripes = {
+            (0.0, 0.0): QtCore.Qt.SizeFDiagCursor,
+            (0.5, 0.0): QtCore.Qt.SizeVerCursor,
+            (1.0, 0.0): QtCore.Qt.SizeBDiagCursor,
+            (0.0, 0.5): QtCore.Qt.SizeHorCursor,
+            (1.0, 0.5): QtCore.Qt.SizeHorCursor,
+            (0.0, 1.0): QtCore.Qt.SizeBDiagCursor,
+            (0.5, 1.0): QtCore.Qt.SizeVerCursor,
+            (1.0, 1.0): QtCore.Qt.SizeFDiagCursor
+        }
+        self._resizing = False
         self._tlt_lbl = QtGui.QLabel()
         self.close_button = QtGui.QPushButton('x', self._tlt_lbl)
-        
+
         self._tlt_lbl.setAlignment(QtCore.Qt.AlignCenter)
         self._tlt_lbl.setObjectName("Title")
 
@@ -1185,7 +1190,7 @@ class PlotSubWidget(QtGui.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
-        self.setMinimumSize(100,50)
+        self.setMinimumSize(100, 50)
 
         gboxlayout.setContentsMargins(self._grip_size, self._grip_size,
                                       self._grip_size, self._grip_size)
@@ -1217,7 +1222,7 @@ class PlotSubWidget(QtGui.QWidget):
         self._resizing = self._mouseOverGrip(self._click_offset)
 
     def mouseReleaseEvent(self, event):
-        self._resizing=False
+        self._resizing = False
         self.setCursor(QtCore.Qt.SizeAllCursor)
 
     def mouseMoveEvent(self, event):
@@ -1251,7 +1256,7 @@ class PlotSubWidget(QtGui.QWidget):
                 self.move(self.mapToParent(event.pos()).x(), self.y())
                 self.resize(self.width() - x, y)
             else:
-                self.move(self.x(),self.mapToParent(event.pos()).y())
+                self.move(self.x(), self.mapToParent(event.pos()).y())
                 self.resize(x, self.height() - y)
         elif self._resizing == QtCore.Qt.SizeFDiagCursor:
             self.setCursor(self._resizing)
@@ -1310,7 +1315,7 @@ class PlotSubWidget(QtGui.QWidget):
         f.setBold(True)
         painter.setFont(f)
         painter.drawText(rect2,
-                         QtCore.Qt.AlignHCenter | 
+                         QtCore.Qt.AlignHCenter |
                          QtCore.Qt.AlignTop,
                          self.windowTitle())
         f.setBold(False)
@@ -1359,10 +1364,10 @@ class PlotPropertyDialogWidget(PlotSubWidget):
         PlotSubWidget.__init__(self, parent)
         self.setWindowTitle(tr.tr("Plot properties"))
         self._selected_plot_idx = -1
-        self.resize(250,225)
-        self.move(32,32)
+        self.resize(250, 225)
+        self.move(32, 32)
         gboxlayout = self.layout()
-        
+
         if gboxlayout is None:
             gboxlayout = QtGui.QGridLayout()
             self.setLayout(gboxlayout)
@@ -1394,7 +1399,7 @@ class PlotPropertyDialogWidget(PlotSubWidget):
             {
                 background-color: lightgray;
             }
-            
+
             QPushButton#Close
             {
                 background-color: transparent;
@@ -1402,13 +1407,13 @@ class PlotPropertyDialogWidget(PlotSubWidget):
                 border: none;
                 font: bold;
             }
-            
+
             QPushButton#Close:hover:!pressed
             {
                 background-color: black;
                 color: white;
             }
-            
+
             QPushButton#Close:pressed
             {
                 background-color: red;
@@ -1430,7 +1435,7 @@ class PlotPropertyDialogWidget(PlotSubWidget):
 
         gboxlayout.addWidget(QtGui.QLabel(tr.tr("marker type")), 4, 0)
         gboxlayout.addWidget(self._mrk_tpe_qcb, 4, 1)
-        
+
         gboxlayout.addWidget(QtGui.QLabel(tr.tr("errorbars type")), 5, 0)
         gboxlayout.addWidget(self._bar_tpe_qcb, 5, 1)
 
@@ -1482,7 +1487,7 @@ class PlotPropertyDialogWidget(PlotSubWidget):
     def setLineType(self, idx):
         self.getSelectedPlot().setLineTypeIndex(idx)
         self.parent().repaint()
-    
+
     def setBarType(self, idx):
         self.getSelectedPlot().setBarTypeIndex(idx)
         self.parent().repaint()
@@ -1491,7 +1496,7 @@ class PlotPropertyDialogWidget(PlotSubWidget):
         plot = self.getSelectedPlot()
         if plot is None:
             return
-        
+
         int_ord = float(plot.getIterpolationOrder())
         mrk_sze = float(plot.getMarkerSize())
         lne_wdt = float(plot.getLineWidth())
@@ -1531,14 +1536,15 @@ class PlotPropertyDialogWidget(PlotSubWidget):
             self._plt_clr_qcb.setEnabled(True)
             return self.parent().plots[self._selected_plot_idx]
 
+
 class PlotWidget(QtGui.QWidget):
 
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
 
         self.plots = []
-        self._backend=None
-        self.axis_name=('x', 'y')
+        self._backend = None
+        self.axis_name = ('x', 'y')
         self._inverted_y = False
         self._x_offset = 60.0
         self._y_offset = 60.0
@@ -1582,13 +1588,13 @@ class PlotWidget(QtGui.QWidget):
         self.plots.append(plt)
         self._dialog.setPlots(self.plots)
         plt.setInvertedY(self._inverted_y)
-    
+
     def setInvertedY(self, inverted=True):
-        self._inverted_y=bool(inverted)
+        self._inverted_y = bool(inverted)
         for plt in self.plots:
             plt.setInvertedY(inverted)
         newy = self.height() - self._legend.y() - self._legend.height()
-        self._legend.move(self._legend.x(),newy)
+        self._legend.move(self._legend.x(), newy)
         self.repaint()
 
     def resizeEvent(self, event):
@@ -1635,7 +1641,7 @@ class PlotWidget(QtGui.QWidget):
         if not self.plots:
             # no plots to draw
             return
-        
+
         # computing plot range
         there_is_a_plot = False
         for plot in self.plots:
@@ -1652,16 +1658,16 @@ class PlotWidget(QtGui.QWidget):
             vmax = max(vmax, pvmax)
             hmin = min(hmin, phmin)
             hmax = max(hmax, phmax)
-        
+
         if not there_is_a_plot:
             vmin = 0
             vmax = 1
             hmin = 0
             hmax = 1
-        
+
         vmval, vmexp = utils.getSciVal(vmax)
         vmax = (vmval+0.5)*(10**vmexp)
-        
+
         if hmin == hmax:
             hmax = hmin + 1
         if vmin == vmax:
@@ -1682,8 +1688,8 @@ class PlotWidget(QtGui.QWidget):
             if self._backend is None:
                 plot.drawQt(painter,
                             (vmin, vmax),
-                            (self._x_offset, self._y_offset))                    
-        
+                            (self._x_offset, self._y_offset))
+
 
 class PlotViewer(QtGui.QWidget):
 
@@ -1696,14 +1702,14 @@ class PlotViewer(QtGui.QWidget):
             tr.tr("lightcurves:"),
             tr.tr("Select the lightcurves to show"))
         self._plt_lst_qlw.itemChanged.connect(self._ccbItemChanged)
-        
+
         toolbar = Qt.QToolBar('PlotViewerToolBar')
 
         save_plot_action = QtGui.QAction(
             utils.getQIcon("save-plot"),
             tr.tr('Save the displayed plot to a file'),
             self)
-        
+
         export_cvs_action = QtGui.QAction(
             utils.getQIcon("text-csv"),
             tr.tr('Export plot data to a cvs file'),
@@ -1746,7 +1752,7 @@ class PlotViewer(QtGui.QWidget):
         invert_y_action.setChecked(inverted_y)
 
     def setAxisName(self, xname, yname):
-        self._pv.axis_name=(str(xname), str(yname))
+        self._pv.axis_name = (str(xname), str(yname))
 
     def _ccbItemChanged(self, item):
         plot = self._pv.plots[item.index().row()]
@@ -1760,7 +1766,7 @@ class PlotViewer(QtGui.QWidget):
                 plot.setColor(plotting.getColor(idx))
                 self._plt_lst_qlw.addItem(plot.name, checked=plot.isVisible())
                 self._pv.addPlot(plot)
-                idx+=1
+                idx += 1
 
     def exportNumericDataCSV(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(
@@ -1770,9 +1776,9 @@ class PlotViewer(QtGui.QWidget):
             "CSV *.csv (*.csv);;All files (*.*)",
             None,
             utils.DIALOG_OPTIONS))
-        
+
         csvtable = {}
-        
+
         for plot in self._pv.plots:
             csvtable[plot.getName()] = [
                 plot.getXData(),
@@ -1791,7 +1797,7 @@ class PlotViewer(QtGui.QWidget):
             header.append(plotname)
             csvdata += str(plotname) + padding
         csvdata += '\n'
-        
+
         for head in header:
             csvdata += "time" + csvsep
             csvdata += "value" + csvsep
@@ -1840,4 +1846,3 @@ class PlotViewer(QtGui.QWidget):
 class LightCurveViewer(PlotViewer):
 
     _pltprp_grb_txt = tr.tr("Lightcurve properties")
-

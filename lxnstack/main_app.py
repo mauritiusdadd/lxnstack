@@ -1018,7 +1018,6 @@ class theApp(Qt.QObject):
         else:
             self.action_enable_rawmode.setEnabled(False)
 
-
     def lockSidebar(self):
 
         self.wnd.remPushButton.setEnabled(False)
@@ -1691,7 +1690,7 @@ class theApp(Qt.QObject):
                 level=logging.DEBUG)
 
         if sw_type == guicontrols.IMAGEVIEWER:
-            iv = sw_prop['widget']
+            # iv = sw_prop['widget']
 
             self.deselectAllListWidgetsItems()
 
@@ -2036,7 +2035,7 @@ class theApp(Qt.QObject):
         toolbar.setObjectName("Photometry ToolBar")
 
         # TODO: complete this seciton
-        
+
         toolbar.addAction(self.action_gen_lightcurves)
 
         return toolbar
@@ -2120,7 +2119,6 @@ class theApp(Qt.QObject):
         self.addToolBar(self._setUpStackingToolBar())
         self.addToolBar(self._setUpPhotometryToolBar(), True)
         self.addToolBar(self._setUpVideoCaptureToolBar())
-        
 
         self.setToolBarsLock(self.action_lock_toolbars.isChecked())
 
@@ -2992,7 +2990,7 @@ class theApp(Qt.QObject):
         listwidget.insertItem(idx-1, q)
 
         if issubclass(ftype, imgfeatures.Star):
-            q.setFlags (q.flags () | QtCore.Qt.ItemIsEditable)
+            q.setFlags(q.flags() | QtCore.Qt.ItemIsEditable)
             q.setCheckState(0)
 
         listwidget.setCurrentRow(idx-1)
@@ -3039,13 +3037,13 @@ class theApp(Qt.QObject):
     def removeStar(self):
         for frm in self.framelist:
             frm.removeStar(self.star_idx)
-        self._updating_feature=True
+        self._updating_feature = True
         self.updateStarList(self.image_idx)
         if not self.framelist[self.image_idx].stars:
             self.wnd.removeStarPushButton.setEnabled(False)
             self.action_gen_lightcurves.setEnabled(False)
             self.wnd.starsDeleteAllPushButton.setEnabled(False)
-        self._updating_feature=False
+        self._updating_feature = False
 
     def updateImageFeatures(self, listwidget, listitem):
         log.log(repr(self),
@@ -3096,7 +3094,7 @@ class theApp(Qt.QObject):
             tooltip_text += tr.tr('star')+' '+star.name
             q.setToolTip(tooltip_text)
             q.setCheckState(2*int(star.reference))
-            q.setFlags(q.flags () | QtCore.Qt.ItemIsEditable)
+            q.setFlags(q.flags() | QtCore.Qt.ItemIsEditable)
         self.wnd.starsListWidget.setCurrentRow(original_star_idx)
 
     def shiftX(self, val):
@@ -3141,7 +3139,7 @@ class theApp(Qt.QObject):
             pnt = cfrm.stars[self.star_idx]
             if pnt.isFixed():
                 for frm in self.framelist:
-                    frm.stars[self.star_idx].name = val
+                    frm.stars[self.star_idx].name = name
 
     def setInnerRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3542,7 +3540,7 @@ class theApp(Qt.QObject):
                 star_node.setAttribute('reference', str(int(s.reference)))
                 star_node.setAttribute('magnitude', str(float(s.magnitude)))
                 image_node.appendChild(star_node)
-            
+
             offset_node = doc.createElement('offset')
             offset_node.setAttribute('x', str(float(img.offset[0])))
             offset_node.setAttribute('y', str(float(img.offset[1])))
@@ -3558,7 +3556,6 @@ class theApp(Qt.QObject):
         # photometry section
         img_tm = int(self.use_image_time)
         photometry_node.setAttribute('time_type', str(img_tm))
-        
 
         try:
             f = open(self.current_project_fname, 'w')
@@ -3947,17 +3944,17 @@ class theApp(Qt.QObject):
                     pnt.aligned = point_al
                     pnt.moved.connect(self.updateAlignPointPosition)
                     frm.addAlignPoint(pnt)
-                
+
                 for s in node.getElementsByTagName('star'):
                     st_x = int(s.getAttribute('x'))
                     st_y = int(s.getAttribute('y'))
                     st_name = s.getAttribute('name')
                     st_id = s.getAttribute('id')
                     st_r1 = float(s.getAttribute('inner_radius'))
-                    st_r2 =float(s.getAttribute('middle_radius'))
-                    st_r3 =float(s.getAttribute('outer_radius'))
-                    st_ref =bool(int(s.getAttribute('reference')))
-                    st_mag =float(s.getAttribute('magnitude'))
+                    st_r2 = float(s.getAttribute('middle_radius'))
+                    st_r3 = float(s.getAttribute('outer_radius'))
+                    st_ref = bool(int(s.getAttribute('reference')))
+                    st_mag = float(s.getAttribute('magnitude'))
                     st = imgfeatures.Star(st_x, st_y,
                                           st_name, st_id)
                     st.r1 = st_r1
@@ -3967,7 +3964,7 @@ class theApp(Qt.QObject):
                     st.magnitude = st_mag
                     st.moved_rt.connect(self.updateStarPosition)
                     frm.addStar(st)
-                
+
                 for star in node.getElementsByTagName('align-point'):
                     point_id = point.getAttribute('id')
                     point_al = point.getAttribute('aligned').lower()
@@ -4016,7 +4013,7 @@ class theApp(Qt.QObject):
 
                 # NOTE: stars now are stored in each image, this
                 #       is only for backward compatibility
-                
+
                 sels = photometry_node.getElementsByTagName('star')
                 if len(sels) > 0 and len(framelist[0].stars) == 0:
                     for frm in framelist:
@@ -4034,7 +4031,7 @@ class theApp(Qt.QObject):
                             s.reference = bool(is_reference)
                             s.magnitude = float(snd.getAttribute('magnitude'))
                             frm.addStar(s)
-                            s.setPosition(sx,sy)
+                            s.setPosition(sx, sy)
                             s.moved_rt.connect(self.updateStarPosition)
             else:
                 use_image_time = self.use_image_time
@@ -5598,32 +5595,25 @@ class theApp(Qt.QObject):
         self.progress.show()
         self.progress.setMaximum(nframes*nstars - 1)
 
-        stars_dic = {}
-
-        cx = self.currentWidth/2.0
-        cy = self.currentHeight/2.0
-
         count = 0
         img_idx = 0
         self.progress.show()
 
-
         # building a temporary dictionary to
         # hold photometric data
-        adu_plots={}
+        adu_plots = {}
         for star in self.framelist[0].stars:
             st_name = str(star.getName())
-            adu_plots[st_name]={}
+            adu_plots[st_name] = {}
             for cn in range(self.getNumberOfComponents()):
                 # NOTE:
                 # adu_plt = lcurves.LightCurvePlot() may be used in conjunction
                 # to adu_plt.append(...) in order to fill the plot. However,
                 # we know that there will be one point per eache frame and this
-                # makes a totla of len(self.framelist) points 
+                # makes a totla of len(self.framelist) points
                 adu_plt = lcurves.LightCurvePlot(len(self.framelist))
                 adu_plt.setName(st_name + "C"+str(cn))
                 adu_plots[st_name][cn] = adu_plt
-            
 
         pv_adu = guicontrols.LightCurveViewer()
         pv_adu.setAxisName('time', 'ADU')
@@ -5664,7 +5654,7 @@ class theApp(Qt.QObject):
                 log.log(repr(self),
                         'computing adu value for star '+st_name,
                         level=logging.INFO)
-                allstars[st_name]=(bool(st.reference), st.magnitude)
+                allstars[st_name] = (bool(st.reference), st.magnitude)
 
                 if self.progressWasCanceled():
                     return False
@@ -5677,7 +5667,7 @@ class theApp(Qt.QObject):
                     return False
 
                 for cn in range(len(adu_val)):
-                    val =  (frm_time, adu_val[cn], 0, np.float(adu_delta[cn]))
+                    val = (frm_time, adu_val[cn], 0, np.float(adu_delta[cn]))
                     adu_plots[st_name][cn][img_idx] = val
                     # NOTE:
                     # if adu_plt = lcurves.LightCurvePlot() was used above then
@@ -5689,7 +5679,7 @@ class theApp(Qt.QObject):
             img_idx += 1
 
         # checking for reference stars:
-        
+
         ref_stars = []
         var_stars = []
 
@@ -5704,9 +5694,9 @@ class theApp(Qt.QObject):
                 var_stars.append(stname)
 
         instr_clr_corr = 0.1
-        airmas_corr = 0.0 # TODO: improve airmass correction
+        airmas_corr = 0.0  # TODO: improve airmass correction
         airmas_err = 0.0
-        
+
         # NOTE: for now we assume the reference star is near the
         #       variable star so there is a null airmass correction
 
@@ -5715,33 +5705,31 @@ class theApp(Qt.QObject):
         self.showInMdiWindow(pv_mag, guicontrols.PLOTVIEWER, "Mag Lightcurves")
 
         LOGE10 = utils.LOGE10
-        mag_plots=[]
+        mag_plots = []
         for st_name in var_stars:
             subplots = adu_plots[st_name]
             pltncomp = len(subplots)
             if pltncomp > 1:
                 # computing star color
-                
+
                 b_comp = 2
                 v_comp = 1
-                
-                bb=subplots[b_comp]
-                vv=subplots[v_comp]
-                
+
+                bb = subplots[b_comp]
+                vv = subplots[v_comp]
+
                 star_bv_index = -2.5 * np.log10(bb.getYData()/vv.getYData())
-                
-                star_bv_error=[]
 
                 # A simple error propagation (see below)
 
-                bb_rer=(bb.getYError()/(bb.getYData()*LOGE10))**2
-                vv_rer=(vv.getYError()/(vv.getYData()*LOGE10))**2
+                bb_rer = (bb.getYError()/(bb.getYData()*LOGE10))**2
+                vv_rer = (vv.getYError()/(vv.getYData()*LOGE10))**2
 
-                star_bv_error2 = 6.25 * (bb_rer+vv_rer)        
+                star_bv_error2 = 6.25 * (bb_rer+vv_rer)
                 star_bv_error2 = np.array(star_bv_error2)
-            
+
             abs_mag_data = ([], [], [], [])
-            for rf_name in  ref_stars:
+            for rf_name in ref_stars:
                 # Here we compute absolute magnitude using each reference star
                 refplots = adu_plots[rf_name]
                 refncomp = len(refplots)
@@ -5750,25 +5738,25 @@ class theApp(Qt.QObject):
                     # Just an extra check as refplots subplots should have
                     # always the same size
 
-                    rbb=refplots[b_comp]
-                    rvv=refplots[v_comp]
-                    
+                    rbb = refplots[b_comp]
+                    rvv = refplots[v_comp]
+
                     rbv_frac = rbb.getYData()/rvv.getYData()
                     ref_bv_index = -2.5 * np.log10(rbv_frac)
-                    
+
                     # A simple error propagation (see below)
 
                     rbb_rer = (rbb.getYError()/(rbb.getYData()*LOGE10))**2
                     rvv_rer = (rvv.getYError()/(rvv.getYData()*LOGE10))**2
                     ref_bv_error2 = 6.25 * (rbb_rer+rvv_rer)
-                    
+
                     color_dif = instr_clr_corr * (star_bv_index-ref_bv_index)
                     color_err = instr_clr_corr
                     color_err *= np.sqrt(star_bv_error2 + ref_bv_error2)
-                    
+
                     # We shall use the total flux of the star, but we only
                     # have measures of the flux (measured as ADU) in different
-                    # spectral bands, however we can approximate the tototal 
+                    # spectral bands, however we can approximate the tototal
                     # flux to the sum of each measures flux in all the
                     # available spectral bands.
                     #
@@ -5787,20 +5775,16 @@ class theApp(Qt.QObject):
 
                     bol_ref_ydat = sum(map(lcurves.LightCurvePlot.getYData,
                                            refplots.values()))
-                    bol_ref_xdat = sum(map(lcurves.LightCurvePlot.getXData,
-                                           refplots.values()))/refncomp
                     bol_ref_yerr = sum(map(lcurves.LightCurvePlot.getYError,
                                            refplots.values()))
-                    bol_ref_xerr = sum(map(lcurves.LightCurvePlot.getXError,
-                                           refplots.values()))/refncomp
                     #
                     # A simple error propagation:
-                    #  
+                    #
                     #  if V = f(A,B) then the error for V is
                     #
                     #  DV = sqrt(|DA*df(A,B)/dA|**2 + |DB*df(A,B)/dB|**2)
                     #
-                    #  for this reason the, since bol_mag is 
+                    #  for this reason the, since bol_mag is
 
                     bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
 
@@ -5813,7 +5797,7 @@ class theApp(Qt.QObject):
                     #  bol_err=2.5*sqrt(|DA*df(A,B)/dA|^2 + |DB*df(A,B)/dB|^2)
                     #  = 2.5*sqrt(|DA*1/[A*ln(10)]|^2 + |DB * -1/[B*ln(10)|^2)
                     #  = 2.5*sqrt(|DA/[A*ln(10)]|^2 + |DB/[B*ln(10)]|^2)
-                    
+
                     bol_erra = (bol_str_yerr/(bol_str_ydat*LOGE10))**2
                     bol_errb = (bol_ref_yerr/(bol_ref_ydat*LOGE10))**2
                     bol_err = 2.5 * np.sqrt(bol_erra + bol_errb)
@@ -5823,20 +5807,20 @@ class theApp(Qt.QObject):
                     abs_mag_err = bol_err + color_err + airmas_err
                     abs_tme = bol_str_xdat
                     abs_tme_err = bol_str_xerr
-                    
+
                     abs_mag_data[0].append(abs_tme)
                     abs_mag_data[1].append(abs_mag)
                     abs_mag_data[2].append(abs_tme_err)
                     abs_mag_data[3].append(abs_mag_err)
                 else:
-                    
-                    bol_str_ydat=subplots[0].getYData()
-                    bol_str_xdat=subplots[0].getXData()
-                    bol_str_yerr=subplots[0].getYError()
-                    bol_str_xerr=subplots[0].getXError()
 
-                    bol_ref_ydat=refplots[0].getYData()
-                    bol_ref_yerr=refplots[0].getYError()
+                    bol_str_ydat = subplots[0].getYData()
+                    bol_str_xdat = subplots[0].getXData()
+                    bol_str_yerr = subplots[0].getYError()
+                    bol_str_xerr = subplots[0].getXError()
+
+                    bol_ref_ydat = refplots[0].getYData()
+                    bol_ref_yerr = refplots[0].getYError()
 
                     bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
 
@@ -5845,20 +5829,20 @@ class theApp(Qt.QObject):
                     bol_erra = (bol_str_yerr/(bol_str_ydat*LOGE10))**2
                     bol_errb = (bol_ref_yerr/(bol_ref_ydat*LOGE10))**2
                     bol_err = 2.5 * np.sqrt(bol_erra + bol_errb)
-                    
+
                     # NOTE: We have no color correction here because we have
                     #       only one spectral band
-                    
+
                     abs_mag = ref_mag - bol_mag + airmas_corr
                     abs_mag_err = bol_err + airmas_err
                     abs_tme = bol_str_xdat
                     abs_tme_err = bol_str_xerr
-                    
+
                     abs_mag_data[0].append(abs_tme)
                     abs_mag_data[1].append(abs_mag)
                     abs_mag_data[2].append(abs_tme_err)
                     abs_mag_data[3].append(abs_mag_err)
-            
+
             # Finally we compute the mean value for the absolute magnitude...
             mean_abs_tme = np.mean(abs_mag_data[0], 0)
             mean_abs_mag = np.mean(abs_mag_data[1], 0)
@@ -5873,7 +5857,7 @@ class theApp(Qt.QObject):
                 mean_abs_tme, mean_abs_mag,
                 mean_tme_err, mean_mag_err)
             mag_plots.append(plt)
-        
+
         pv_mag.addPlots(mag_plots)
         pv_mag.repaint()
         self.unlock()

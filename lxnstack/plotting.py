@@ -14,8 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt4 import Qt, QtCore, QtGui
+import os
 
+from PyQt4 import Qt, QtCore
 import numpy as np
 
 import translation as tr
@@ -25,42 +26,42 @@ import utils
 #        with matplotlib because of a possible future impementation
 
 MARKER_TYPES = [
-    ('',tr.tr('None')),
-    ('.',tr.tr('point')),
-    (',',tr.tr('pixel')),
-    ('o',tr.tr('circle')),
-    ('s',tr.tr('square')),
-    ('+',tr.tr('plus')),
-    ('*',tr.tr('star')),
-    ('v',tr.tr('triangle down')),
-    ('^',tr.tr('triangle up')),
-    ('<',tr.tr('triangle left')),
-    ('>',tr.tr('triangle right')),
-    ('h',tr.tr('hexagon1')),
-    ('H',tr.tr('hexagon2')),
-    ('p',tr.tr('pentagon')),
-    ('1',tr.tr('tri down')),
-    ('2',tr.tr('tri up')),
-    ('3',tr.tr('tri left')),
-    ('4',tr.tr('tri right')),
-    ('x',tr.tr('x')),
-    ('d',tr.tr('thin diamond')),
-    ('D',tr.tr('diamond')),
-    ('_',tr.tr('horizontal line')),
-    ('|',tr.tr('vertical line'))]
+    ('', tr.tr('None')),
+    ('.', tr.tr('point')),
+    (',', tr.tr('pixel')),
+    ('o', tr.tr('circle')),
+    ('s', tr.tr('square')),
+    ('+', tr.tr('plus')),
+    ('*', tr.tr('star')),
+    ('v', tr.tr('triangle down')),
+    ('^', tr.tr('triangle up')),
+    ('<', tr.tr('triangle left')),
+    ('>', tr.tr('triangle right')),
+    ('h', tr.tr('hexagon1')),
+    ('H', tr.tr('hexagon2')),
+    ('p', tr.tr('pentagon')),
+    ('1', tr.tr('tri down')),
+    ('2', tr.tr('tri up')),
+    ('3', tr.tr('tri left')),
+    ('4', tr.tr('tri right')),
+    ('x', tr.tr('x')),
+    ('d', tr.tr('thin diamond')),
+    ('D', tr.tr('diamond')),
+    ('_', tr.tr('horizontal line')),
+    ('|', tr.tr('vertical line'))]
 
 LINE_TYPES = [
-    ('',tr.tr('None')),
-    ('-',tr.tr('solid')),
-    ('--',tr.tr('dash')),
-    (':',tr.tr('dot')),
-    ('-.',tr.tr('dash dot')),
-    ('-..',tr.tr('dash dot dot'))]
+    ('', tr.tr('None')),
+    ('-', tr.tr('solid')),
+    ('--', tr.tr('dash')),
+    (':', tr.tr('dot')),
+    ('-.', tr.tr('dash dot')),
+    ('-..', tr.tr('dash dot dot'))]
 
-BAR_TYPES = [('',tr.tr('None')),
-             ('|',tr.tr('Vertical only')),
-             ('_',tr.tr('Horizontal only')),
-             ('+',tr.tr('Both'))]
+BAR_TYPES = [('', tr.tr('None')),
+             ('|', tr.tr('Vertical only')),
+             ('_', tr.tr('Horizontal only')),
+             ('+', tr.tr('Both'))]
 
 COLORS = [
     ('cyan', tr.tr('cyan')),
@@ -84,6 +85,7 @@ def getDarkerColor(color):
     dark_idx = color_idx + len(COLORS)/2
     return getColor(dark_idx)
 
+
 def getMarkerType(index):
     return MARKER_TYPES[index % len(MARKER_TYPES)][0]
 
@@ -91,11 +93,14 @@ def getMarkerType(index):
 def getLineType(index):
     return LINE_TYPES[index % len(LINE_TYPES)][0]
 
+
 def getBarType(index):
     return BAR_TYPES[index % len(BAR_TYPES)][0]
 
+
 def getColor(index):
     return COLORS[index % len(COLORS)][0]
+
 
 def getLineTypeIndex(marker):
     for i in LINE_TYPES:
@@ -110,11 +115,13 @@ def getMarkerTypeIndex(marker):
             return MARKER_TYPES.index(i)
     raise ValueError('cannot find marker type '+str(marker))
 
+
 def getBarTypeIndex(bar):
     for i in BAR_TYPES:
         if i[0] == bar:
             return BAR_TYPES.index(i)
     raise ValueError('cannot find line type '+str(bar))
+
 
 def getColorIndex(color):
     for i in COLORS:
@@ -122,37 +129,38 @@ def getColorIndex(color):
             return COLORS.index(i)
     raise ValueError('cannot find color '+str(color))
 
+
 def getQtColor(color):
     if color == "red":
-        color=QtCore.Qt.red
+        color = QtCore.Qt.red
     elif color == "green":
-        color=QtCore.Qt.green
+        color = QtCore.Qt.green
     elif color == "blue":
-        color=QtCore.Qt.blue
+        color = QtCore.Qt.blue
     elif color == "yellow":
-        color=QtCore.Qt.yellow
+        color = QtCore.Qt.yellow
     elif color == "cyan":
-        color=QtCore.Qt.cyan
+        color = QtCore.Qt.cyan
     elif color == "magenta":
-        color=QtCore.Qt.magenta
+        color = QtCore.Qt.magenta
     elif color == "darkred":
-        color=QtCore.Qt.darkRed
+        color = QtCore.Qt.darkRed
     elif color == "gray":
-        color=QtCore.Qt.gray
+        color = QtCore.Qt.gray
     elif color == "darkyellow":
-        color=QtCore.Qt.darkYellow
+        color = QtCore.Qt.darkYellow
     elif color == "darkgreen":
-        color=QtCore.Qt.darkGreen
+        color = QtCore.Qt.darkGreen
     elif color == "darkcyan":
-        color=QtCore.Qt.darkCyan
+        color = QtCore.Qt.darkCyan
     elif color == "darkblue":
-        color=QtCore.Qt.darkBlue
+        color = QtCore.Qt.darkBlue
     elif color == "darkmagenta":
-        color=QtCore.Qt.darkMagenta
+        color = QtCore.Qt.darkMagenta
     elif color == "black":
-        color=QtCore.Qt.black
+        color = QtCore.Qt.black
     else:
-        color=QtCore.Qt.black
+        color = QtCore.Qt.black
     return color
 
 
@@ -168,7 +176,7 @@ def getQtLine(line_type):
     elif line_type == '-..':
         linetype = QtCore.Qt.DashDotDotLine
     return linetype
-            
+
 
 def drawRegularPolygon(painter, x, y, sides, size, rot=0):
     points = []
@@ -181,6 +189,7 @@ def drawRegularPolygon(painter, x, y, sides, size, rot=0):
         points.append(QtCore.QPointF(px, py))
     painter.drawPolygon(*points)
 
+
 def drawFlake(painter, x, y, sides, size, rot=0):
     lines = []
     angles = np.linspace(0, 2*np.pi, sides, False)
@@ -191,6 +200,7 @@ def drawFlake(painter, x, y, sides, size, rot=0):
         py = y + size*np.sin(an)
         lines.append(QtCore.QLineF(x, y, px, py))
     painter.drawLines(*lines)
+
 
 def drawStar(painter, x, y, sides, size1, size2, rot=0):
     points = []
@@ -215,11 +225,11 @@ def drawStar(painter, x, y, sides, size1, size2, rot=0):
 
 
 def drawFinder(painter, x, y, r=7, l=4):
-    painter.drawEllipse(Qt.QPointF(x,y),r,r)
-    painter.drawLine(Qt.QPointF(x-r-l,y),Qt.QPointF(x-r+l,y))
-    painter.drawLine(Qt.QPointF(x+r-l,y),Qt.QPointF(x+r+l,y))
-    painter.drawLine(Qt.QPointF(x,y-l-r),Qt.QPointF(x,y-r+l))
-    painter.drawLine(Qt.QPointF(x,y+r+l),Qt.QPointF(x,y+r-l))
+    painter.drawEllipse(Qt.QPointF(x, y), r, r)
+    painter.drawLine(Qt.QPointF(x-r-l, y), Qt.QPointF(x-r+l, y))
+    painter.drawLine(Qt.QPointF(x+r-l, y), Qt.QPointF(x+r+l, y))
+    painter.drawLine(Qt.QPointF(x, y-l-r), Qt.QPointF(x, y-r+l))
+    painter.drawLine(Qt.QPointF(x, y+r+l), Qt.QPointF(x, y+r-l))
 
 
 def drawCross(painter, x, y, size, rot=0, prop=0.5):
@@ -231,7 +241,7 @@ def drawCross(painter, x, y, size, rot=0, prop=0.5):
     x12 = x - size*np.cos(a1)
     y12 = y - size*np.sin(a1)
     line1 = QtCore.QLineF(x11, y11, x12, y12)
-    
+
     x21 = x + size*np.cos(a2)
     y21 = y + size*np.sin(a2)
     x22 = x - size*np.cos(a2)
@@ -242,87 +252,88 @@ def drawCross(painter, x, y, size, rot=0, prop=0.5):
 
 
 def drawMarker(painter, x, y, size, marker_type=""):
-    
+
     if not marker_type:
         return
-    
+
     half = size/2.0
     x1 = x - half
     y1 = y - half
     x2 = x + half
     y2 = y + half
-    
+
     if marker_type == '.':
         painter.drawEllipse(QtCore.QPointF(x, y), 1, 1)
 
     elif marker_type == ',':
         painter.drawPoint(QtCore.QPointF(x, y))
 
-    elif  marker_type == 'o':
+    elif marker_type == 'o':
         painter.drawEllipse(QtCore.QPointF(x, y), half, half)
 
-    elif  marker_type == 's':
+    elif marker_type == 's':
         painter.drawRect(QtCore.QRectF(x1, y1, size, size))
 
-    elif  marker_type == '+':
+    elif marker_type == '+':
         drawCross(painter, x, y, half, 45)
 
-    elif  marker_type == '*':
+    elif marker_type == '*':
         drawStar(painter, x, y, 5, half, half/2.0, -90)
 
-    elif  marker_type == 'v':
+    elif marker_type == 'v':
         drawRegularPolygon(painter, x, y, 3, half, 90)
 
-    elif  marker_type == '^':
+    elif marker_type == '^':
         drawRegularPolygon(painter, x, y, 3, half, 270)
 
-    elif  marker_type == '<':
+    elif marker_type == '<':
         drawRegularPolygon(painter, x, y, 3, half, 180)
 
-    elif  marker_type == '>':
+    elif marker_type == '>':
         drawRegularPolygon(painter, x, y, 3, half, 0)
 
-    elif  marker_type == 'h':
+    elif marker_type == 'h':
         drawRegularPolygon(painter, x, y, 6, half, 0)
 
-    elif  marker_type == 'H':
+    elif marker_type == 'H':
         drawRegularPolygon(painter, x, y, 6, half, 90)
-    
-    elif  marker_type == 'p':
+
+    elif marker_type == 'p':
         drawRegularPolygon(painter, x, y, 5, half, -90)
-    
-    elif  marker_type == '1':
+
+    elif marker_type == '1':
         drawFlake(painter, x, y, 3, half, 90)
 
-    elif  marker_type == '2':
+    elif marker_type == '2':
         drawFlake(painter, x, y, 3, half, 270)
 
-    elif  marker_type == '3':
+    elif marker_type == '3':
         drawFlake(painter, x, y, 3, half, 180)
 
-    elif  marker_type == '4':
+    elif marker_type == '4':
         drawFlake(painter, x, y, 3, half, 0)
 
-    elif  marker_type == 'x':
+    elif marker_type == 'x':
         drawCross(painter, x, y, half, 0)
 
-    elif  marker_type == 'd':
+    elif marker_type == 'd':
         drawRegularPolygon(painter, x, y, 4, half)
 
-    elif  marker_type == 'D':
+    elif marker_type == 'D':
         drawRegularPolygon(painter, x, y, 4, half)
 
-    elif  marker_type == '_':
+    elif marker_type == '_':
         painter.drawLine(QtCore.QLineF(x1, y, x2, y))
-        
-    elif  marker_type == '|':
+
+    elif marker_type == '|':
         painter.drawLine(QtCore.QLineF(x, y1, x, y2))
-        
+
     else:
         pass
 
+
 def drawErroBar(painter, x, y, xh, xl, yh, yl, bar_type):
-    
+
     if bar_type == '|':
         painter.drawLine(Qt.QPointF(x, y+yh), Qt.QPointF(x, y-yl))
     elif bar_type == '_':
@@ -357,14 +368,14 @@ class Plot(object):
             self._init_mask = np.ones(init_len, dtype=np.bool)
         self.name = ""
         self.color = "cyan"
-        self.marker_type='s'
-        self.line_type='-'
-        self.bar_type="|"
-        self.int_param=4
-        self.marker_size=6
-        self.line_width=1.25
-        self._shown=True
-        self._inverted_y=False
+        self.marker_type = 's'
+        self.line_type = '-'
+        self.bar_type = "|"
+        self.int_param = 4
+        self.marker_size = 6
+        self.line_width = 1.25
+        self._shown = True
+        self._inverted_y = False
 
     def __getitem__(self, i):
         if not self._init_mask[i]:
@@ -392,14 +403,14 @@ class Plot(object):
         self._yerr = np.append(self._yerr, yerr)
 
     def hide(self):
-        self._shown=False
+        self._shown = False
 
     def show(self):
-        self._shown=True
+        self._shown = True
 
     def isHidden(self):
         return not self._shown
-    
+
     def isVisible(self):
         return self._shown
 
@@ -410,7 +421,7 @@ class Plot(object):
             self.hide()
 
     def setInvertedY(self, inverted=True):
-        self._inverted_y=inverted
+        self._inverted_y = inverted
 
     def setIterpolationOrder(self, val):
         self.int_param = val
@@ -437,14 +448,14 @@ class Plot(object):
         return self.marker_size
 
     def setName(self, name):
-        self.name=str(name)
+        self.name = str(name)
 
     def getName(self):
         return self.name
 
     def getYData(self):
         return self._ydata[self._init_mask]
-    
+
     def getXData(self):
         return self._xdata[self._init_mask]
 
@@ -460,7 +471,7 @@ class Plot(object):
             return masked.min(), masked.max()
         else:
             return (0, 1)
-    
+
     def getXMinMax(self):
         masked = self._xdata[self._init_mask]
         if len(masked) > 0:
@@ -469,26 +480,26 @@ class Plot(object):
             return (0, 1)
 
     def setColor(self, color):
-        self.color=color
+        self.color = color
 
     def setColorIndex(self, index):
-        self.color=getColor(index)
+        self.color = getColor(index)
 
     def setLineTypeIndex(self, index):
-        self.line_type=getLineType(index)
+        self.line_type = getLineType(index)
 
     def setBarTypeIndex(self, index):
-        self.bar_type=getBarType(index)
+        self.bar_type = getBarType(index)
 
     def setMarkerTypeIndex(self, index):
-        self.marker_type=getMarkerType(index)
+        self.marker_type = getMarkerType(index)
 
     def setMarkerSize(self, val):
-        self.marker_size=val
+        self.marker_size = val
 
     def setLineWidth(self, val):
-        self.line_width=val
-    
+        self.line_width = val
+
     def setData(self, xdata, ydata, xerr=None, yerr=None):
         self._xdata = xdata
         self._ydata = ydata
@@ -500,7 +511,7 @@ class Plot(object):
         maincolor = getQtColor(self.color)
         border_color = getQtColor(getDarkerColor(self.color))
         txth = painter.fontMetrics().xHeight()
-        if self.line_type:            
+        if self.line_type:
             linetype = getQtLine(self.line_type)
             painter.setPen(Qt.QPen(maincolor, self.line_width, linetype))
             painter.drawLine(QtCore.QLineF(x, y, x + 25, y))
@@ -548,7 +559,7 @@ class Plot(object):
         maincolor = getQtColor(self.color)
         border_color = getQtColor(getDarkerColor(self.color))
 
-        if self.line_type:            
+        if self.line_type:
             linetype = getQtLine(self.line_type)
             painter.setPen(Qt.QPen(maincolor, self.line_width, linetype))
             points = []
@@ -564,7 +575,7 @@ class Plot(object):
 
         painter.setPen(Qt.QPen(border_color, self.marker_size/10))
         painter.setBrush(maincolor)
-        
+
         for i in range(pcount):
             x = (data_x[i]-minx)*x_scale + x1
             y = (data_y[i]-miny)*y_scale + y1
@@ -575,7 +586,8 @@ class Plot(object):
                 xr = xerr[i]
 
                 try:
-                    if isinstance(yr, (tuple, list, np.ndarray)) and len(yr)>1:
+                    if (isinstance(yr, (tuple, list, np.ndarray)) and
+                            len(yr) > 1):
                         yh = yr[0]*y_scale
                         yl = yr[1]*y_scale
                     else:
@@ -586,7 +598,8 @@ class Plot(object):
                     yl = 0
 
                 try:
-                    if isinstance(xr, (tuple, list, np.ndarray)) and len(xr)>1:
+                    if (isinstance(xr, (tuple, list, np.ndarray)) and
+                            len(xr) > 1):
                         xh = xr[0]*x_scale
                         xl = xr[1]*x_scale
                     else:
@@ -610,7 +623,7 @@ class Plot(object):
             "All files (*.*)",
             None,
             utils.DIALOG_OPTIONS))
-        #self.simplifiedLightCurvePaintEvent(widget, chart, name, y_inverted)
+        # self.simplifiedLightCurvePaintEvent(widget, chart, name, y_inverted)
         plot.save(fname, quality=100)
 
 
@@ -622,18 +635,18 @@ def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
     maxy = data_y[-1]
     minx = utils.floor5(data_x[0], 2)
     maxx = utils.ceil5(data_x[-1], 2)
-    
+
     delta_x = maxx - minx
     delta_y = maxy - miny
-    
+
     x_padding = delta_x * 0.05
     y_padding = delta_y * 0.05
-    
+
     minx -= x_padding
     maxx += x_padding
     miny -= y_padding
     maxy += y_padding
-    
+
     return minx, maxx, miny, maxy
 
 
@@ -653,13 +666,13 @@ def drawAxis(painter, data_x=(0, 1), data_y=(0, 1),
 
     w = surface_window.width()
     h = surface_window.height()
-    
+
     gm1 = 1.00
     gm2 = 2.00
     gm3 = 8.00
-    
+
     ax_ext = getAxisExtents(data_x, data_y)
-    
+
     minx = ax_ext[0]
     maxx = ax_ext[1]
     miny = ax_ext[2]
@@ -695,9 +708,7 @@ def drawAxis(painter, data_x=(0, 1), data_y=(0, 1),
     painter.drawLine(pxy1, py2)
     painter.drawText(Qt.QPointF(x2, y1-y3), utils.brakets(axis_name[0]))
     count = 1
-    
-    p0 = Qt.QPointF(x1, y1 + txt_y_corr)
-    
+
     for x in getChartDivision(minx,
                               maxx,
                               utils.floor5(w/50.0, 0)):

@@ -70,6 +70,7 @@ MSGBOX_ANSWERS = {
     Qt.QMessageBox.Ignore: 'Ignore',
     Qt.QMessageBox.NoButton: 'No answer'}
 
+
 def showMsgBox(text, informative_text="", parent=None,
                buttons=Qt.QMessageBox.Ok, icon=None,
                caller=None):
@@ -422,6 +423,7 @@ def getQIcon(name="", verbose=False):
                     level=logging.WARNING)
             return QtGui.QIcon("")
 
+
 def getNumberOfComponents(mode):
     if '1' in mode:
         return 1
@@ -449,6 +451,7 @@ def getNumberOfComponents(mode):
         return len(mode)
     else:
         return 0
+
 
 class Frame(Qt.QObject):
 
@@ -664,7 +667,7 @@ class Frame(Qt.QObject):
 
         rx = cx - di*math.cos(an2+an) + self.offset[0]
         ry = cy - di*math.sin(an2+an) + self.offset[1]
-        
+
         return rx, ry
 
     def getReverseTPosition(self, rx, ry):
@@ -687,22 +690,22 @@ class Frame(Qt.QObject):
             this is the inverse function of getForwardTPosition(rx, ry)
 
         example:
-        
+
             x = 100.0
             y = 250.0
 
             x2, y2 = self.getReverseTPosition(*self.getForwardTPosition(x, y))
-            
+
             print("{0:0.1f}, {1:0.1f}".format(x2, y2))
             >>> 100.0, 250.0
-            
+
         """
         cx = self.width/2.0
         cy = self.height/2.0
 
-        di = dist(cx, cy, rx, ry)
+        # di = dist(cx, cy, rx, ry)
         an2 = self.angle*math.pi/180.0
-        
+
         cos_an2 = math.cos(an2)
         sin_an2 = math.sin(an2)
 
@@ -2595,8 +2598,10 @@ def getTimeStr(val):
     ms_str = "{0:.3f}".format(ms)[1:]
     return time.strftime('%H:%M:%S', time.gmtime(val)) + ms_str
 
+
 def getDateStr(val):
     return time.strftime('%Y %m %d', time.gmtime(val))
+
 
 def getSciVal(val):
     if val != 0.0:

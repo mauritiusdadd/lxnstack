@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import utils
-import plotting
 from PyQt4 import Qt, QtCore, QtGui
 
 
@@ -37,7 +36,7 @@ class ImageFeature(QtCore.QObject):
             self.id = utils.genTimeUID()
         else:
             self.id = str(pid)
-        self._parent=None
+        self._parent = None
         self.x = x
         self.y = y
         self.r = 7
@@ -48,20 +47,20 @@ class ImageFeature(QtCore.QObject):
         self.aligned = False
         self.mouse_over = False
         self.mouse_grab = False
-        self.fixed=False
+        self.fixed = False
 
     def setParent(self, parent=None):
         """
         setParent(parent=None)
-        
+
         set the parent Frame of the object
         """
         if parent is None:
-            self._parent=None
+            self._parent = None
         elif not isinstance(parent, utils.Frame):
             raise TypeError("parent must be a utils.Frame object")
         else:
-            self._parent=parent
+            self._parent = parent
 
     def isFixed(self):
         return bool(self.fixed)
@@ -72,7 +71,7 @@ class ImageFeature(QtCore.QObject):
     def getFTPosition(self):
         """
         getFTPosition()
-        
+
         If the object has no parent Frame, this function returns
         the save value of getAbsolutePosition(), otherwise the
         function getForwardTPosition(x, y) of its parent Frame
@@ -87,7 +86,7 @@ class ImageFeature(QtCore.QObject):
     def getRTPosition(self):
         """
         getRTPosition()
-        
+
         If the object has no parent Frame, this function returns
         the save value of getAbsolutePosition(), otherwise the
         function getReverseTPosition(x, y) of its parent Frame
@@ -102,7 +101,7 @@ class ImageFeature(QtCore.QObject):
     def getAbsolutePosition(self):
         """
         getAbsolutePosition()
-        
+
         returns the absolute position, misured in pixels, of
         the ImageFeature in the form of (x, y). If the object
         has a parent Frame, the position is intended as relative
@@ -119,8 +118,7 @@ class ImageFeature(QtCore.QObject):
     def setPosition(self, x, y):
         """
         getPosition()
-        
-        
+
         This funciton sets the position of the ImageFeature.
         If the object has no parent Frame, this function is
         equivalent to setAbsolutePosition(x, y), otherwise the
@@ -136,7 +134,7 @@ class ImageFeature(QtCore.QObject):
     def setAbsolutePosition(self, x, y):
         """
         setAbsolutePosition(x, y)
-        
+
         set the position, misured in pixels, of the ImageFeature.
         If the object has a parent Frame, the position is intended
         as relative to the top-left corner of the parent image.
@@ -208,7 +206,7 @@ class AlignmentPoint(ImageFeature):
         painter.drawLine(Qt.QPointF(x+r-l, y), Qt.QPointF(x+r+l, y))
         painter.drawLine(Qt.QPointF(x, y-l-r), Qt.QPointF(x, y-r+l))
         painter.drawLine(Qt.QPointF(x, y+r+l), Qt.QPointF(x, y+r-l))
-        
+
         painter.setCompositionMode(0)
         painter.setBrush(QtCore.Qt.blue)
         painter.setPen(QtCore.Qt.NoPen)
@@ -239,7 +237,7 @@ class Star(ImageFeature):
         self.color2 = QtCore.Qt.white
         self.name = name
         self.reference = False
-        self.fixed=True
+        self.fixed = True
 
     def draw(self, painter):
         if not isinstance(painter, QtGui.QPainter):

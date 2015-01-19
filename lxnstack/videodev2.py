@@ -274,14 +274,14 @@ class timespec(ctypes.Structure):
 #              Hans Verkuil <hverkuil@xs4all.nl>
 #  et al.
 #
-#define _UAPI__LINUX_VIDEODEV2_H
+# define _UAPI__LINUX_VIDEODEV2_H
 
-#include <sys/time.h>
-#include <linux/compiler.h>
-#include <linux/ioctl.h>
-#include <linux/types.h>
-#include <linux/v4l2-common.h>
-#include <linux/v4l2-controls.h>
+# include <sys/time.h>
+# include <linux/compiler.h>
+# include <linux/ioctl.h>
+# include <linux/types.h>
+# include <linux/v4l2-common.h>
+# include <linux/v4l2-controls.h>
 
 
 #
@@ -301,6 +301,7 @@ VIDEO_MAX_PLANES = 8
 def v4l2_fourcc(a, b, c, d):
     return ord(a) | (ord(b) << 8) | (ord(c) << 16) | (ord(d) << 24)
 
+
 def v4l2_fourcc_string(val):
     a = chr(255 & val)
     b = chr(255 & (val >> 8))
@@ -315,139 +316,132 @@ def v4l2_fourcc_string(val):
 
 v4l2_field = ctypes.c_uint
 
-V4L2_FIELD_ANY =  0
-V4L2_FIELD_NONE =  1
-V4L2_FIELD_TOP =  2
-V4L2_FIELD_BOTTOM =  3
-V4L2_FIELD_INTERLACED =  4
-V4L2_FIELD_SEQ_TB =  5
-V4L2_FIELD_SEQ_BT =  6
-V4L2_FIELD_ALTERNATE =  7
-V4L2_FIELD_INTERLACED_TB =  8
-V4L2_FIELD_INTERLACED_BT =  9
+V4L2_FIELD_ANY = 0
+V4L2_FIELD_NONE = 1
+V4L2_FIELD_TOP = 2
+V4L2_FIELD_BOTTOM = 3
+V4L2_FIELD_INTERLACED = 4
+V4L2_FIELD_SEQ_TB = 5
+V4L2_FIELD_SEQ_BT = 6
+V4L2_FIELD_ALTERNATE = 7
+V4L2_FIELD_INTERLACED_TB = 8
+V4L2_FIELD_INTERLACED_BT = 9
 
 
 def V4L2_FIELD_HAS_TOP(field):
-  return (
-            (field) == V4L2_FIELD_TOP  |
-            (field) == V4L2_FIELD_INTERLACED |
-            (field) == V4L2_FIELD_INTERLACED_TB |
-            (field) == V4L2_FIELD_INTERLACED_BT |
-            (field) == V4L2_FIELD_SEQ_TB |
-            (field) == V4L2_FIELD_SEQ_BT
-         )
+    return (
+        (field) == V4L2_FIELD_TOP |
+        (field) == V4L2_FIELD_INTERLACED |
+        (field) == V4L2_FIELD_INTERLACED_TB |
+        (field) == V4L2_FIELD_INTERLACED_BT |
+        (field) == V4L2_FIELD_SEQ_TB |
+        (field) == V4L2_FIELD_SEQ_BT
+    )
+
 
 def V4L2_FIELD_HAS_BOTTOM(field):
-  return (
-            (field) == V4L2_FIELD_BOTTOM  |
-            (field) == V4L2_FIELD_INTERLACED |
-            (field) == V4L2_FIELD_INTERLACED_TB |
-            (field) == V4L2_FIELD_INTERLACED_BT |
-            (field) == V4L2_FIELD_SEQ_TB |
-            (field) == V4L2_FIELD_SEQ_BT
-         )
+    return (
+        (field) == V4L2_FIELD_BOTTOM |
+        (field) == V4L2_FIELD_INTERLACED |
+        (field) == V4L2_FIELD_INTERLACED_TB |
+        (field) == V4L2_FIELD_INTERLACED_BT |
+        (field) == V4L2_FIELD_SEQ_TB |
+        (field) == V4L2_FIELD_SEQ_BT
+    )
+
 
 def V4L2_FIELD_HAS_BOTH(field):
-  return (
-            (field) == V4L2_FIELD_INTERLACED |
-            (field) == V4L2_FIELD_INTERLACED_TB |
-            (field) == V4L2_FIELD_INTERLACED_BT |
-            (field) == V4L2_FIELD_SEQ_TB |
-            (field) == V4L2_FIELD_SEQ_BT
-         )
+    return (
+        (field) == V4L2_FIELD_INTERLACED |
+        (field) == V4L2_FIELD_INTERLACED_TB |
+        (field) == V4L2_FIELD_INTERLACED_BT |
+        (field) == V4L2_FIELD_SEQ_TB |
+        (field) == V4L2_FIELD_SEQ_BT
+    )
 
 v4l2_buf_type = ctypes.c_uint
 
-V4L2_BUF_TYPE_VIDEO_CAPTURE =  1
-V4L2_BUF_TYPE_VIDEO_OUTPUT =  2
-V4L2_BUF_TYPE_VIDEO_OVERLAY =  3
-V4L2_BUF_TYPE_VBI_CAPTURE =  4
-V4L2_BUF_TYPE_VBI_OUTPUT =  5
-V4L2_BUF_TYPE_SLICED_VBI_CAPTURE =  6
-V4L2_BUF_TYPE_SLICED_VBI_OUTPUT =  7
-V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY =  8
-V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE =  9
-V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE =  10
-V4L2_BUF_TYPE_PRIVATE =  0x80
+V4L2_BUF_TYPE_VIDEO_CAPTURE = 1
+V4L2_BUF_TYPE_VIDEO_OUTPUT = 2
+V4L2_BUF_TYPE_VIDEO_OVERLAY = 3
+V4L2_BUF_TYPE_VBI_CAPTURE = 4
+V4L2_BUF_TYPE_VBI_OUTPUT = 5
+V4L2_BUF_TYPE_SLICED_VBI_CAPTURE = 6
+V4L2_BUF_TYPE_SLICED_VBI_OUTPUT = 7
+V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY = 8
+V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE = 9
+V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE = 10
+V4L2_BUF_TYPE_PRIVATE = 0x80
 
 
+def V4L2_TYPE_IS_MULTIPLANAR(type_):
+    return ((type_) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE |
+            (type_) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 
-def V4L2_TYPE_IS_MULTIPLANAR(type):
-  return ((type) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE |
-          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 
-def V4L2_TYPE_IS_OUTPUT(type):
-  return ((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT |
-          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE |
-          (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY |
-          (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY |
-          (type) == V4L2_BUF_TYPE_VBI_OUTPUT |
-          (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
+def V4L2_TYPE_IS_OUTPUT(type_):
+    return ((type_) == V4L2_BUF_TYPE_VIDEO_OUTPUT |
+            (type_) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE |
+            (type_) == V4L2_BUF_TYPE_VIDEO_OVERLAY |
+            (type_) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY |
+            (type_) == V4L2_BUF_TYPE_VBI_OUTPUT |
+            (type_) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
 
 v4l2_tuner_type = ctypes.c_uint
 
-V4L2_TUNER_RADIO =  1
-V4L2_TUNER_ANALOG_TV =  2
-V4L2_TUNER_DIGITAL_TV =  3
-
-
+V4L2_TUNER_RADIO = 1
+V4L2_TUNER_ANALOG_TV = 2
+V4L2_TUNER_DIGITAL_TV = 3
 
 v4l2_memory = ctypes.c_uint
 
-V4L2_MEMORY_MMAP =  1
-V4L2_MEMORY_USERPTR =  2
-V4L2_MEMORY_OVERLAY =  3
-V4L2_MEMORY_DMABUF =  4
-
-
-
+V4L2_MEMORY_MMAP = 1
+V4L2_MEMORY_USERPTR = 2
+V4L2_MEMORY_OVERLAY = 3
+V4L2_MEMORY_DMABUF = 4
 
 # see also http://vektor.theorem.ca/graphics/ycbcr/
 
 v4l2_colorspace = ctypes.c_uint
 
-V4L2_COLORSPACE_SMPTE170M =  1
-V4L2_COLORSPACE_SMPTE240M =  2
-V4L2_COLORSPACE_REC709 =  3
-V4L2_COLORSPACE_BT878 =  4
-V4L2_COLORSPACE_470_SYSTEM_M =  5
-V4L2_COLORSPACE_470_SYSTEM_BG =  6
-V4L2_COLORSPACE_JPEG =  7
-V4L2_COLORSPACE_SRGB =  8
-
-
+V4L2_COLORSPACE_SMPTE170M = 1
+V4L2_COLORSPACE_SMPTE240M = 2
+V4L2_COLORSPACE_REC709 = 3
+V4L2_COLORSPACE_BT878 = 4
+V4L2_COLORSPACE_470_SYSTEM_M = 5
+V4L2_COLORSPACE_470_SYSTEM_BG = 6
+V4L2_COLORSPACE_JPEG = 7
+V4L2_COLORSPACE_SRGB = 8
 
 v4l2_priority = ctypes.c_uint
 
-V4L2_PRIORITY_UNSET =  0
-V4L2_PRIORITY_BACKGROUND =  1
-V4L2_PRIORITY_INTERACTIVE =  2
-V4L2_PRIORITY_RECORD =  3
-V4L2_PRIORITY_DEFAULT =  V4L2_PRIORITY_INTERACTIVE
-
+V4L2_PRIORITY_UNSET = 0
+V4L2_PRIORITY_BACKGROUND = 1
+V4L2_PRIORITY_INTERACTIVE = 2
+V4L2_PRIORITY_RECORD = 3
+V4L2_PRIORITY_DEFAULT = V4L2_PRIORITY_INTERACTIVE
 
 
 class v4l2_rect(ctypes.Structure):
 
     _fields_ = [
-        ('left',ctypes.c_int32),
-        ('top',ctypes.c_int32),
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
+        ('left', ctypes.c_int32),
+        ('top', ctypes.c_int32),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
     ]
 
 
 class v4l2_fract(ctypes.Structure):
 
     _fields_ = [
-        ('numerator',ctypes.c_uint32),
-        ('denominator',ctypes.c_uint32),
+        ('numerator', ctypes.c_uint32),
+        ('denominator', ctypes.c_uint32),
     ]
 
 
-
-#*
-# struct v4l2_capability - Describes V4L2 device caps returned by VIDIOC_QUERYCAP
+#
+# v4l2_capability - Describes V4L2 device caps returned by VIDIOC_QUERYCAP
 #
 # @driver:    name of the driver module (e.g. "bttv")
 # @card:    name of the card (e.g. "Hauppauge WinTV")
@@ -461,15 +455,14 @@ class v4l2_fract(ctypes.Structure):
 class v4l2_capability(ctypes.Structure):
 
     _fields_ = [
-        ('driver',ctypes.c_char*16),
-        ('card',ctypes.c_char*32),
-        ('bus_info',ctypes.c_char*32),
-        ('version',ctypes.c_uint32),
-        ('capabilities',ctypes.c_uint32),
-        ('device_caps',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
+        ('driver', ctypes.c_char*16),
+        ('card', ctypes.c_char*32),
+        ('bus_info', ctypes.c_char*32),
+        ('version', ctypes.c_uint32),
+        ('capabilities', ctypes.c_uint32),
+        ('device_caps', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
     ]
-
 
 
 # Values for 'capabilities' field
@@ -536,20 +529,18 @@ V4L2_CAP_DEVICE_CAPS = 0x80000000
 class v4l2_pix_format(ctypes.Structure):
 
     _fields_ = [
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
-        ('pixelformat',ctypes.c_uint32),
-        ('field',ctypes.c_uint32),
-        ('bytesperline',ctypes.c_uint32),
-        ('sizeimage',ctypes.c_uint32),
-        ('colorspace',ctypes.c_uint32),
-        ('priv',ctypes.c_uint32),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
+        ('pixelformat', ctypes.c_uint32),
+        ('field', ctypes.c_uint32),
+        ('bytesperline', ctypes.c_uint32),
+        ('sizeimage', ctypes.c_uint32),
+        ('colorspace', ctypes.c_uint32),
+        ('priv', ctypes.c_uint32),
     ]
 
 
-
 #      Pixel format         FOURCC                          depth  Description
-
 
 # RGB formats
 V4L2_PIX_FMT_RGB332 = v4l2_fourcc('R', 'G', 'B', '1')
@@ -825,12 +816,12 @@ V4L2_PIX_FMT_S5C_UYVY_JPG = v4l2_fourcc('S', '5', 'C', 'I')
 class v4l2_fmtdesc(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('description',ctypes.c_char*32),
-        ('pixelformat',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
+        ('index', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('description', ctypes.c_char*32),
+        ('pixelformat', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
     ]
 
 
@@ -846,49 +837,47 @@ V4L2_FMT_FLAG_EMULATED = 0x0002
 
 v4l2_frmsizetypes = ctypes.c_uint
 
-V4L2_FRMSIZE_TYPE_DISCRETE =  1
-V4L2_FRMSIZE_TYPE_CONTINUOUS =  2
-V4L2_FRMSIZE_TYPE_STEPWISE =  3
-
+V4L2_FRMSIZE_TYPE_DISCRETE = 1
+V4L2_FRMSIZE_TYPE_CONTINUOUS = 2
+V4L2_FRMSIZE_TYPE_STEPWISE = 3
 
 
 class v4l2_frmsize_discrete(ctypes.Structure):
 
     _fields_ = [
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
     ]
 
 
 class v4l2_frmsize_stepwise(ctypes.Structure):
 
     _fields_ = [
-        ('min_width',ctypes.c_uint32),
-        ('max_width',ctypes.c_uint32),
-        ('step_width',ctypes.c_uint32),
-        ('min_height',ctypes.c_uint32),
-        ('max_height',ctypes.c_uint32),
-        ('step_height',ctypes.c_uint32),
+        ('min_width', ctypes.c_uint32),
+        ('max_width', ctypes.c_uint32),
+        ('step_width', ctypes.c_uint32),
+        ('min_height', ctypes.c_uint32),
+        ('max_height', ctypes.c_uint32),
+        ('step_height', ctypes.c_uint32),
     ]
 
 
 class v4l2_frmsizeenum(ctypes.Structure):
-    #$OBJ-00010
+    # $OBJ-00010
     class _u16(ctypes.Union):
 
         _fields_ = [
-            ('discrete',v4l2_frmsize_discrete),
-            ('stepwise',v4l2_frmsize_stepwise),
+            ('discrete', v4l2_frmsize_discrete),
+            ('stepwise', v4l2_frmsize_stepwise),
         ]
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('pixel_format',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('_u16',_u16),
-        ('reserved',ctypes.c_uint32*2),
+        ('index', ctypes.c_uint32),
+        ('pixel_format', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('_u16', _u16),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #
@@ -897,40 +886,38 @@ class v4l2_frmsizeenum(ctypes.Structure):
 
 v4l2_frmivaltypes = ctypes.c_uint
 
-V4L2_FRMIVAL_TYPE_DISCRETE =  1
-V4L2_FRMIVAL_TYPE_CONTINUOUS =  2
-V4L2_FRMIVAL_TYPE_STEPWISE =  3
-
+V4L2_FRMIVAL_TYPE_DISCRETE = 1
+V4L2_FRMIVAL_TYPE_CONTINUOUS = 2
+V4L2_FRMIVAL_TYPE_STEPWISE = 3
 
 
 class v4l2_frmival_stepwise(ctypes.Structure):
 
     _fields_ = [
-        ('min',v4l2_fract),
-        ('max',v4l2_fract),
-        ('step',v4l2_fract),
+        ('min', v4l2_fract),
+        ('max', v4l2_fract),
+        ('step', v4l2_fract),
     ]
 
 
 class v4l2_frmivalenum(ctypes.Structure):
-    #$OBJ-00014
+    # $OBJ-00014
     class _u20(ctypes.Union):
 
         _fields_ = [
-            ('discrete',v4l2_fract),
-            ('stepwise',v4l2_frmival_stepwise),
+            ('discrete', v4l2_fract),
+            ('stepwise', v4l2_frmival_stepwise),
         ]
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('pixel_format',ctypes.c_uint32),
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('_u20',_u20),
-        ('reserved',ctypes.c_uint32*2),
+        ('index', ctypes.c_uint32),
+        ('pixel_format', ctypes.c_uint32),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('_u20', _u20),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #
@@ -940,15 +927,14 @@ class v4l2_frmivalenum(ctypes.Structure):
 class v4l2_timecode(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('frames',ctypes.c_uint8),
-        ('seconds',ctypes.c_uint8),
-        ('minutes',ctypes.c_uint8),
-        ('hours',ctypes.c_uint8),
-        ('userbits',ctypes.c_uint8*4),
+        ('type', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('frames', ctypes.c_uint8),
+        ('seconds', ctypes.c_uint8),
+        ('minutes', ctypes.c_uint8),
+        ('hours', ctypes.c_uint8),
+        ('userbits', ctypes.c_uint8*4),
     ]
-
 
 
 #  Type
@@ -969,18 +955,18 @@ V4L2_TC_USERBITS_8BITCHARS = 0x0008
 
 # The above is based on SMPTE timecodes
 
+
 class v4l2_jpegcompression(ctypes.Structure):
 
     _fields_ = [
-        ('quality',ctypes.c_int),
-        ('APPn',ctypes.c_int),
-        ('APP_len',ctypes.c_int),
-        ('APP_data',ctypes.c_char*60),
-        ('COM_len',ctypes.c_int),
-        ('COM_data',ctypes.c_char*60),
-        ('jpeg_markers',ctypes.c_uint32),
+        ('quality', ctypes.c_int),
+        ('APPn', ctypes.c_int),
+        ('APP_len', ctypes.c_int),
+        ('APP_data', ctypes.c_char*60),
+        ('COM_len', ctypes.c_int),
+        ('COM_data', ctypes.c_char*60),
+        ('jpeg_markers', ctypes.c_uint32),
     ]
-
 
 
 #
@@ -990,15 +976,14 @@ class v4l2_jpegcompression(ctypes.Structure):
 class v4l2_requestbuffers(ctypes.Structure):
 
     _fields_ = [
-        ('count',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('memory',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('count', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('memory', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
 
 
-
-#*
+#
 # struct v4l2_plane - plane info for multi-planar buffers
 # @bytesused:  number of bytes occupied by data in the plane (payload)
 # @length:  size of this plane (NOT the payload) in bytes
@@ -1020,26 +1005,25 @@ class v4l2_requestbuffers(ctypes.Structure):
 #
 
 class v4l2_plane(ctypes.Structure):
-    #$OBJ-00019
+    # $OBJ-00019
     class _u25(ctypes.Union):
 
         _fields_ = [
-            ('mem_offset',ctypes.c_uint32),
-            ('userptr',ctypes.c_uint32),
-            ('fd',ctypes.c_int32),
+            ('mem_offset', ctypes.c_uint32),
+            ('userptr', ctypes.c_uint32),
+            ('fd', ctypes.c_int32),
         ]
 
     _fields_ = [
-        ('bytesused',ctypes.c_uint32),
-        ('length',ctypes.c_uint32),
-        ('m',_u25),
-        ('data_offset',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*11),
+        ('bytesused', ctypes.c_uint32),
+        ('length', ctypes.c_uint32),
+        ('m', _u25),
+        ('data_offset', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*11),
     ]
 
 
-
-#*
+#
 # struct v4l2_buffer - video buffer info
 # @index: id number of the buffer
 # @type: enum v4l2_buf_type; buffer type (type == *_MPLANE for
@@ -1072,32 +1056,31 @@ class v4l2_plane(ctypes.Structure):
 #
 
 class v4l2_buffer(ctypes.Structure):
-    #$OBJ-0001B
+    # $OBJ-0001B
     class _u27(ctypes.Union):
 
         _fields_ = [
-            ('offset',ctypes.c_uint32),
-            ('userptr',ctypes.c_uint32),
-            ('planes',ctypes.POINTER(v4l2_plane)),
-            ('fd',ctypes.c_int32),
+            ('offset', ctypes.c_uint32),
+            ('userptr', ctypes.c_uint32),
+            ('planes', ctypes.POINTER(v4l2_plane)),
+            ('fd', ctypes.c_int32),
         ]
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('bytesused',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('field',ctypes.c_uint32),
-        ('timestamp',timeval),
-        ('timecode',v4l2_timecode),
-        ('sequence',ctypes.c_uint32),
-        ('memory',ctypes.c_uint32),
-        ('m',_u27),
-        ('length',ctypes.c_uint32),
-        ('reserved2',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32),
+        ('index', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('bytesused', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('field', ctypes.c_uint32),
+        ('timestamp', timeval),
+        ('timecode', v4l2_timecode),
+        ('sequence', ctypes.c_uint32),
+        ('memory', ctypes.c_uint32),
+        ('m', _u27),
+        ('length', ctypes.c_uint32),
+        ('reserved2', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32),
     ]
-
 
 
 #  Flags for 'flags' field
@@ -1132,7 +1115,7 @@ V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC = 0x2000
 V4L2_BUF_FLAG_TIMESTAMP_COPY = 0x4000
 
 
-#*
+#
 # struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
 #
 # @index: id number of the buffer
@@ -1154,14 +1137,13 @@ V4L2_BUF_FLAG_TIMESTAMP_COPY = 0x4000
 class v4l2_exportbuffer(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('index',ctypes.c_uint32),
-        ('plane',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('fd',ctypes.c_int32),
-        ('reserved',ctypes.c_uint32*11),
+        ('type', ctypes.c_uint32),
+        ('index', ctypes.c_uint32),
+        ('plane', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('fd', ctypes.c_int32),
+        ('reserved', ctypes.c_uint32*11),
     ]
-
 
 
 #
@@ -1171,10 +1153,10 @@ class v4l2_exportbuffer(ctypes.Structure):
 class v4l2_framebuffer(ctypes.Structure):
 
     _fields_ = [
-        ('capability',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('base',ctypes.POINTER(ctypes.c_void_p)),
-        ('fmt',v4l2_pix_format),
+        ('capability', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('base', ctypes.POINTER(ctypes.c_void_p)),
+        ('fmt', v4l2_pix_format),
     ]
 
 
@@ -1197,27 +1179,27 @@ V4L2_FBUF_FLAG_GLOBAL_ALPHA = 0x0010
 V4L2_FBUF_FLAG_LOCAL_INV_ALPHA = 0x0020
 V4L2_FBUF_FLAG_SRC_CHROMAKEY = 0x0040
 
+
 class v4l2_clip(ctypes.Structure):
     pass
 
 v4l2_clip._fields_ = [
-    ('c',v4l2_rect),
-    ('next',ctypes.POINTER(v4l2_clip)),
+    ('c', v4l2_rect),
+    ('next', ctypes.POINTER(v4l2_clip)),
 ]
 
 
 class v4l2_window(ctypes.Structure):
 
     _fields_ = [
-        ('w',v4l2_rect),
-        ('field',ctypes.c_uint32),
-        ('chromakey',ctypes.c_uint32),
-        ('clips',ctypes.POINTER(v4l2_clip)),
-        ('clipcount',ctypes.c_uint32),
-        ('bitmap',ctypes.POINTER(ctypes.c_void_p)),
-        ('global_alpha',ctypes.c_uint8),
+        ('w', v4l2_rect),
+        ('field', ctypes.c_uint32),
+        ('chromakey', ctypes.c_uint32),
+        ('clips', ctypes.POINTER(v4l2_clip)),
+        ('clipcount', ctypes.c_uint32),
+        ('bitmap', ctypes.POINTER(ctypes.c_void_p)),
+        ('global_alpha', ctypes.c_uint8),
     ]
-
 
 
 #
@@ -1227,14 +1209,13 @@ class v4l2_window(ctypes.Structure):
 class v4l2_captureparm(ctypes.Structure):
 
     _fields_ = [
-        ('capability',ctypes.c_uint32),
-        ('capturemode',ctypes.c_uint32),
-        ('timeperframe',v4l2_fract),
-        ('extendedmode',ctypes.c_uint32),
-        ('readbuffers',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
+        ('capability', ctypes.c_uint32),
+        ('capturemode', ctypes.c_uint32),
+        ('timeperframe', v4l2_fract),
+        ('extendedmode', ctypes.c_uint32),
+        ('readbuffers', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
     ]
-
 
 
 #  Flags for 'capability' and 'capturemode' fields
@@ -1243,17 +1224,17 @@ V4L2_MODE_HIGHQUALITY = 0x0001
 V4L2_CAP_TIMEPERFRAME = 0x1000
 #  timeperframe field is supported
 
+
 class v4l2_outputparm(ctypes.Structure):
 
     _fields_ = [
-        ('capability',ctypes.c_uint32),
-        ('outputmode',ctypes.c_uint32),
-        ('timeperframe',v4l2_fract),
-        ('extendedmode',ctypes.c_uint32),
-        ('writebuffers',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
+        ('capability', ctypes.c_uint32),
+        ('outputmode', ctypes.c_uint32),
+        ('timeperframe', v4l2_fract),
+        ('extendedmode', ctypes.c_uint32),
+        ('writebuffers', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
     ]
-
 
 
 #
@@ -1263,23 +1244,22 @@ class v4l2_outputparm(ctypes.Structure):
 class v4l2_cropcap(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('bounds',v4l2_rect),
-        ('defrect',v4l2_rect),
-        ('pixelaspect',v4l2_fract),
+        ('type', ctypes.c_uint32),
+        ('bounds', v4l2_rect),
+        ('defrect', v4l2_rect),
+        ('pixelaspect', v4l2_fract),
     ]
 
 
 class v4l2_crop(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('c',v4l2_rect),
+        ('type', ctypes.c_uint32),
+        ('c', v4l2_rect),
     ]
 
 
-
-#*
+#
 # struct v4l2_selection - selection info
 # @type: buffer type (do not use *_MPLANE types)
 # @target: Selection target, used to choose one of possible rectangles;
@@ -1296,14 +1276,12 @@ class v4l2_crop(ctypes.Structure):
 class v4l2_selection(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('target',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('r',v4l2_rect),
-        ('reserved',ctypes.c_uint32*9),
+        ('type', ctypes.c_uint32),
+        ('target', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('r', v4l2_rect),
+        ('reserved', ctypes.c_uint32*9),
     ]
-
-
 
 
 #
@@ -1311,8 +1289,6 @@ class v4l2_selection(ctypes.Structure):
 #
 
 v4l2_std_id = ctypes.c_uint64
-
-
 
 # one bit for each
 V4L2_STD_PAL_B = 0x00000001
@@ -1353,12 +1329,12 @@ V4L2_STD_ATSC_16_VSB = 0x02000000
 
 
 # FIXME:
-#Although std_id is 64 bits, there is an issue on PPC32 architecture that
-#makes switch(ctypes.c_uint64) to break. So, there's a hack on v4l2-common.c rounding
-#this value to 32 bits.
-#As, currently, the max value is for V4L2_STD_ATSC_16_VSB (30 bits wide),
-#it should work fine. However, if needed to add more than two standards,
-#v4l2-common.c should be fixed.
+# Although std_id is 64 bits, there is an issue on PPC32 architecture that
+# makes switch(ctypes.c_uint64) to break. So, there's a hack on v4l2-common.c
+# rounding this value to 32 bits.
+# As, currently, the max value is for V4L2_STD_ATSC_16_VSB (30 bits wide),
+# it should work fine. However, if needed to add more than two standards,
+# v4l2-common.c should be fixed.
 #
 
 
@@ -1382,19 +1358,19 @@ V4L2_STD_SECAM_DK = (V4L2_STD_SECAM_D |
                      V4L2_STD_SECAM_K1)
 
 # All Secam Standards
-V4L2_STD_SECAM = (V4L2_STD_SECAM_B  |
-                  V4L2_STD_SECAM_G  |
-                  V4L2_STD_SECAM_H  |
+V4L2_STD_SECAM = (V4L2_STD_SECAM_B |
+                  V4L2_STD_SECAM_G |
+                  V4L2_STD_SECAM_H |
                   V4L2_STD_SECAM_DK |
-                  V4L2_STD_SECAM_L  |
+                  V4L2_STD_SECAM_L |
                   V4L2_STD_SECAM_LC)
 
 # PAL macros
-V4L2_STD_PAL_BG = (V4L2_STD_PAL_B  |
+V4L2_STD_PAL_BG = (V4L2_STD_PAL_B |
                    V4L2_STD_PAL_B1 |
                    V4L2_STD_PAL_G)
 
-V4L2_STD_PAL_DK = (V4L2_STD_PAL_D  |
+V4L2_STD_PAL_DK = (V4L2_STD_PAL_D |
                    V4L2_STD_PAL_D1 |
                    V4L2_STD_PAL_K)
 
@@ -1405,22 +1381,22 @@ V4L2_STD_PAL_DK = (V4L2_STD_PAL_D  |
 #
 V4L2_STD_PAL = (V4L2_STD_PAL_BG |
                 V4L2_STD_PAL_DK |
-                V4L2_STD_PAL_H  |
+                V4L2_STD_PAL_H |
                 V4L2_STD_PAL_I)
 
 # Chroma "agnostic" standards
-V4L2_STD_B  = (V4L2_STD_PAL_B   |
-               V4L2_STD_PAL_B1  |
-               V4L2_STD_SECAM_B)
+V4L2_STD_B = (V4L2_STD_PAL_B |
+              V4L2_STD_PAL_B1 |
+              V4L2_STD_SECAM_B)
 
-V4L2_STD_G  = (V4L2_STD_PAL_G |
-               V4L2_STD_SECAM_G)
+V4L2_STD_G = (V4L2_STD_PAL_G |
+              V4L2_STD_SECAM_G)
 
-V4L2_STD_H  = (V4L2_STD_PAL_H |
-               V4L2_STD_SECAM_H)
+V4L2_STD_H = (V4L2_STD_PAL_H |
+              V4L2_STD_SECAM_H)
 
-V4L2_STD_L  = (V4L2_STD_SECAM_L |
-               V4L2_STD_SECAM_LC)
+V4L2_STD_L = (V4L2_STD_SECAM_L |
+              V4L2_STD_SECAM_LC)
 
 V4L2_STD_GH = (V4L2_STD_G |
                V4L2_STD_H)
@@ -1431,28 +1407,28 @@ V4L2_STD_DK = (V4L2_STD_PAL_DK |
 V4L2_STD_BG = (V4L2_STD_B |
                V4L2_STD_G)
 
-V4L2_STD_MN = (V4L2_STD_PAL_M   |
-               V4L2_STD_PAL_N   |
-               V4L2_STD_PAL_Nc  |
+V4L2_STD_MN = (V4L2_STD_PAL_M |
+               V4L2_STD_PAL_N |
+               V4L2_STD_PAL_Nc |
                V4L2_STD_NTSC)
 
 
 # Standards where MTS/BTSC stereo could be found
 V4L2_STD_MTS = (V4L2_STD_NTSC_M |
-                V4L2_STD_PAL_M  |
-                V4L2_STD_PAL_N  |
+                V4L2_STD_PAL_M |
+                V4L2_STD_PAL_N |
                 V4L2_STD_PAL_Nc)
 
 
 # Standards for Countries with 60Hz Line frequency
-V4L2_STD_525_60 = (V4L2_STD_PAL_M  |
+V4L2_STD_525_60 = (V4L2_STD_PAL_M |
                    V4L2_STD_PAL_60 |
-                   V4L2_STD_NTSC   |
+                   V4L2_STD_NTSC |
                    V4L2_STD_NTSC_443)
 
 # Standards for Countries with 50Hz Line frequency
-V4L2_STD_625_50 = (V4L2_STD_PAL    |
-                   V4L2_STD_PAL_N  |
+V4L2_STD_625_50 = (V4L2_STD_PAL |
+                   V4L2_STD_PAL_N |
                    V4L2_STD_PAL_Nc |
                    V4L2_STD_SECAM)
 
@@ -1464,17 +1440,17 @@ V4L2_STD_UNKNOWN = 0
 V4L2_STD_ALL = (V4L2_STD_525_60 |
                 V4L2_STD_625_50)
 
+
 class v4l2_standard(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('id',v4l2_std_id),
-        ('name',ctypes.c_char*24),
-        ('frameperiod',v4l2_fract),
-        ('framelines',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
+        ('index', ctypes.c_uint32),
+        ('id', v4l2_std_id),
+        ('name', ctypes.c_char*24),
+        ('frameperiod', v4l2_fract),
+        ('framelines', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
     ]
-
 
 
 #
@@ -1482,7 +1458,7 @@ class v4l2_standard(ctypes.Structure):
 #
 
 
-#* struct v4l2_bt_timings - BT.656/BT.1120 timing data
+# struct v4l2_bt_timings - BT.656/BT.1120 timing data
 # @width: total width of the active video in pixels
 # @height: total height of the active video in lines
 # @interlaced: Interlaced or progressive
@@ -1517,28 +1493,27 @@ class v4l2_standard(ctypes.Structure):
 
 class v4l2_bt_timings(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
-        ('interlaced',ctypes.c_uint32),
-        ('polarities',ctypes.c_uint32),
-        ('pixelclock',ctypes.c_uint64),
-        ('hfrontporch',ctypes.c_uint32),
-        ('hsync',ctypes.c_uint32),
-        ('hbackporch',ctypes.c_uint32),
-        ('vfrontporch',ctypes.c_uint32),
-        ('vsync',ctypes.c_uint32),
-        ('vbackporch',ctypes.c_uint32),
-        ('il_vfrontporch',ctypes.c_uint32),
-        ('il_vsync',ctypes.c_uint32),
-        ('il_vbackporch',ctypes.c_uint32),
-        ('standards',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*14),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
+        ('interlaced', ctypes.c_uint32),
+        ('polarities', ctypes.c_uint32),
+        ('pixelclock', ctypes.c_uint64),
+        ('hfrontporch', ctypes.c_uint32),
+        ('hsync', ctypes.c_uint32),
+        ('hbackporch', ctypes.c_uint32),
+        ('vfrontporch', ctypes.c_uint32),
+        ('vsync', ctypes.c_uint32),
+        ('vbackporch', ctypes.c_uint32),
+        ('il_vfrontporch', ctypes.c_uint32),
+        ('il_vsync', ctypes.c_uint32),
+        ('il_vbackporch', ctypes.c_uint32),
+        ('standards', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*14),
     ]
-
 
 
 # Interlaced or progressive format
@@ -1552,74 +1527,80 @@ V4L2_DV_HSYNC_POS_POL = 0x00000002
 
 
 # Timings standards
-V4L2_DV_BT_STD_CEA861 = 1 << 0 # CEA-861 Digital TV Profile
-V4L2_DV_BT_STD_DMT    = 1 << 1 # VESA Discrete Monitor Timings
-V4L2_DV_BT_STD_CVT    = 1 << 2 # VESA Coordinated Video Timings
-V4L2_DV_BT_STD_GTF    = 1 << 3 # VESA Generalized Timings Formula
+V4L2_DV_BT_STD_CEA861 = 1 << 0  # CEA-861 Digital TV Profile
+V4L2_DV_BT_STD_DMT = 1 << 1  # VESA Discrete Monitor Timings
+V4L2_DV_BT_STD_CVT = 1 << 2  # VESA Coordinated Video Timings
+V4L2_DV_BT_STD_GTF = 1 << 3  # VESA Generalized Timings Formula
 
 
 # Flags
 
 
 # CVT/GTF specific: timing uses reduced blanking (CVT) or the 'Secondary
-#GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
-#intervals are reduced, allowing a higher resolution over the same
-#bandwidth. This is a read-only flag.
+# GTF' curve (GTF). In both cases the horizontal and/or vertical blanking
+# intervals are reduced, allowing a higher resolution over the same
+# bandwidth. This is a read-only flag.
 V4L2_DV_FL_REDUCED_BLANKING = (1 << 0)
 
 # CEA-861 specific: set for CEA-861 formats with a framerate of a multiple
-#of six. These formats can be optionally played at 1 / 1.001 speed.
-#This is a read-only flag.
+# of six. These formats can be optionally played at 1 / 1.001 speed.
+# This is a read-only flag.
 V4L2_DV_FL_CAN_REDUCE_FPS = (1 << 1)
 
 # CEA-861 specific: only valid for video transmitters, the flag is cleared
-#by receivers.
-#If the framerate of the format is a multiple of six, then the pixelclock
-#used to set up the transmitter is divided by 1.001 to make it compatible
-#with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
-#29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
-#such frequencies, then the flag will also be cleared.
+# by receivers.
+# If the framerate of the format is a multiple of six, then the pixelclock
+# used to set up the transmitter is divided by 1.001 to make it compatible
+# with 60 Hz based standards such as NTSC and PAL-M that use a framerate of
+# 29.97 Hz. Otherwise this flag is cleared. If the transmitter can't generate
+# such frequencies, then the flag will also be cleared.
 V4L2_DV_FL_REDUCED_FPS = (1 << 2)
 
 # Specific to interlaced formats: if set, then field 1 is really one half-line
-#longer and field 2 is really one half-line shorter, so each field has
-#exactly the same number of half-lines. Whether half-lines can be detected
-#or used depends on the hardware.
+# longer and field 2 is really one half-line shorter, so each field has
+# exactly the same number of half-lines. Whether half-lines can be detected
+# or used depends on the hardware.
 V4L2_DV_FL_HALF_LINE = (1 << 3)
 
 
 # A few useful defines to calculate the total blanking and frame sizes
 def V4L2_DV_BT_BLANKING_WIDTH(bt):
-  return (bt.hfrontporch + bt.hsync + bt.hbackporch)
+    return (bt.hfrontporch + bt.hsync + bt.hbackporch)
+
+
 def V4L2_DV_BT_FRAME_WIDTH(bt):
-  return (bt.width + V4L2_DV_BT_BLANKING_WIDTH(bt))
+    return (bt.width + V4L2_DV_BT_BLANKING_WIDTH(bt))
+
+
 def V4L2_DV_BT_BLANKING_HEIGHT(bt):
-  return (bt.vfrontporch + bt.vsync + bt.vbackporch +   bt.il_vfrontporch + bt.il_vsync + bt.il_vbackporch)
+    return (bt.vfrontporch + bt.vsync + bt.vbackporch +
+            bt.il_vfrontporch + bt.il_vsync + bt.il_vbackporch)
+
+
 def V4L2_DV_BT_FRAME_HEIGHT(bt):
-  return (bt.height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
+    return (bt.height + V4L2_DV_BT_BLANKING_HEIGHT(bt))
 
 
-#* struct v4l2_dv_timings - DV timings
+# struct v4l2_dv_timings - DV timings
 # @type: the type of the timings
 # @bt: BT656/1120 timings
 #
 
 class v4l2_dv_timings(ctypes.Structure):
-    #$OBJ-00028
+    # $OBJ-00028
     class _u40(ctypes.Union):
 
         _fields_ = [
-            ('bt',v4l2_bt_timings),
-            ('reserved',ctypes.c_uint32*32),
+            ('bt', v4l2_bt_timings),
+            ('reserved', ctypes.c_uint32*32),
         ]
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('_u40',_u40),
+        ('type', ctypes.c_uint32),
+        ('_u40', _u40),
     ]
-
 
 
 # Values for the type field
@@ -1627,8 +1608,7 @@ V4L2_DV_BT_656_1120 = 0
 # BT.656/1120 timing type
 
 
-
-#* struct v4l2_enum_dv_timings - DV timings enumeration
+# struct v4l2_enum_dv_timings - DV timings enumeration
 # @index: enumeration index
 # @reserved: must be zeroed
 # @timings: the timings for the given index
@@ -1637,14 +1617,13 @@ V4L2_DV_BT_656_1120 = 0
 class v4l2_enum_dv_timings(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
-        ('timings',v4l2_dv_timings),
+        ('index', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
+        ('timings', v4l2_dv_timings),
     ]
 
 
-
-#* struct v4l2_bt_timings_cap - BT.656/BT.1120 timing capabilities
+# struct v4l2_bt_timings_cap - BT.656/BT.1120 timing capabilities
 # @min_width:  width in pixels
 # @max_width:  width in pixels
 # @min_height:  height in lines
@@ -1658,20 +1637,19 @@ class v4l2_enum_dv_timings(ctypes.Structure):
 
 class v4l2_bt_timings_cap(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('min_width',ctypes.c_uint32),
-        ('max_width',ctypes.c_uint32),
-        ('min_height',ctypes.c_uint32),
-        ('max_height',ctypes.c_uint32),
-        ('min_pixelclock',ctypes.c_uint64),
-        ('max_pixelclock',ctypes.c_uint64),
-        ('standards',ctypes.c_uint32),
-        ('capabilities',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*16),
+        ('min_width', ctypes.c_uint32),
+        ('max_width', ctypes.c_uint32),
+        ('min_height', ctypes.c_uint32),
+        ('max_height', ctypes.c_uint32),
+        ('min_pixelclock', ctypes.c_uint64),
+        ('max_pixelclock', ctypes.c_uint64),
+        ('standards', ctypes.c_uint32),
+        ('capabilities', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*16),
     ]
-
 
 
 # Supports interlaced formats
@@ -1687,27 +1665,25 @@ V4L2_DV_BT_CAP_REDUCED_BLANKING = (1 << 2)
 V4L2_DV_BT_CAP_CUSTOM = (1 << 3)
 
 
-#* struct v4l2_dv_timings_cap - DV timings capabilities
+# struct v4l2_dv_timings_cap - DV timings capabilities
 # @type: the type of the timings (same as in struct v4l2_dv_timings)
 # @bt:  the BT656/1120 timings capabilities
 #
 
 class v4l2_dv_timings_cap(ctypes.Structure):
-    #$OBJ-0002C
+    # $OBJ-0002C
     class _u44(ctypes.Union):
 
         _fields_ = [
-            ('bt',v4l2_bt_timings_cap),
-            ('raw_data',ctypes.c_uint32*32),
+            ('bt', v4l2_bt_timings_cap),
+            ('raw_data', ctypes.c_uint32*32),
         ]
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
-        ('_u44',_u44),
+        ('type', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
+        ('_u44', _u44),
     ]
-
-
 
 
 #
@@ -1717,23 +1693,21 @@ class v4l2_dv_timings_cap(ctypes.Structure):
 class v4l2_input(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('type',ctypes.c_uint32),
-        ('audioset',ctypes.c_uint32),
-        ('tuner',ctypes.c_uint32),
-        ('std',v4l2_std_id),
-        ('status',ctypes.c_uint32),
-        ('capabilities',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('type', ctypes.c_uint32),
+        ('audioset', ctypes.c_uint32),
+        ('tuner', ctypes.c_uint32),
+        ('std', v4l2_std_id),
+        ('status', ctypes.c_uint32),
+        ('capabilities', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
     ]
-
 
 
 #  Values for the 'type' field
 V4L2_INPUT_TYPE_TUNER = 1
 V4L2_INPUT_TYPE_CAMERA = 2
-
 
 # field 'status' - general
 V4L2_IN_ST_NO_POWER = 0x00000001
@@ -1792,14 +1766,14 @@ V4L2_IN_CAP_STD = 0x00000004
 class v4l2_output(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('type',ctypes.c_uint32),
-        ('audioset',ctypes.c_uint32),
-        ('modulator',ctypes.c_uint32),
-        ('std',v4l2_std_id),
-        ('capabilities',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('type', ctypes.c_uint32),
+        ('audioset', ctypes.c_uint32),
+        ('modulator', ctypes.c_uint32),
+        ('std', v4l2_std_id),
+        ('capabilities', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
     ]
 
 
@@ -1825,61 +1799,64 @@ V4L2_OUT_CAP_STD = 0x00000004
 class v4l2_control(ctypes.Structure):
 
     _fields_ = [
-        ('id',ctypes.c_uint32),
-        ('value',ctypes.c_int32),
+        ('id', ctypes.c_uint32),
+        ('value', ctypes.c_int32),
     ]
 
 
 class v4l2_ext_control(ctypes.Structure):
-    #$OBJ-00031
+    # $OBJ-00031
     class _u49(ctypes.Union):
 
         _fields_ = [
-            ('value',ctypes.c_int32),
-            ('value64',ctypes.c_int64),
-            ('string',ctypes.POINTER(ctypes.c_char)),
+            ('value', ctypes.c_int32),
+            ('value64', ctypes.c_int64),
+            ('string', ctypes.POINTER(ctypes.c_char)),
         ]
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('id',ctypes.c_uint32),
-        ('size',ctypes.c_uint32),
-        ('reserved2',ctypes.c_uint32*1),
-        ('_u49',_u49),
+        ('id', ctypes.c_uint32),
+        ('size', ctypes.c_uint32),
+        ('reserved2', ctypes.c_uint32*1),
+        ('_u49', _u49),
     ]
 
 
 class v4l2_ext_controls(ctypes.Structure):
 
     _fields_ = [
-        ('ctrl_class',ctypes.c_uint32),
-        ('count',ctypes.c_uint32),
-        ('error_idx',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
-        ('controls',ctypes.POINTER(v4l2_ext_control)),
+        ('ctrl_class', ctypes.c_uint32),
+        ('count', ctypes.c_uint32),
+        ('error_idx', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
+        ('controls', ctypes.POINTER(v4l2_ext_control)),
     ]
 
 
 V4L2_CTRL_ID_MASK = (0x0fffffff)
+
+
 def V4L2_CTRL_ID2CLASS(id):
-  return ((id) & 0x0fff0000)
+    return ((id) & 0x0fff0000)
+
+
 def V4L2_CTRL_DRIVER_PRIV(id):
-  return (((id) & 0xffff) >= 0x1000)
+    return (((id) & 0xffff) >= 0x1000)
+
 
 v4l2_ctrl_type = ctypes.c_uint
 
-V4L2_CTRL_TYPE_INTEGER =  1
-V4L2_CTRL_TYPE_BOOLEAN =  2
-V4L2_CTRL_TYPE_MENU =  3
-V4L2_CTRL_TYPE_BUTTON =  4
-V4L2_CTRL_TYPE_INTEGER64 =  5
-V4L2_CTRL_TYPE_CTRL_CLASS =  6
-V4L2_CTRL_TYPE_STRING =  7
-V4L2_CTRL_TYPE_BITMASK =  8
-V4L2_CTRL_TYPE_INTEGER_MENU =  9
-
-
+V4L2_CTRL_TYPE_INTEGER = 1
+V4L2_CTRL_TYPE_BOOLEAN = 2
+V4L2_CTRL_TYPE_MENU = 3
+V4L2_CTRL_TYPE_BUTTON = 4
+V4L2_CTRL_TYPE_INTEGER64 = 5
+V4L2_CTRL_TYPE_CTRL_CLASS = 6
+V4L2_CTRL_TYPE_STRING = 7
+V4L2_CTRL_TYPE_BITMASK = 8
+V4L2_CTRL_TYPE_INTEGER_MENU = 9
 
 
 #  Used in the VIDIOC_QUERYCTRL ioctl for querying controls
@@ -1887,39 +1864,37 @@ V4L2_CTRL_TYPE_INTEGER_MENU =  9
 class v4l2_queryctrl(ctypes.Structure):
 
     _fields_ = [
-        ('id',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('minimum',ctypes.c_int32),
-        ('maximum',ctypes.c_int32),
-        ('step',ctypes.c_int32),
-        ('default_value',ctypes.c_int32),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('id', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('minimum', ctypes.c_int32),
+        ('maximum', ctypes.c_int32),
+        ('step', ctypes.c_int32),
+        ('default_value', ctypes.c_int32),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #  Used in the VIDIOC_QUERYMENU ioctl for querying menu items
 
 class v4l2_querymenu(ctypes.Structure):
-    #$OBJ-00036
+    # $OBJ-00036
     class _u54(ctypes.Union):
 
         _fields_ = [
-            ('name',ctypes.c_char*32),
-            ('value',ctypes.c_int64),
+            ('name', ctypes.c_char*32),
+            ('value', ctypes.c_int64),
         ]
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('id',ctypes.c_uint32),
-        ('index',ctypes.c_uint32),
-        ('_u54',_u54),
-        ('reserved',ctypes.c_uint32),
+        ('id', ctypes.c_uint32),
+        ('index', ctypes.c_uint32),
+        ('_u54', _u54),
+        ('reserved', ctypes.c_uint32),
     ]
-
 
 
 #  Control flags
@@ -1944,7 +1919,6 @@ V4L2_CID_MAX_CTRLS = 1024
 V4L2_CID_PRIVATE_BASE = 0x08000000
 
 
-
 #
 # T U N I N G
 #
@@ -1952,32 +1926,31 @@ V4L2_CID_PRIVATE_BASE = 0x08000000
 class v4l2_tuner(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('type',ctypes.c_uint32),
-        ('capability',ctypes.c_uint32),
-        ('rangelow',ctypes.c_uint32),
-        ('rangehigh',ctypes.c_uint32),
-        ('rxsubchans',ctypes.c_uint32),
-        ('audmode',ctypes.c_uint32),
-        ('signal',ctypes.c_int32),
-        ('afc',ctypes.c_int32),
-        ('reserved',ctypes.c_uint32*4),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('type', ctypes.c_uint32),
+        ('capability', ctypes.c_uint32),
+        ('rangelow', ctypes.c_uint32),
+        ('rangehigh', ctypes.c_uint32),
+        ('rxsubchans', ctypes.c_uint32),
+        ('audmode', ctypes.c_uint32),
+        ('signal', ctypes.c_int32),
+        ('afc', ctypes.c_int32),
+        ('reserved', ctypes.c_uint32*4),
     ]
 
 
 class v4l2_modulator(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('capability',ctypes.c_uint32),
-        ('rangelow',ctypes.c_uint32),
-        ('rangehigh',ctypes.c_uint32),
-        ('txsubchans',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('capability', ctypes.c_uint32),
+        ('rangelow', ctypes.c_uint32),
+        ('rangehigh', ctypes.c_uint32),
+        ('txsubchans', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
     ]
-
 
 
 #  Flags for the 'capability' field
@@ -2013,13 +1986,14 @@ V4L2_TUNER_MODE_SAP = 0x0002
 V4L2_TUNER_MODE_LANG1 = 0x0003
 V4L2_TUNER_MODE_LANG1_LANG2 = 0x0004
 
+
 class v4l2_frequency(ctypes.Structure):
 
     _fields_ = [
-        ('tuner',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('frequency',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*8),
+        ('tuner', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('frequency', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*8),
     ]
 
 
@@ -2027,33 +2001,33 @@ V4L2_BAND_MODULATION_VSB = (1 << 1)
 V4L2_BAND_MODULATION_FM = (1 << 2)
 V4L2_BAND_MODULATION_AM = (1 << 3)
 
+
 class v4l2_frequency_band(ctypes.Structure):
 
     _fields_ = [
-        ('tuner',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('index',ctypes.c_uint32),
-        ('capability',ctypes.c_uint32),
-        ('rangelow',ctypes.c_uint32),
-        ('rangehigh',ctypes.c_uint32),
-        ('modulation',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*9),
+        ('tuner', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('index', ctypes.c_uint32),
+        ('capability', ctypes.c_uint32),
+        ('rangelow', ctypes.c_uint32),
+        ('rangehigh', ctypes.c_uint32),
+        ('modulation', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*9),
     ]
 
 
 class v4l2_hw_freq_seek(ctypes.Structure):
 
     _fields_ = [
-        ('tuner',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('seek_upward',ctypes.c_uint32),
-        ('wrap_around',ctypes.c_uint32),
-        ('spacing',ctypes.c_uint32),
-        ('rangelow',ctypes.c_uint32),
-        ('rangehigh',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*5),
+        ('tuner', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('seek_upward', ctypes.c_uint32),
+        ('wrap_around', ctypes.c_uint32),
+        ('spacing', ctypes.c_uint32),
+        ('rangelow', ctypes.c_uint32),
+        ('rangehigh', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*5),
     ]
-
 
 
 #
@@ -2062,12 +2036,12 @@ class v4l2_hw_freq_seek(ctypes.Structure):
 
 class v4l2_rds_data(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('lsb',ctypes.c_uint8),
-        ('msb',ctypes.c_uint8),
-        ('block',ctypes.c_uint8),
+        ('lsb', ctypes.c_uint8),
+        ('msb', ctypes.c_uint8),
+        ('block', ctypes.c_uint8),
     ]
 
 
@@ -2090,13 +2064,12 @@ V4L2_RDS_BLOCK_ERROR = 0x80
 class v4l2_audio(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('capability',ctypes.c_uint32),
-        ('mode',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('capability', ctypes.c_uint32),
+        ('mode', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #  Flags for the 'capability' field
@@ -2107,16 +2080,16 @@ V4L2_AUDCAP_AVL = 0x00002
 #  Flags for the 'mode' field
 V4L2_AUDMODE_AVL = 0x00001
 
+
 class v4l2_audioout(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('name',ctypes.c_char*32),
-        ('capability',ctypes.c_uint32),
-        ('mode',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('index', ctypes.c_uint32),
+        ('name', ctypes.c_char*32),
+        ('capability', ctypes.c_uint32),
+        ('mode', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #
@@ -2124,33 +2097,34 @@ class v4l2_audioout(ctypes.Structure):
 #
 # NOTE: EXPERIMENTAL API
 #
-V4L2_ENC_IDX_FRAME_I = (0)
-V4L2_ENC_IDX_FRAME_P = (1)
-V4L2_ENC_IDX_FRAME_B = (2)
-V4L2_ENC_IDX_FRAME_MASK = (0xf)
+V4L2_ENC_IDX_FRAME_I = 0
+V4L2_ENC_IDX_FRAME_P = 1
+V4L2_ENC_IDX_FRAME_B = 2
+V4L2_ENC_IDX_FRAME_MASK = 0xf
+
 
 class v4l2_enc_idx_entry(ctypes.Structure):
 
     _fields_ = [
-        ('offset',ctypes.c_uint64),
-        ('pts',ctypes.c_uint64),
-        ('length',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('offset', ctypes.c_uint64),
+        ('pts', ctypes.c_uint64),
+        ('length', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
 
 
 V4L2_ENC_IDX_ENTRIES = (64)
 
+
 class v4l2_enc_idx(ctypes.Structure):
 
     _fields_ = [
-        ('entries',ctypes.c_uint32),
-        ('entries_cap',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*4),
-        ('entry',v4l2_enc_idx_entry*V4L2_ENC_IDX_ENTRIES),
+        ('entries', ctypes.c_uint32),
+        ('entries_cap', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*4),
+        ('entry', v4l2_enc_idx_entry*V4L2_ENC_IDX_ENTRIES),
     ]
-
 
 
 V4L2_ENC_CMD_START = (0)
@@ -2162,26 +2136,26 @@ V4L2_ENC_CMD_RESUME = (3)
 # Flags for V4L2_ENC_CMD_STOP
 V4L2_ENC_CMD_STOP_AT_GOP_END = (1 << 0)
 
+
 class v4l2_encoder_cmd(ctypes.Structure):
-    #$OBJ-00042
+    # $OBJ-00042
     class _u67(ctypes.Union):
-        #$OBJ-00043
+        # $OBJ-00043
         class _s67(ctypes.Structure):
 
             _fields_ = [
-                ('data',ctypes.c_uint32*8),
+                ('data', ctypes.c_uint32*8),
             ]
 
         _fields_ = [
-            ('raw',_s67),
+            ('raw', _s67),
         ]
 
     _fields_ = [
-        ('cmd',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('_u67',_u67),
+        ('cmd', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('_u67', _u67),
     ]
-
 
 
 # Decoder commands
@@ -2215,44 +2189,46 @@ V4L2_DEC_START_FMT_GOP = (1)
 
 
 # The structure must be zeroed before use by the application
-#This ensures it can be extended safely in the future.
+# This ensures it can be extended safely in the future.
 
 class v4l2_decoder_cmd(ctypes.Structure):
-    #$OBJ-00045
+
+    # $OBJ-00045
     class _u72(ctypes.Union):
-        #$OBJ-00046
+
+        # $OBJ-00046
         class _s70(ctypes.Structure):
 
             _fields_ = [
-                ('pts',ctypes.c_uint64),
+                ('pts', ctypes.c_uint64),
             ]
-        #$OBJ-00047
+
+        # $OBJ-00047
         class _s71(ctypes.Structure):
 
             _fields_ = [
-                ('speed',ctypes.c_int32),
-                ('format',ctypes.c_uint32),
+                ('speed', ctypes.c_int32),
+                ('format', ctypes.c_uint32),
             ]
-        #$OBJ-00048
+
+        # $OBJ-00048
         class _s72(ctypes.Structure):
 
             _fields_ = [
-                ('data',ctypes.c_uint32*16),
+                ('data', ctypes.c_uint32*16),
             ]
 
         _fields_ = [
-            ('stop',_s70),
-            ('start',_s71),
-            ('raw',_s72),
+            ('stop', _s70),
+            ('start', _s71),
+            ('raw', _s72),
         ]
 
     _fields_ = [
-        ('cmd',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('_u72',_u72),
+        ('cmd', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('_u72', _u72),
     ]
-
-
 
 
 #
@@ -2267,16 +2243,15 @@ class v4l2_decoder_cmd(ctypes.Structure):
 class v4l2_vbi_format(ctypes.Structure):
 
     _fields_ = [
-        ('sampling_rate',ctypes.c_uint32),
-        ('offset',ctypes.c_uint32),
-        ('samples_per_line',ctypes.c_uint32),
-        ('sample_format',ctypes.c_uint32),
-        ('start',ctypes.c_int32*2),
-        ('count',ctypes.c_uint32*2),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('sampling_rate', ctypes.c_uint32),
+        ('offset', ctypes.c_uint32),
+        ('samples_per_line', ctypes.c_uint32),
+        ('sample_format', ctypes.c_uint32),
+        ('start', ctypes.c_int32*2),
+        ('count', ctypes.c_uint32*2),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
-
 
 
 #  VBI flags
@@ -2294,16 +2269,15 @@ V4L2_VBI_INTERLACED = (1 << 1)
 class v4l2_sliced_vbi_format(ctypes.Structure):
 
     _fields_ = [
-        ('service_set',ctypes.c_uint16),
-        ('service_lines',ctypes.c_uint16*2),
-        ('io_size',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*2),
+        ('service_set', ctypes.c_uint16),
+        ('service_lines', ctypes.c_uint16*2),
+        ('io_size', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*2),
     ]
 
 
-
 # Teletext World System Teletext
-#(WST), defined on ITU-R BT.653-2
+# (WST), defined on ITU-R BT.653-2
 V4L2_SLICED_TELETEXT_B = (0x0001)
 
 # Video Program System, defined on ETS 300 231
@@ -2316,34 +2290,35 @@ V4L2_SLICED_CAPTION_525 = (0x1000)
 V4L2_SLICED_WSS_625 = (0x4000)
 
 V4L2_SLICED_VBI_525 = (V4L2_SLICED_CAPTION_525)
-V4L2_SLICED_VBI_625 = (V4L2_SLICED_TELETEXT_B | V4L2_SLICED_VPS | V4L2_SLICED_WSS_625)
+V4L2_SLICED_VBI_625 = (V4L2_SLICED_TELETEXT_B |
+                       V4L2_SLICED_VPS |
+                       V4L2_SLICED_WSS_625)
+
 
 class v4l2_sliced_vbi_cap(ctypes.Structure):
 
     _fields_ = [
-        ('service_set',ctypes.c_uint16),
-        ('service_lines',ctypes.c_uint16*2),
-        ('type',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*3),
+        ('service_set', ctypes.c_uint16),
+        ('service_lines', ctypes.c_uint16*2),
+        ('type', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*3),
     ]
 
 
 class v4l2_sliced_vbi_data(ctypes.Structure):
 
     _fields_ = [
-        ('id',ctypes.c_uint32),
-        ('field',ctypes.c_uint32),
-        ('line',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32),
-        ('data',ctypes.c_uint8*48),
+        ('id', ctypes.c_uint32),
+        ('field', ctypes.c_uint32),
+        ('line', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32),
+        ('data', ctypes.c_uint8*48),
     ]
-
 
 
 #
 # Sliced VBI data inserted into MPEG Streams
 #
-
 
 #
 # V4L2_MPEG_STREAM_VBI_FMT_IVTV:
@@ -2357,61 +2332,62 @@ class v4l2_sliced_vbi_data(ctypes.Structure):
 # on these headers.
 #
 
-
 # Line type IDs
 V4L2_MPEG_VBI_IVTV_TELETEXT_B = (1)
 V4L2_MPEG_VBI_IVTV_CAPTION_525 = (4)
 V4L2_MPEG_VBI_IVTV_WSS_625 = (5)
 V4L2_MPEG_VBI_IVTV_VPS = (7)
 
+
 class v4l2_mpeg_vbi_itv0_line(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('id',ctypes.c_uint8),
-        ('data',ctypes.c_uint8*42),
+        ('id', ctypes.c_uint8),
+        ('data', ctypes.c_uint8*42),
     ]
 
 
 class v4l2_mpeg_vbi_itv0(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('linemask',ctypes.c_uint32*2),
-        ('line',v4l2_mpeg_vbi_itv0_line*35),
+        ('linemask', ctypes.c_uint32*2),
+        ('line', v4l2_mpeg_vbi_itv0_line*35),
     ]
 
 
 class v4l2_mpeg_vbi_ITV0(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('line',v4l2_mpeg_vbi_itv0_line*36),
+        ('line', v4l2_mpeg_vbi_itv0_line*36),
     ]
 
 
 V4L2_MPEG_VBI_IVTV_MAGIC0 = "itv0"
 V4L2_MPEG_VBI_IVTV_MAGIC1 = "ITV0"
 
+
 class v4l2_mpeg_vbi_fmt_ivtv(ctypes.Structure):
-    #$OBJ-00051
+
+    # $OBJ-00051
     class _u81(ctypes.Union):
 
         _fields_ = [
-            ('itv0',v4l2_mpeg_vbi_itv0),
-            ('ITV0',v4l2_mpeg_vbi_ITV0),
+            ('itv0', v4l2_mpeg_vbi_itv0),
+            ('ITV0', v4l2_mpeg_vbi_ITV0),
         ]
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('magic',ctypes.c_uint8*4),
-        ('_u81',_u81),
+        ('magic', ctypes.c_uint8*4),
+        ('_u81', _u81),
     ]
-
 
 
 #
@@ -2419,7 +2395,7 @@ class v4l2_mpeg_vbi_fmt_ivtv(ctypes.Structure):
 #
 
 
-#*
+#
 # struct v4l2_plane_pix_format - additional, per-plane format definition
 # @sizeimage:  maximum size in bytes required for data, for which
 #   this plane will be used
@@ -2429,17 +2405,16 @@ class v4l2_mpeg_vbi_fmt_ivtv(ctypes.Structure):
 
 class v4l2_plane_pix_format(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('sizeimage',ctypes.c_uint32),
-        ('bytesperline',ctypes.c_uint16),
-        ('reserved',ctypes.c_uint16*7),
+        ('sizeimage', ctypes.c_uint32),
+        ('bytesperline', ctypes.c_uint16),
+        ('reserved', ctypes.c_uint16*7),
     ]
 
 
-
-#*
+#
 # struct v4l2_pix_format_mplane - multiplanar format definition
 # @width:  image width in pixels
 # @height:  image height in pixels
@@ -2452,22 +2427,21 @@ class v4l2_plane_pix_format(ctypes.Structure):
 
 class v4l2_pix_format_mplane(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('width',ctypes.c_uint32),
-        ('height',ctypes.c_uint32),
-        ('pixelformat',ctypes.c_uint32),
-        ('field',ctypes.c_uint32),
-        ('colorspace',ctypes.c_uint32),
-        ('plane_fmt',v4l2_plane_pix_format*VIDEO_MAX_PLANES),
-        ('num_planes',ctypes.c_uint8),
-        ('reserved',ctypes.c_uint8*11),
+        ('width', ctypes.c_uint32),
+        ('height', ctypes.c_uint32),
+        ('pixelformat', ctypes.c_uint32),
+        ('field', ctypes.c_uint32),
+        ('colorspace', ctypes.c_uint32),
+        ('plane_fmt', v4l2_plane_pix_format*VIDEO_MAX_PLANES),
+        ('num_planes', ctypes.c_uint8),
+        ('reserved', ctypes.c_uint8*11),
     ]
 
 
-
-#*
+#
 # struct v4l2_format - stream data format
 # @type: enum v4l2_buf_type; type of the data stream
 # @pix: definition of an image format
@@ -2479,43 +2453,42 @@ class v4l2_pix_format_mplane(ctypes.Structure):
 #
 
 class v4l2_format(ctypes.Structure):
-    #$OBJ-00055
+
+    # $OBJ-00055
     class _u85(ctypes.Union):
 
         _fields_ = [
-            ('pix',v4l2_pix_format),
-            ('pix_mp',v4l2_pix_format_mplane),
-            ('win',v4l2_window),
-            ('vbi',v4l2_vbi_format),
-            ('sliced',v4l2_sliced_vbi_format),
-            ('raw_data',ctypes.c_uint8*200),
+            ('pix', v4l2_pix_format),
+            ('pix_mp', v4l2_pix_format_mplane),
+            ('win', v4l2_window),
+            ('vbi', v4l2_vbi_format),
+            ('sliced', v4l2_sliced_vbi_format),
+            ('raw_data', ctypes.c_uint8*200),
         ]
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('fmt',_u85),
+        ('type', ctypes.c_uint32),
+        ('fmt', _u85),
     ]
-
 
 
 # Stream type-dependent parameters
 #
 
 class v4l2_streamparm(ctypes.Structure):
-    #$OBJ-00057
+    # $OBJ-00057
     class _u87(ctypes.Union):
 
         _fields_ = [
-            ('capture',v4l2_captureparm),
-            ('output',v4l2_outputparm),
-            ('raw_data',ctypes.c_uint8*200),
+            ('capture', v4l2_captureparm),
+            ('output', v4l2_outputparm),
+            ('raw_data', ctypes.c_uint8*200),
         ]
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('parm',_u87),
+        ('type', ctypes.c_uint32),
+        ('parm', _u87),
     ]
-
 
 
 #
@@ -2534,12 +2507,11 @@ V4L2_EVENT_PRIVATE_START = 0x08000000
 
 class v4l2_event_vsync(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('field',ctypes.c_uint8),
+        ('field', ctypes.c_uint8),
     ]
-
 
 
 # Payload for V4L2_EVENT_CTRL
@@ -2547,68 +2519,69 @@ V4L2_EVENT_CTRL_CH_VALUE = (1 << 0)
 V4L2_EVENT_CTRL_CH_FLAGS = (1 << 1)
 V4L2_EVENT_CTRL_CH_RANGE = (1 << 2)
 
+
 class v4l2_event_ctrl(ctypes.Structure):
-    #$OBJ-0005A
+    # $OBJ-0005A
     class _u90(ctypes.Union):
 
         _fields_ = [
-            ('value',ctypes.c_int32),
-            ('value64',ctypes.c_int64),
+            ('value', ctypes.c_int32),
+            ('value64', ctypes.c_int64),
         ]
 
     _fields_ = [
-        ('changes',ctypes.c_uint32),
-        ('type',ctypes.c_uint32),
-        ('_u90',_u90),
-        ('flags',ctypes.c_uint32),
-        ('minimum',ctypes.c_int32),
-        ('maximum',ctypes.c_int32),
-        ('step',ctypes.c_int32),
-        ('default_value',ctypes.c_int32),
+        ('changes', ctypes.c_uint32),
+        ('type', ctypes.c_uint32),
+        ('_u90', _u90),
+        ('flags', ctypes.c_uint32),
+        ('minimum', ctypes.c_int32),
+        ('maximum', ctypes.c_int32),
+        ('step', ctypes.c_int32),
+        ('default_value', ctypes.c_int32),
     ]
 
 
 class v4l2_event_frame_sync(ctypes.Structure):
 
     _fields_ = [
-        ('frame_sequence',ctypes.c_uint32),
+        ('frame_sequence', ctypes.c_uint32),
     ]
 
 
 class v4l2_event(ctypes.Structure):
-    #$OBJ-0005D
+    # $OBJ-0005D
     class _u93(ctypes.Union):
 
         _fields_ = [
-            ('vsync',v4l2_event_vsync),
-            ('ctrl',v4l2_event_ctrl),
-            ('frame_sync',v4l2_event_frame_sync),
-            ('data',ctypes.c_uint8*64),
+            ('vsync', v4l2_event_vsync),
+            ('ctrl', v4l2_event_ctrl),
+            ('frame_sync', v4l2_event_frame_sync),
+            ('data', ctypes.c_uint8*64),
         ]
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('u',_u93),
-        ('pending',ctypes.c_uint32),
-        ('sequence',ctypes.c_uint32),
-        ('timestamp',timespec),
-        ('id',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*8),
+        ('type', ctypes.c_uint32),
+        ('u', _u93),
+        ('pending', ctypes.c_uint32),
+        ('sequence', ctypes.c_uint32),
+        ('timestamp', timespec),
+        ('id', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*8),
     ]
 
 
 V4L2_EVENT_SUB_FL_SEND_INITIAL = (1 << 0)
 V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK = (1 << 1)
 
+
 class v4l2_event_subscription(ctypes.Structure):
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('id',ctypes.c_uint32),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*5),
+        ('type', ctypes.c_uint32),
+        ('id', ctypes.c_uint32),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*5),
     ]
-
 
 
 #
@@ -2636,32 +2609,34 @@ V4L2_CHIP_MATCH_I2C_ADDR = 2
 V4L2_CHIP_MATCH_AC97 = 3
 # Match against ancillary AC97 chip
 
+
 class v4l2_dbg_match(ctypes.Structure):
-    #$OBJ-00060
+
+    # $OBJ-00060
     class _u96(ctypes.Union):
 
         _fields_ = [
-            ('addr',ctypes.c_uint32),
-            ('name',ctypes.c_char*32),
+            ('addr', ctypes.c_uint32),
+            ('name', ctypes.c_char*32),
         ]
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('type',ctypes.c_uint32),
-        ('_u96',_u96),
+        ('type', ctypes.c_uint32),
+        ('_u96', _u96),
     ]
 
 
 class v4l2_dbg_register(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('match',v4l2_dbg_match),
-        ('size',ctypes.c_uint32),
-        ('reg',ctypes.c_uint64),
-        ('val',ctypes.c_uint64),
+        ('match', v4l2_dbg_match),
+        ('size', ctypes.c_uint32),
+        ('reg', ctypes.c_uint64),
+        ('val', ctypes.c_uint64),
     ]
 
 
@@ -2673,18 +2648,17 @@ V4L2_CHIP_FL_WRITABLE = (1 << 1)
 
 class v4l2_dbg_chip_info(ctypes.Structure):
 
-    _pack_=1
+    _pack_ = 1
 
     _fields_ = [
-        ('match',v4l2_dbg_match),
-        ('name',ctypes.c_char*32),
-        ('flags',ctypes.c_uint32),
-        ('reserved',ctypes.c_uint32*32),
+        ('match', v4l2_dbg_match),
+        ('name', ctypes.c_char*32),
+        ('flags', ctypes.c_uint32),
+        ('reserved', ctypes.c_uint32*32),
     ]
 
 
-
-#*
+#
 # struct v4l2_create_buffers - VIDIOC_CREATE_BUFS argument
 # @index: on return, index of the first created buffer
 # @count: entry: number of requested buffers,
@@ -2697,97 +2671,96 @@ class v4l2_dbg_chip_info(ctypes.Structure):
 class v4l2_create_buffers(ctypes.Structure):
 
     _fields_ = [
-        ('index',ctypes.c_uint32),
-        ('count',ctypes.c_uint32),
-        ('memory',ctypes.c_uint32),
-        ('format',v4l2_format),
-        ('reserved',ctypes.c_uint32*8),
+        ('index', ctypes.c_uint32),
+        ('count', ctypes.c_uint32),
+        ('memory', ctypes.c_uint32),
+        ('format', v4l2_format),
+        ('reserved', ctypes.c_uint32*8),
     ]
-
 
 
 #
 # I O C T L   C O D E S   F O R   V I D E O   D E V I C E S
 #
-#
-VIDIOC_QUERYCAP            =  _IOR('V',  0, v4l2_capability)
-VIDIOC_RESERVED            =   _IO('V',  1)
-VIDIOC_ENUM_FMT            = _IOWR('V',  2, v4l2_fmtdesc)
-VIDIOC_G_FMT               = _IOWR('V',  4, v4l2_format)
-VIDIOC_S_FMT               = _IOWR('V',  5, v4l2_format)
-VIDIOC_REQBUFS             = _IOWR('V',  8, v4l2_requestbuffers)
-VIDIOC_QUERYBUF            = _IOWR('V',  9, v4l2_buffer)
-VIDIOC_G_FBUF              =  _IOR('V', 10, v4l2_framebuffer)
-VIDIOC_S_FBUF              =  _IOW('V', 11, v4l2_framebuffer)
-VIDIOC_OVERLAY             =  _IOW('V', 14, ctypes.c_int)
-VIDIOC_QBUF                = _IOWR('V', 15, v4l2_buffer)
-VIDIOC_EXPBUF              = _IOWR('V', 16, v4l2_exportbuffer)
-VIDIOC_DQBUF               = _IOWR('V', 17, v4l2_buffer)
-VIDIOC_STREAMON            =  _IOW('V', 18, ctypes.c_int)
-VIDIOC_STREAMOFF           =  _IOW('V', 19, ctypes.c_int)
-VIDIOC_G_PARM              = _IOWR('V', 21, v4l2_streamparm)
-VIDIOC_S_PARM              = _IOWR('V', 22, v4l2_streamparm)
-VIDIOC_G_STD               =  _IOR('V', 23, v4l2_std_id)
-VIDIOC_S_STD               =  _IOW('V', 24, v4l2_std_id)
-VIDIOC_ENUMSTD             = _IOWR('V', 25, v4l2_standard)
-VIDIOC_ENUMINPUT           = _IOWR('V', 26, v4l2_input)
-VIDIOC_G_CTRL              = _IOWR('V', 27, v4l2_control)
-VIDIOC_S_CTRL              = _IOWR('V', 28, v4l2_control)
-VIDIOC_G_TUNER             = _IOWR('V', 29, v4l2_tuner)
-VIDIOC_S_TUNER             =  _IOW('V', 30, v4l2_tuner)
-VIDIOC_G_AUDIO             =  _IOR('V', 33, v4l2_audio)
-VIDIOC_S_AUDIO             =  _IOW('V', 34, v4l2_audio)
-VIDIOC_QUERYCTRL           = _IOWR('V', 36, v4l2_queryctrl)
-VIDIOC_QUERYMENU           = _IOWR('V', 37, v4l2_querymenu)
-VIDIOC_G_INPUT             =  _IOR('V', 38, ctypes.c_int)
-VIDIOC_S_INPUT             = _IOWR('V', 39, ctypes.c_int)
-VIDIOC_G_OUTPUT            =  _IOR('V', 46, ctypes.c_int)
-VIDIOC_S_OUTPUT            = _IOWR('V', 47, ctypes.c_int)
-VIDIOC_ENUMOUTPUT          = _IOWR('V', 48, v4l2_output)
-VIDIOC_G_AUDOUT            =  _IOR('V', 49, v4l2_audioout)
-VIDIOC_S_AUDOUT            =  _IOW('V', 50, v4l2_audioout)
-VIDIOC_G_MODULATOR         = _IOWR('V', 54, v4l2_modulator)
-VIDIOC_S_MODULATOR         =  _IOW('V', 55, v4l2_modulator)
-VIDIOC_G_FREQUENCY         = _IOWR('V', 56, v4l2_frequency)
-VIDIOC_S_FREQUENCY         =  _IOW('V', 57, v4l2_frequency)
-VIDIOC_CROPCAP             = _IOWR('V', 58, v4l2_cropcap)
-VIDIOC_G_CROP              = _IOWR('V', 59, v4l2_crop)
-VIDIOC_S_CROP              =  _IOW('V', 60, v4l2_crop)
-VIDIOC_G_JPEGCOMP          =  _IOR('V', 61, v4l2_jpegcompression)
-VIDIOC_S_JPEGCOMP          =  _IOW('V', 62, v4l2_jpegcompression)
-VIDIOC_QUERYSTD            =  _IOR('V', 63, v4l2_std_id)
-VIDIOC_TRY_FMT             = _IOWR('V', 64, v4l2_format)
-VIDIOC_ENUMAUDIO           = _IOWR('V', 65, v4l2_audio)
-VIDIOC_ENUMAUDOUT          = _IOWR('V', 66, v4l2_audioout)
-VIDIOC_G_PRIORITY          =  _IOR('V', 67, ctypes.c_uint32) # enum v4l2_priority
-VIDIOC_S_PRIORITY          =  _IOW('V', 68, ctypes.c_uint32) # enum v4l2_priority
-VIDIOC_G_SLICED_VBI_CAP    = _IOWR('V', 69, v4l2_sliced_vbi_cap)
-VIDIOC_LOG_STATUS          =   _IO('V', 70)
-VIDIOC_G_EXT_CTRLS         = _IOWR('V', 71, v4l2_ext_controls)
-VIDIOC_S_EXT_CTRLS         = _IOWR('V', 72, v4l2_ext_controls)
-VIDIOC_TRY_EXT_CTRLS       = _IOWR('V', 73, v4l2_ext_controls)
-VIDIOC_ENUM_FRAMESIZES     = _IOWR('V', 74, v4l2_frmsizeenum)
+
+VIDIOC_QUERYCAP = _IOR('V',  0, v4l2_capability)
+VIDIOC_RESERVED = _IO('V',  1)
+VIDIOC_ENUM_FMT = _IOWR('V',  2, v4l2_fmtdesc)
+VIDIOC_G_FMT = _IOWR('V',  4, v4l2_format)
+VIDIOC_S_FMT = _IOWR('V',  5, v4l2_format)
+VIDIOC_REQBUFS = _IOWR('V',  8, v4l2_requestbuffers)
+VIDIOC_QUERYBUF = _IOWR('V',  9, v4l2_buffer)
+VIDIOC_G_FBUF = _IOR('V', 10, v4l2_framebuffer)
+VIDIOC_S_FBUF = _IOW('V', 11, v4l2_framebuffer)
+VIDIOC_OVERLAY = _IOW('V', 14, ctypes.c_int)
+VIDIOC_QBUF = _IOWR('V', 15, v4l2_buffer)
+VIDIOC_EXPBUF = _IOWR('V', 16, v4l2_exportbuffer)
+VIDIOC_DQBUF = _IOWR('V', 17, v4l2_buffer)
+VIDIOC_STREAMON = _IOW('V', 18, ctypes.c_int)
+VIDIOC_STREAMOFF = _IOW('V', 19, ctypes.c_int)
+VIDIOC_G_PARM = _IOWR('V', 21, v4l2_streamparm)
+VIDIOC_S_PARM = _IOWR('V', 22, v4l2_streamparm)
+VIDIOC_G_STD = _IOR('V', 23, v4l2_std_id)
+VIDIOC_S_STD = _IOW('V', 24, v4l2_std_id)
+VIDIOC_ENUMSTD = _IOWR('V', 25, v4l2_standard)
+VIDIOC_ENUMINPUT = _IOWR('V', 26, v4l2_input)
+VIDIOC_G_CTRL = _IOWR('V', 27, v4l2_control)
+VIDIOC_S_CTRL = _IOWR('V', 28, v4l2_control)
+VIDIOC_G_TUNER = _IOWR('V', 29, v4l2_tuner)
+VIDIOC_S_TUNER = _IOW('V', 30, v4l2_tuner)
+VIDIOC_G_AUDIO = _IOR('V', 33, v4l2_audio)
+VIDIOC_S_AUDIO = _IOW('V', 34, v4l2_audio)
+VIDIOC_QUERYCTRL = _IOWR('V', 36, v4l2_queryctrl)
+VIDIOC_QUERYMENU = _IOWR('V', 37, v4l2_querymenu)
+VIDIOC_G_INPUT = _IOR('V', 38, ctypes.c_int)
+VIDIOC_S_INPUT = _IOWR('V', 39, ctypes.c_int)
+VIDIOC_G_OUTPUT = _IOR('V', 46, ctypes.c_int)
+VIDIOC_S_OUTPUT = _IOWR('V', 47, ctypes.c_int)
+VIDIOC_ENUMOUTPUT = _IOWR('V', 48, v4l2_output)
+VIDIOC_G_AUDOUT = _IOR('V', 49, v4l2_audioout)
+VIDIOC_S_AUDOUT = _IOW('V', 50, v4l2_audioout)
+VIDIOC_G_MODULATOR = _IOWR('V', 54, v4l2_modulator)
+VIDIOC_S_MODULATOR = _IOW('V', 55, v4l2_modulator)
+VIDIOC_G_FREQUENCY = _IOWR('V', 56, v4l2_frequency)
+VIDIOC_S_FREQUENCY = _IOW('V', 57, v4l2_frequency)
+VIDIOC_CROPCAP = _IOWR('V', 58, v4l2_cropcap)
+VIDIOC_G_CROP = _IOWR('V', 59, v4l2_crop)
+VIDIOC_S_CROP = _IOW('V', 60, v4l2_crop)
+VIDIOC_G_JPEGCOMP = _IOR('V', 61, v4l2_jpegcompression)
+VIDIOC_S_JPEGCOMP = _IOW('V', 62, v4l2_jpegcompression)
+VIDIOC_QUERYSTD = _IOR('V', 63, v4l2_std_id)
+VIDIOC_TRY_FMT = _IOWR('V', 64, v4l2_format)
+VIDIOC_ENUMAUDIO = _IOWR('V', 65, v4l2_audio)
+VIDIOC_ENUMAUDOUT = _IOWR('V', 66, v4l2_audioout)
+VIDIOC_G_PRIORITY = _IOR('V', 67, ctypes.c_uint32)  # enum v4l2_priority
+VIDIOC_S_PRIORITY = _IOW('V', 68, ctypes.c_uint32)  # enum v4l2_priority
+VIDIOC_G_SLICED_VBI_CAP = _IOWR('V', 69, v4l2_sliced_vbi_cap)
+VIDIOC_LOG_STATUS = _IO('V', 70)
+VIDIOC_G_EXT_CTRLS = _IOWR('V', 71, v4l2_ext_controls)
+VIDIOC_S_EXT_CTRLS = _IOWR('V', 72, v4l2_ext_controls)
+VIDIOC_TRY_EXT_CTRLS = _IOWR('V', 73, v4l2_ext_controls)
+VIDIOC_ENUM_FRAMESIZES = _IOWR('V', 74, v4l2_frmsizeenum)
 VIDIOC_ENUM_FRAMEINTERVALS = _IOWR('V', 75, v4l2_frmivalenum)
-VIDIOC_G_ENC_INDEX         =  _IOR('V', 76, v4l2_enc_idx)
-VIDIOC_ENCODER_CMD         = _IOWR('V', 77, v4l2_encoder_cmd)
-VIDIOC_TRY_ENCODER_CMD     = _IOWR('V', 78, v4l2_encoder_cmd)
+VIDIOC_G_ENC_INDEX = _IOR('V', 76, v4l2_enc_idx)
+VIDIOC_ENCODER_CMD = _IOWR('V', 77, v4l2_encoder_cmd)
+VIDIOC_TRY_ENCODER_CMD = _IOWR('V', 78, v4l2_encoder_cmd)
 
 
 # Experimental, meant for debugging, testing and internal use.
-#Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
-#You must be root to use these ioctls. Never use these in applications!
-VIDIOC_DBG_S_REGISTER    =  _IOW('V', 79, v4l2_dbg_register)
-VIDIOC_DBG_G_REGISTER    = _IOWR('V', 80, v4l2_dbg_register)
-VIDIOC_S_HW_FREQ_SEEK    =  _IOW('V', 82, v4l2_hw_freq_seek)
-VIDIOC_S_DV_TIMINGS      = _IOWR('V', 87, v4l2_dv_timings)
-VIDIOC_G_DV_TIMINGS      = _IOWR('V', 88, v4l2_dv_timings)
-VIDIOC_DQEVENT           =  _IOR('V', 89, v4l2_event)
-VIDIOC_SUBSCRIBE_EVENT   =  _IOW('V', 90, v4l2_event_subscription)
-VIDIOC_UNSUBSCRIBE_EVENT =  _IOW('V', 91, v4l2_event_subscription)
+# Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
+# You must be root to use these ioctls. Never use these in applications!
+VIDIOC_DBG_S_REGISTER = _IOW('V', 79, v4l2_dbg_register)
+VIDIOC_DBG_G_REGISTER = _IOWR('V', 80, v4l2_dbg_register)
+VIDIOC_S_HW_FREQ_SEEK = _IOW('V', 82, v4l2_hw_freq_seek)
+VIDIOC_S_DV_TIMINGS = _IOWR('V', 87, v4l2_dv_timings)
+VIDIOC_G_DV_TIMINGS = _IOWR('V', 88, v4l2_dv_timings)
+VIDIOC_DQEVENT = _IOR('V', 89, v4l2_event)
+VIDIOC_SUBSCRIBE_EVENT = _IOW('V', 90, v4l2_event_subscription)
+VIDIOC_UNSUBSCRIBE_EVENT = _IOW('V', 91, v4l2_event_subscription)
 
 
 # Experimental, the below two ioctls may change over the next couple of kernel
-#versions
+# versions
 VIDIOC_CREATE_BUFS = _IOWR('V', 92, v4l2_create_buffers)
 VIDIOC_PREPARE_BUF = _IOWR('V', 93, v4l2_buffer)
 
@@ -2798,31 +2771,30 @@ VIDIOC_S_SELECTION = _IOWR('V', 95, v4l2_selection)
 
 
 # Experimental, these two ioctls may change over the next couple of kernel
-#versions.
-VIDIOC_DECODER_CMD     = _IOWR('V', 96, v4l2_decoder_cmd)
+# versions.
+VIDIOC_DECODER_CMD = _IOWR('V', 96, v4l2_decoder_cmd)
 VIDIOC_TRY_DECODER_CMD = _IOWR('V', 97, v4l2_decoder_cmd)
 
 
 # Experimental, these three ioctls may change over the next couple of kernel
-#versions.
-VIDIOC_ENUM_DV_TIMINGS  = _IOWR('V',  98, v4l2_enum_dv_timings)
-VIDIOC_QUERY_DV_TIMINGS =  _IOR('V',  99, v4l2_dv_timings)
-VIDIOC_DV_TIMINGS_CAP   = _IOWR('V', 100, v4l2_dv_timings_cap)
+# versions.
+VIDIOC_ENUM_DV_TIMINGS = _IOWR('V',  98, v4l2_enum_dv_timings)
+VIDIOC_QUERY_DV_TIMINGS = _IOR('V',  99, v4l2_dv_timings)
+VIDIOC_DV_TIMINGS_CAP = _IOWR('V', 100, v4l2_dv_timings_cap)
 
 
 # Experimental, this ioctl may change over the next couple of kernel
-#versions.
+# versions.
 VIDIOC_ENUM_FREQ_BANDS = _IOWR('V', 101, v4l2_frequency_band)
 
 
 # Experimental, meant for debugging, testing and internal use.
-#Never use these in applications!
+# Never use these in applications!
 VIDIOC_DBG_G_CHIP_INFO = _IOWR('V', 102, v4l2_dbg_chip_info)
 
 
 # Reminder: when adding new ioctls please add support for them to
-#drivers/media/video/v4l2-compat-ioctl32.c as well!
+# drivers/media/video/v4l2-compat-ioctl32.c as well!
 
 BASE_VIDIOC_PRIVATE = 192
 # 192-255 are private
-

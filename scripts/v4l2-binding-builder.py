@@ -21,7 +21,7 @@ import os
 import platform
 import re
 
-videodev2_header = """
+main_header = """
 # lxnstack is a program to align and stack atronomical images
 # Copyright (C) 2013-2015  Maurizio D'Addona <mauritiusdadd@gmail.com>
 #
@@ -37,7 +37,15 @@ videodev2_header = """
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 
+v4l2_controls_header = main_header + """
+import ctypes
+import ctypes.util
+
+"""
+
+videodev2_header = main_header + """
 import logging
 import platform
 import ctypes
@@ -329,14 +337,14 @@ class cobject(object):
                 child_keys.sort()
                 for cid in child_keys:
                     c = self.childs[cid]
-                    s += "    #"+c.id+'\n'
+                    s += "    # "+c.id+'\n'
                     s += indentlines(c.toPy())
                     if c.anonymous:
                         anons.append(c.name)
 
             if self.packed:
                 _empty = False
-                s += '\n    _pack_=1\n'
+                s += '\n    _pack_ = 1\n'
 
             # if len(anons)>0:
             #     _empty=False
@@ -357,7 +365,7 @@ class cobject(object):
                     s += '    pass\n'
                 s += "\n"+self.name+"._fields_ = [\n"
                 for v in self.var:
-                    s += "    (\'"+str(v.name)+"\',"+str(v.type)
+                    s += "    (\'"+str(v.name)+"\', "+str(v.type)
                     if v.psize is not None:
                         s += '*'+str(v.psize)
                     s += '),\n'
@@ -365,7 +373,7 @@ class cobject(object):
             else:
                 s += "\n    _fields_ = [\n"
                 for v in self.var:
-                    s += "        (\'"+str(v.name)+"\',"+str(v.type)
+                    s += "        (\'"+str(v.name)+"\', "+str(v.type)
                     if v.psize is not None:
                         s += '*'+str(v.psize)
                     s += '),\n'
@@ -532,9 +540,9 @@ class cparser(object):
 
         # text = text.replace("//", "#").replace("*/", "")
 
-        text = re.sub('//*$', '', text)
-        text = re.sub('#if.*\n', '', text)
-        text = re.sub('#endif.*\n', '', text)
+        text = re.sub(r'//(.*)$', r'# \1', text)
+        text = re.sub(r'#if.*\n', '', text)
+        text = re.sub(r'#endif.*\n', '', text)
         # text = re.sub('#define(.)*\n', '\\1', text)
 
         rkeys = self._rosetta.keys()
@@ -545,7 +553,7 @@ class cparser(object):
             print key
             val = self._rosetta[key]+' '
             re_key = key.replace('*', '\*').replace(' ', '['+self.seps+']*')
-            text = re.sub('\\b'+key+'\\b', val, text)
+            text = re.sub('\\b'+re_key+'\\b', val, text)
 
         return text.replace('||', '|').replace('&&', '&')
 
@@ -615,7 +623,7 @@ class cparser(object):
                     uname = fallback_names[0]
                 else:
                     uname = obj_name
-                shadow += text[prev_end:sep2] +
+                shadow += text[prev_end:sep2]
                 shadow += obj_type+" "+obj_name+" "+uname+";"
                 anon = True
             else:
@@ -725,7 +733,7 @@ class cparser(object):
 if __name__ == "__main__":
     uname = platform.uname()
 
-    mod_dir = os.path.join('usr', 'lib', 'modules')
+    mod_dir = os.path.join('/', 'usr', 'lib', 'modules')
     unm_dir = os.path.join(mod_dir, uname[2])
     inc_dir = os.path.join(unm_dir, 'build')
     lnx_dir = os.path.join(inc_dir, 'include', 'uapi', 'linux')
@@ -733,14 +741,23 @@ if __name__ == "__main__":
     vdev2_fname = os.path.join(lnx_dir, 'videodev2.h')
     v4l2_ctrl_fname = os.path.join(lnx_dir, 'v4l2-controls.h')
 
+    vdev2_fname_fall = "/usr/include/linux/videodev2.h"
+    v4l2_ctrl_fname_fall = "/usr/include/linux/v4l2-controls.h"
+
     there_is_errors = False
     if not os.path.exists(vdev2_fname):
-        print("ERROR: cannot locat videodev2.h")
-        there_is_errors = True
+        if os.path.exists(vdev2_fname_fall):
+            vdev2_fname = vdev2_fname_fall
+        else:
+            print("ERROR: cannot locat videodev2.h")
+            there_is_errors = True
 
-    if not os.path.exists(v4l2_ctrl_fname_2):
-        print("ERROR: cannot locat v4l2-controls.h")
-        there_is_errors = True
+    if not os.path.exists(v4l2_ctrl_fname):
+        if os.path.exists(v4l2_ctrl_fname_fall):
+            v4l2_ctrl_fname = v4l2_ctrl_fname_fall
+        else:
+            print("ERROR: cannot locat v4l2-controls.h")
+            there_is_errors = True
 
     if there_is_errors:
         sys.exit(1)
@@ -748,5 +765,5 @@ if __name__ == "__main__":
         cp = cparser(vdev2_fname, videodev2_header)
         cp.parse()
 
-        cp = cparser(v4l2_ctrl_fname)
+        cp = cparser(v4l2_ctrl_fname, v4l2_controls_header)
         cp.parse()
