@@ -289,11 +289,7 @@ def genTimeUID():
 
 
 def Int(val):
-    i = math.floor(val)
-    if ((val-i) < 0.5):
-        return int(i)
-    else:
-        return int(math.ceil(val))
+    return round(val, 0)
 
 
 def dist(x1, y1, x2, y2):
@@ -2578,7 +2574,9 @@ def brakets(text):
     return wrapped(text)
 
 
-def getSciStr(val):
+def getSciStr(val, rnd=2):
+
+    fmt_str='{{0:1.{0:d}f}}'.format(int(rnd))
 
     if val != 0.0:
         exp = int(np.floor(math.log10(abs(val))))
@@ -2586,16 +2584,20 @@ def getSciStr(val):
         if (exp >= 2) or (exp < 0):
             sv = val/(10.0**exp)
 
-            return '{0:1.2f}e{1:02d}'.format(sv, exp)
+            return (fmt_str+'e{1:02d}').format(sv, exp)
         else:
-            return '{0:1.2f}'.format(val)
+            return fmt_str.format(val)
     else:
         return '0.00'
 
 
-def getTimeStr(val):
-    ms, sec = math.modf(val)
-    ms_str = "{0:.3f}".format(ms)[1:]
+def getTimeStr(val, rnd=2):
+    if rnd <= 0:
+        ms_str = ""
+    else:
+        ms, sec = math.modf(val)
+        fmt_str='{{0:.{0:d}f}}'.format(int(rnd))
+        ms_str = fmt_str.format(ms)[1:]
     return time.strftime('%H:%M:%S', time.gmtime(val)) + ms_str
 
 
@@ -2611,15 +2613,14 @@ def getSciVal(val):
     else:
         return (0.0, 0)
 
-
 def ceil5(val, rounding=1):
     tens = 10**rounding
     val *= tens
     vmod = val % 10
     if vmod >= 5:
-        return float(int(val+10-vmod))/tens
+        return float(Int(val+10-vmod))/tens
     else:
-        return float(int(val+5-vmod))/tens
+        return float(Int(val+5-vmod))/tens
 
 
 def floor5(val, rounding=1):
@@ -2627,9 +2628,31 @@ def floor5(val, rounding=1):
     val *= tens
     vmod = val % 10
     if vmod >= 5:
-        return float(int(val+5-vmod))/tens
+        return float(Int(val+5-vmod))/tens
     else:
-        return float(int(val-vmod))/tens
+        return float(Int(val-vmod))/tens
+
+
+def ceilbase(val, base, rounding):
+    halfbase = base/2
+    tens = base**rounding
+    val *= tens
+    vmod = val % base
+    if vmod >= halfbase:
+        return float(Int(val+base-vmod))/tens
+    else:
+        return float(Int(val+halfbase-vmod))/tens
+
+
+def floorbase(val, base, rounding):
+    halfbase = base/2
+    tens = base**rounding
+    val *= tens
+    vmod = val % base
+    if vmod >= halfbase:
+        return float(Int(val+halfbase-vmod))/tens
+    else:
+        return float(Int(val-vmod))/tens
 
 
 def sciFloor5(val, rounding=2):

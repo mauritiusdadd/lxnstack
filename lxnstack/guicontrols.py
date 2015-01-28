@@ -612,7 +612,7 @@ class ImageViewer(QtGui.QWidget):
                         except:
                             comp_count = self.mapped_image.componentsCount()
                             self.colorBar.current_val = (0,)*comp_count
-                    self.colorBar.repaint()
+                    self.colorBar.update()
             else:
                 pix_val = None
 
@@ -625,7 +625,7 @@ class ImageViewer(QtGui.QWidget):
 
         elif self.feature_moveing:
             self.selected_feature.move(x, y)
-            self.repaint()
+            self.update()
         else:
             for feature in self.image_features:
                 if ((x-feature.x)**2 + (y-feature.y)**2) < feature.r**2:
@@ -638,7 +638,7 @@ class ImageViewer(QtGui.QWidget):
                     self.imageLabel.setCursor(self.user_cursor)
                     feature.mouse_over = False
                     self.selected_feature = None
-            self.repaint()
+            self.update()
         return QtGui.QLabel.mouseMoveEvent(self.imageLabel, event)
 
     def scrollAreaWheelEvent(self, event):
@@ -931,7 +931,7 @@ class ImageViewer(QtGui.QWidget):
                     self.colorBar.current_val = (int(pix_val),)
                 except:
                     self.colorBar.current_val = (0,)*curr_image_comp_count
-            self.colorBar.repaint()
+            self.colorBar.update()
         except Exception:
             self.current_pixel = (0, 0)
 
@@ -1042,7 +1042,7 @@ class ImageViewer(QtGui.QWidget):
         else:
             self.generateScaleMaps()
 
-        self.colorBar.repaint()
+        self.colorBar.update()
 
     def doEditLevels(self, clicked):
         return self.mapped_image.editLevels(clicked)
@@ -1059,11 +1059,11 @@ class DifferenceViewer(ImageViewer):
 
     def setOffset(self, dx, dy, theta):
         self.offset = (dx, dy, theta)
-        self.repaint()
+        self.update()
 
     def setRefShift(self, dx, dy, theta):
         self.ref_shift = (dx, dy, theta)
-        self.repaint()
+        self.update()
 
     def setRefImage(self, image):
         if isinstance(image, mappedimage.MappedImage):
@@ -1159,7 +1159,7 @@ class PlotSubWidget(QtGui.QWidget):
         gboxlayout = Qt.QGridLayout()
 
         self._click_offset = QtCore.QPoint()
-        self.padding = (10, 10)
+        self._padding = (10, 10)
         self.resize(150, 100)
         self._grip_size = 6
         self._gripes = {
@@ -1274,7 +1274,7 @@ class PlotSubWidget(QtGui.QWidget):
             if event.buttons() & QtCore.Qt.LeftButton:
                 self.move(self.mapToParent(event.pos() - self._click_offset))
 
-    def draw(self, painter):
+    def render(self, painter):
         opt = QtGui.QStyleOption()
         opt.init(self)
         style = self.style()
@@ -1303,10 +1303,10 @@ class PlotSubWidget(QtGui.QWidget):
         f = painter.font()
 
         rect1 = QtCore.QRectF(0, 0, w, h)
-        rect2 = QtCore.QRectF(self.padding[0],
-                              self.padding[1],
-                              w - 2*self.padding[0],
-                              h - 2*self.padding[1])
+        rect2 = QtCore.QRectF(self._padding[0],
+                              self._padding[1],
+                              w - 2*self._padding[0],
+                              h - 2*self._padding[1])
 
         painter.setPen(QtCore.Qt.black)
         painter.setBrush(QtCore.Qt.white)
@@ -1321,7 +1321,7 @@ class PlotSubWidget(QtGui.QWidget):
         f.setBold(False)
         painter.setFont(f)
 
-        self.draw(painter)
+        self.render(painter)
         if self.hasFocus():
             self._paintGripes(painter)
 
@@ -1346,14 +1346,14 @@ class PlotLegendWidget(PlotSubWidget):
         gboxlayout = self.layout()
         gboxlayout.setRowStretch(1, 1)
 
-    def draw(self, painter):
+    def render(self, painter):
         if self.parent()._backend is None:
             count = 0
-            y_off = painter.fontMetrics().xHeight()
+            y_off = painter.fontMetrics().lineSpacing()
             for plot in self.parent().plots:
                 if plot.isVisible():
-                    elx = self.padding[0]
-                    ely = 3*self.padding[1] + y_off + 20*count
+                    elx = self._padding[0]
+                    ely = 3*self._padding[1] + y_off + 20*count
                     plot.drawQtLegendElement(painter, elx, ely)
                     count += 1
 
@@ -1466,31 +1466,31 @@ class PlotPropertyDialogWidget(PlotSubWidget):
 
     def setInterpolationOrder(self, val):
         self.getSelectedPlot().setIterpolationOrder(val)
-        self.parent().repaint()
+        self.parent().update()
 
     def setMarkerSize(self, val):
         self.getSelectedPlot().setMarkerSize(val)
-        self.parent().repaint()
+        self.parent().update()
 
     def setLineWidth(self, val):
         self.getSelectedPlot().setLineWidth(val)
-        self.parent().repaint()
+        self.parent().update()
 
     def setColor(self, idx):
         self.getSelectedPlot().setColorIndex(idx)
-        self.parent().repaint()
+        self.parent().update()
 
     def setMarkerType(self, idx):
         self.getSelectedPlot().setMarkerTypeIndex(idx)
-        self.parent().repaint()
+        self.parent().update()
 
     def setLineType(self, idx):
         self.getSelectedPlot().setLineTypeIndex(idx)
-        self.parent().repaint()
+        self.parent().update()
 
     def setBarType(self, idx):
         self.getSelectedPlot().setBarTypeIndex(idx)
-        self.parent().repaint()
+        self.parent().update()
 
     def updatePlotControls(self):
         plot = self.getSelectedPlot()
@@ -1546,15 +1546,21 @@ class PlotWidget(QtGui.QWidget):
         self._backend = None
         self.axis_name = ('x', 'y')
         self._inverted_y = False
-        self._x_offset = 60.0
-        self._y_offset = 60.0
+        self._padding = (60, 160, 60.0, 60.0)
+        self._offset = (0, 0)
+        self._range_offset = (0, 0)
         self._x_fmt_func = utils.getTimeStr
         self._x_legend = -1
         self._y_legend = -1
-        self._legend = PlotLegendWidget(self)
+        self._show_legend = True
+        self._plot_window = (0, 0, 1280, 720)
         self._dialog = PlotPropertyDialogWidget(self)
         self._prop_qpb = Qt.QPushButton(self)
-        self._legend.setWindowTitle(tr.tr("Legend"))
+
+        self._zoom = 1
+        self._is_panning = False
+        self._movement_start = (0, 0)
+        self._movement_end = (0, 0)
 
         self._prop_qpb.setIcon(utils.getQIcon("gear"))
         self._prop_qpb.setIconSize(QtCore.QSize(16, 16))
@@ -1566,17 +1572,50 @@ class PlotWidget(QtGui.QWidget):
         self._prop_qpb.clicked.connect(self._dialog.show)
 
         _init_legend_x = 0
-        _init_legend_y = self._y_offset
-        self._legend.move(_init_legend_x, _init_legend_y)
+        _init_legend_y = self._padding[1]
+
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
+    def mousePressEvent(self, event):
+        btn = event.button()
+        if btn == 1:
+            self._is_panning = True
+            self._movement_start = (event.x(), event.y())
+    
+    def mouseReleaseEvent(self, event):
+        btn = event.button()
+        if btn == 1:
+            self._is_panning = False
+            self._movement_end = (event.x(), event.y())
+            self.update()
+
+    def mouseMoveEvent(self, event):
+        if self._is_panning:
+            self._range_offset = (
+                event.x() - self._movement_start[0],
+                event.y() - self._movement_start[1]
+            )
+            self.update()
+
+    def zoomIn(self):
+        raise NotImplementedError()
+    
+    def zoomOut(self):
+        raise NotImplementedError()
+    
+    def zoomFit(self):
+        raise NotImplementedError()
+
     def showLegend(self):
-        self._legend.show()
-        self.repaint()
+        self._show_legend = True
+        self.update()
 
     def hideLegend(self):
-        self._legend.hide()
-        self.repaint()
+        self._show_legend = False
+        self.update()
+
+    def isLegendVisible(self):
+        return self._show_legend
 
     def setLegendVisible(self, val):
         if val:
@@ -1593,56 +1632,24 @@ class PlotWidget(QtGui.QWidget):
         self._inverted_y = bool(inverted)
         for plt in self.plots:
             plt.setInvertedY(inverted)
-        newy = self.height() - self._legend.y() - self._legend.height()
-        self._legend.move(self._legend.x(), newy)
-        self.repaint()
-
-    def resizeEvent(self, event):
-        oldx = self._legend.x()
-        oldy = self._legend.y()
-
-        lwdt = self._legend.width()
-        lght = self._legend.height()
-
-        oldw = event.oldSize().width()
-        oldh = event.oldSize().height()
-
-        neww = event.size().width()
-        newh = event.size().height()
-
-        if oldw < 0:
-            # This is probably the first resize
-            # executed when the widget is created
-            newx = neww - self._x_offset - lwdt
-            if self._inverted_y:
-                newy = newh - self._y_offset - lght
-            else:
-                newy = self._y_offset
-        else:
-            xcorr = lwdt/2.0
-            ycorr = lght/2.0
-
-            xperc = float(oldx + xcorr)/float(oldw)
-            yperc = float(oldy + ycorr)/float(oldh)
-
-            newx = xperc*neww - xcorr
-            newy = yperc*newh - ycorr
-
-        self._legend.move(newx, newy)
+        self.update()
 
     def paintEvent(self, event):
-        painter = Qt.QPainter(self)
+        painter = QtGui.QPainter(self)
         painter.setRenderHint(painter.Antialiasing)
-        surface_window = painter.window()
+        return self.render(painter)
 
+    def render(self, painter):
+
+        painter.setWindow(*self._plot_window)
         painter.setBrush(QtCore.Qt.white)
-        painter.drawRect(surface_window)
+        painter.drawRect(painter.window())
 
         if not self.plots:
             # no plots to draw
             return
 
-        # computing plot range
+        # computing initial plot ranges
         there_is_a_plot = False
         for plot in self.plots:
             if plot.isHidden():
@@ -1665,30 +1672,38 @@ class PlotWidget(QtGui.QWidget):
             hmin = 0
             hmax = 1
 
-        vmval, vmexp = utils.getSciVal(vmax)
-        vmax = (vmval+0.5)*(10**vmexp)
-
         if hmin == hmax:
             hmax = hmin + 1
         if vmin == vmax:
             hmax = hmin + 1
 
         # drawing axis
-        plotting.drawAxis(
+        ranges = plotting.drawAxis(
             painter,
-            data_x=(hmin, hmax),
-            data_y=(vmin, vmax),
-            inverted_y = self._inverted_y,
+            range_x=(hmin, hmax),
+            range_y=(vmin, vmax),
+            padding = self._padding,
+            offset = self._offset,
             axis_name=self.axis_name,
-            x_str_func = self._x_fmt_func)
+            inverted_y = self._inverted_y)
 
         # drawing plots
         painter.setBrush(QtCore.Qt.white)
+        y_off = 1.25*painter.fontMetrics().lineSpacing()
+        x_off = self._padding[1] - 20
+        count = 0
         for plot in self.plots:
             if self._backend is None:
                 plot.drawQt(painter,
-                            (vmin, vmax),
-                            (self._x_offset, self._y_offset))
+                            ranges[0],
+                            ranges[1],
+                            self._padding,
+                            self._offset)
+                if self._show_legend and plot.isVisible():
+                    elx = self._plot_window[2] - x_off
+                    ely = self._padding[1] + y_off + y_off*count
+                    plot.drawQtLegendElement(painter, elx, ely)
+                    count += 1
 
 
 class PlotViewer(QtGui.QWidget):
@@ -1727,6 +1742,31 @@ class PlotViewer(QtGui.QWidget):
             self)
         show_legend_action.setCheckable(True)
 
+        # TODO: low priority
+        #
+        # zoom_in_action = QtGui.QAction(
+        #     utils.getQIcon("zoom-in"),
+        #     tr.tr('Zoom in'),
+        #     self)
+        #
+        # zoom_out_action = QtGui.QAction(
+        #     utils.getQIcon("zoom-out"),
+        #     tr.tr('Zoom out'),
+        #     self)
+        #
+        # zoom_fit_action = QtGui.QAction(
+        #     utils.getQIcon("zoom-fit"),
+        #     tr.tr('Zoom fit'),
+        #    self)
+        #
+        # toolbar.addAction(zoom_in_action)
+        # toolbar.addAction(zoom_out_action)
+        # toolbar.addAction(zoom_fit_action)
+        #
+        # zoom_in_action.triggered.connect(self._pv.zoomIn)
+        # zoom_out_action.triggered.connect(self._pv.zoomOut)
+        # zoom_fit_action.triggered.connect(self._pv.zoomFit)
+
         toolbar.addAction(save_plot_action)
         toolbar.addAction(export_cvs_action)
         toolbar.addAction(invert_y_action)
@@ -1745,6 +1785,7 @@ class PlotViewer(QtGui.QWidget):
         self.setLayout(mainlayout)
 
         export_cvs_action.triggered.connect(self.exportNumericDataCSV)
+        save_plot_action.triggered.connect(self.savePlotAsImage)
         show_legend_action.toggled.connect(self._pv.setLegendVisible)
         invert_y_action.toggled.connect(self._pv.setInvertedY)
 
@@ -1757,7 +1798,7 @@ class PlotViewer(QtGui.QWidget):
     def _ccbItemChanged(self, item):
         plot = self._pv.plots[item.index().row()]
         plot.setVisible(item.checkState())
-        self.repaint()
+        self.update()
 
     def addPlots(self, plots):
         idx = len(self._pv.plots)
@@ -1768,6 +1809,53 @@ class PlotViewer(QtGui.QWidget):
                 self._pv.addPlot(plot)
                 idx += 1
 
+    def savePlotAsImage(self):
+        file_name = str(Qt.QFileDialog.getSaveFileName(
+            None,
+            tr.tr("Save image"),
+            os.path.join('lightcurves.csv'),
+            "JPG *.jpg (*.jpg);;"
+            "PNG *.png (*.png)",
+            None,
+            utils.DIALOG_OPTIONS))
+
+        if not file_name.strip():
+            return False
+
+        pw = self._pv._plot_window[2]
+        ph = self._pv._plot_window[3]
+
+        w = 6400
+        h = int(w*ph/pw)
+        
+        pltpxm = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
+        pltpxm.fill(QtCore.Qt.white)
+        painter = QtGui.QPainter(pltpxm)
+        painter.setRenderHints(painter.Antialiasing |
+                               painter.TextAntialiasing |
+                               painter.SmoothPixmapTransform)
+
+        self._pv.render(painter)
+
+        while(painter.isActive()):
+            QtGui.QApplication.instance().processEvents()
+            painter.end()
+
+        try:
+            if not pltpxm.save(file_name):
+                utils.showErrorMsgBox(
+                tr.tr("Cannot save the image."),
+                tr.tr("Assure you have the authorization to write the file."))
+                return False
+        except Exception as exc:
+            utils.showErrorMsgBox(
+                tr.tr("Cannot create the image file: ")+str(exc),
+                tr.tr("Assure you have the authorization to write the file."))
+            return False
+        else:
+            return True
+
+
     def exportNumericDataCSV(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(
             None,
@@ -1776,6 +1864,9 @@ class PlotViewer(QtGui.QWidget):
             "CSV *.csv (*.csv);;All files (*.*)",
             None,
             utils.DIALOG_OPTIONS))
+
+        if not file_name.strip():
+            return False
 
         csvtable = {}
 
@@ -1830,14 +1921,13 @@ class PlotViewer(QtGui.QWidget):
         try:
             f = open(file_name, 'w')
         except Exception as exc:
-            msgBox = Qt.QMessageBox()
-            msgBox.setText(tr.tr("Cannot create the data file: ")+str(exc))
-            msgBox.setInformativeText(
+            utils.showErrorMsgBox(
+                tr.tr("Cannot create the data file: ")+str(exc),
                 tr.tr("Assure you have the authorization to write the file."))
-            msgBox.setIcon(Qt.QMessageBox.Critical)
-            msgBox.exec_()
+            return False
         else:
             f.write(csvdata)
+            return True
 
     def exportNumericDataODS(self):
         raise NotImplementedError()

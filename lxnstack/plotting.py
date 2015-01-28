@@ -466,16 +466,20 @@ class Plot(object):
         return self._xerr[self._init_mask]
 
     def getYMinMax(self):
-        masked = self._ydata[self._init_mask]
+        masked = self.getYData()
         if len(masked) > 0:
-            return masked.min(), masked.max()
+            minval = (masked - self.getYError()).min()
+            maxval = (masked + self.getYError()).max()
+            return minval, maxval
         else:
             return (0, 1)
 
     def getXMinMax(self):
-        masked = self._xdata[self._init_mask]
+        masked = self.getXData()
         if len(masked) > 0:
-            return masked.min(), masked.max()
+            minval = (masked - self.getXError()).min()
+            maxval = (masked + self.getXError()).max()
+            return minval, maxval
         else:
             return (0, 1)
 
@@ -523,7 +527,8 @@ class Plot(object):
         painter.setPen(getQtColor("black"))
         painter.drawText(x+30, y+txth/2, self.getName())
 
-    def drawQt(self, painter, hrange, vrange=(0, 1), offset=(60, 60)):
+    def drawQt(self, painter, hrange=(0, 1), vrange=(0, 1),
+               padding=(60, 60), offset=(0, 0)):
         if self.isHidden():
             return
 
@@ -538,23 +543,21 @@ class Plot(object):
 
         pcount = len(data_y)
 
-        ax_ext = getAxisExtents(data_x, hrange)
-
-        minx = ax_ext[0]
-        maxx = ax_ext[1]
-        miny = ax_ext[2]
-        maxy = ax_ext[3]
+        minx = hrange[0]
+        maxx = hrange[1]
+        miny = vrange[0]
+        maxy = vrange[1]
 
         if self._inverted_y:
-            x1 = offset[0]
-            y1 = offset[1]
-            x_scale = (w - 2*offset[0]) / (maxx-minx)
-            y_scale = (h - 2*offset[1]) / (maxy-miny)
+            x1 = padding[0] + offset[0]
+            y1 = padding[2] + offset[1]
+            x_scale = (w - padding[0] - padding[1]) / (maxx-minx)
+            y_scale = (h - padding[2] - padding[3]) / (maxy-miny)
         else:
-            x1 = offset[0]
-            y1 = h - offset[1]
-            x_scale = (w - 2*offset[0]) / (maxx-minx)
-            y_scale = -(h - 2*offset[1]) / (maxy-miny)
+            x1 = padding[0] + offset[0]
+            y1 = h - padding[3] + offset[1]
+            x_scale = (w - padding[0] - padding[1]) / (maxx-minx)
+            y_scale = (padding[2] + padding[3] - h) / (maxy-miny)
 
         maincolor = getQtColor(self.color)
         border_color = getQtColor(getDarkerColor(self.color))
@@ -573,7 +576,7 @@ class Plot(object):
             if points:
                 painter.drawPolyline(*points)
 
-        painter.setPen(Qt.QPen(border_color, self.marker_size/10))
+        painter.setPen(Qt.QPen(border_color, self.marker_size/8))
         painter.setBrush(maincolor)
 
         for i in range(pcount):
@@ -611,21 +614,6 @@ class Plot(object):
 
                 drawErroBar(painter, x, y,  xh, xl, yh, yl, self.bar_type)
 
-    def savePlot(self, widget, title, name, y_inverted=False):
-        plot = Qt.QImage(1600, 1200, Qt.QImage.Format_ARGB32)
-        fname = str(Qt.QFileDialog.getSaveFileName(
-            None,
-            tr.tr("Save the chart"),
-            os.path.join(self.current_dir, title+'.jpg'),
-            "JPEG (*.jpg *.jpeg);;" +
-            "PNG (*.png);;PPM (*.ppm);;" +
-            "TIFF (*.tiff *.tif);;" +
-            "All files (*.*)",
-            None,
-            utils.DIALOG_OPTIONS))
-        # self.simplifiedLightCurvePaintEvent(widget, chart, name, y_inverted)
-        plot.save(fname, quality=100)
-
 
 def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
     if not len(data_x) or not len(data_y):
@@ -650,106 +638,158 @@ def getAxisExtents(data_x=(0, 1), data_y=(0, 1)):
     return minx, maxx, miny, maxy
 
 
-def getChartDivision(vmin, vmax, n=10):
-    if n == 0:
-        return []
-    step = (vmax-vmin)/float(n)
-    arr = np.arange(vmin, vmax, step)
+def getChartDivision(vmin, vmax, n=10, ext=False):
+    if ext:
+        arr = np.linspace(vmin, vmax, n+1, True)
+    else:
+        arr = np.linspace(vmin, vmax, n, False)[1:]
     return arr
 
 
-def drawAxis(painter, data_x=(0, 1), data_y=(0, 1),
-             x_offset=60.0, y_offset=60.0, axis_name=('x', 'y'),
-             inverted_y=False, x_str_func=str, y_str_func=utils.getSciStr):
+def drawAxis(painter, range_x=(0, 1), range_y=(0, 1),
+             padding=(30, 30, 30, 30), offset=(0, 0),
+             axis_name=('x', 'y'), inverted_y=False,
+             y_str_func=utils.getSciStr):
+
+    # NOTE: we assume that x is always a time expressed as
+    #       second from epoch (ISO 8601)
 
     surface_window = painter.window()
-
+    fm = painter.fontMetrics()
     w = surface_window.width()
     h = surface_window.height()
+
+    n_x_div = utils.floor5(w/50.0, 0)
+    n_y_div = utils.floor5(h/50.0, 0)
+
+    if n_x_div < 1:
+        n_x_div = 1
+    
+    if n_y_div < 1:
+        n_y_div = 1
 
     gm1 = 1.00
     gm2 = 2.00
     gm3 = 8.00
 
-    ax_ext = getAxisExtents(data_x, data_y)
+    ax_ext = getAxisExtents(range_x, range_y)
 
-    minx = ax_ext[0]
-    maxx = ax_ext[1]
-    miny = ax_ext[2]
-    maxy = ax_ext[3]
+    delta = ax_ext[1] - ax_ext[0]
+    dexp = -utils.getSciVal(delta)[1]
 
-    text_height = painter.fontMetrics().height()
+    y_rounding = 2
+    if dexp < 0:
+        x_rounding = -2
+    else:
+        x_rounding = 2
+
+    minx = utils.floor5(ax_ext[0], x_rounding)
+    maxx = utils.ceil5(ax_ext[1], x_rounding)
+    miny = utils.sciFloor5(ax_ext[2], y_rounding)
+    maxy = utils.sciCeil5(ax_ext[3], y_rounding)
+
+    deltax = maxx - minx
+    deltay = maxy - miny
+
+    # correct boundaries in order to have a nice time division
+    x_step = utils.ceil5(deltax/n_x_div, x_rounding)
+    y_step = utils.sciCeil5(deltay/n_y_div, y_rounding)
+    maxx2 = minx + x_step*n_x_div
+    maxy2 = miny + y_step*n_y_div
+
+    text_height = fm.lineSpacing()
 
     if inverted_y:
-        x1 = x_offset
-        y1 = y_offset
-        x2 = w - x_offset
-        y2 = h - y_offset
+        x1 = padding[0] + offset[0]
+        y1 = padding[2] + offset[1]
+        x2 = w - padding[1] + offset[0]
+        y2 = h - padding[3] + offset[1]
         y3 = gm3
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = (h - 2*y_offset) / (maxy-miny)
+        up = -1
+        h2 = text_height/2
+        x_scale = (w - padding[0] - padding[1]) / deltax
+        y_scale = (h - padding[2] - padding[3]) / deltay
         txt_y_corr = -4
     else:
-        x1 = x_offset
-        y1 = h - y_offset
-        x2 = w - x_offset
-        y2 = y_offset
+        x1 = padding[0] + offset[0]
+        y1 = h - padding[3] + offset[1]
+        x2 = w - padding[1] + offset[0]
+        y2 = padding[2] + offset[1]
         y3 = -gm3
-        x_scale = (w - 2*x_offset) / (maxx-minx)
-        y_scale = -(h - 2*y_offset) / (maxy-miny)
+        up = 1
+        h2 = 0
+        x_scale = (w - padding[0] - padding[1]) / deltax
+        y_scale = (padding[2] + padding[3] - h) / deltay
         txt_y_corr = text_height
 
     pxy1 = Qt.QPointF(x1, y1)
     px2 = Qt.QPointF(x2, y1)
     py2 = Qt.QPointF(x1, y2)
 
-    # draw x-axis
-    painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-    painter.drawLine(pxy1, py2)
-    painter.drawText(Qt.QPointF(x2, y1-y3), utils.brakets(axis_name[0]))
     count = 1
-
-    for x in getChartDivision(minx,
-                              maxx,
-                              utils.floor5(w/50.0, 0)):
-        if x < minx:
-            continue
-        elif x > maxx:
+    old_dtxt = ""
+    old_dtxt_pnt = Qt.QPointF()
+    for x in getChartDivision(minx, maxx2, n_x_div, True):
+        if x >= maxx:
             break
         count ^= 1
-        stxt = x_str_func(x)
-        stxt_y_off = gm1 + gm2*count
-        stxt_x_off = painter.fontMetrics().width(stxt)/2
+        
+        dtxt = utils.getDateStr(x)
+        stxt = utils.getTimeStr(x, x_rounding)
+
+        stxt_y_off = (gm3 + text_height*count)*up
+        stxt_x_off = fm.width(stxt)/2
+        dtxt_y_off = (gm3 + 2*text_height)*up
+        dtxt_x_off = fm.width(dtxt)/2
         painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
 
         p1 = Qt.QPointF((x-minx)*x_scale + x1, y1)
-        p2 = Qt.QPointF((x-minx)*x_scale + x1, y1 - stxt_y_off*y3)
+        p2 = Qt.QPointF((x-minx)*x_scale + x1, y1 + stxt_y_off)
         p3 = Qt.QPointF((x-minx)*x_scale + x1 - stxt_x_off,
-                        y1 - stxt_y_off*y3 + txt_y_corr)
-        p4 = Qt.QPointF((x-minx)*x_scale + x1, y2)
+                        y1 + stxt_y_off + txt_y_corr)
+        p4 = Qt.QPointF((x-minx)*x_scale + x1 - dtxt_x_off,
+                        y1 + dtxt_y_off + txt_y_corr)
+        p5 = Qt.QPointF((x-minx)*x_scale + x1, y2)
 
         painter.drawLine(p1, p2)
         painter.drawText(p3, stxt)
+        if old_dtxt != dtxt and p4.x() > old_dtxt_pnt.x():
+            painter.drawText(p4, dtxt)
+            
         painter.setPen(Qt.QPen(QtCore.Qt.gray, 1, QtCore.Qt.DotLine))
-        painter.drawLine(p1, p4)
+        painter.drawLine(p1, p5)
+        old_dtxt = dtxt
+        old_dtxt_pnt = p4
 
-    # draw y-axis
+    # draw x-axis
+    xname = utils.brakets(axis_name[0])
+    w1 = fm.width(xname)
     painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-    painter.drawLine(pxy1, px2)
-    painter.drawText(Qt.QPointF(10, y2-y3-20), utils.brakets(axis_name[1]))
-    for y in getChartDivision(utils.sciFloor5(miny, 1),
-                              utils.sciCeil5(maxy, 1),
-                              utils.floor5(h/50, 0)):
-        if y <= miny:
-            continue
-        elif y > maxy:
+    painter.drawLine(pxy1, py2)
+    painter.drawText(Qt.QPointF(x2 - w1 - gm2, y1 + h2 + y3), xname)
+
+    for y in getChartDivision(miny, maxy2, n_y_div):
+        if y >= maxy:
             break
+        ytext = y_str_func(y)
+        stxt_x_off = fm.width(ytext) + gm2
         painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
-        p1 = Qt.QPointF(2*x1/3, (y-miny)*y_scale + y1)
+
+        p1 = Qt.QPointF(x1 - gm3, (y-miny)*y_scale + y1)
         p2 = Qt.QPointF(x1, (y-miny)*y_scale + y1)
-        p3 = Qt.QPointF(5, (y-miny)*y_scale + y1)
+        p3 = Qt.QPointF(x1 - stxt_x_off, (y-miny)*y_scale + y1 - gm2)
         p4 = Qt.QPointF(x2, (y-miny)*y_scale + y1)
+
         painter.drawLine(p1, p2)
-        painter.drawText(p3, y_str_func(y))
+        painter.drawText(p3, ytext)
         painter.setPen(Qt.QPen(QtCore.Qt.gray, 1, QtCore.Qt.DotLine))
         painter.drawLine(p2, p4)
+
+    # draw y-axis
+    yname = utils.brakets(axis_name[1])
+    w1 = fm.width(yname)
+    painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
+    painter.drawLine(pxy1, px2)
+    painter.drawText(Qt.QPointF(x1 + gm3, y2 + h2 - y3), yname)
+    
+    return ((minx, maxx), (miny, maxy))
