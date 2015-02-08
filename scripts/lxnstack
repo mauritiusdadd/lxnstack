@@ -27,6 +27,7 @@ from PyQt4 import Qt, QtCore
 
 import lxnstack
 import lxnstack.translation as tr
+import lxnstack.styles as styles
 
 PROGRAM_VERSION = "1.5.0"
 
@@ -64,8 +65,7 @@ if __name__ == "__main__":
         "-m",
         "--user-manual",
         action='store_true',
-        help=tr.tr('''Show the use manual in a web browser
-                   and exit.'''))
+        help=tr.tr('''Show the use manual in a web browser and exit.'''))
 
     parser.add_argument(
         "-l",
@@ -123,13 +123,21 @@ if __name__ == "__main__":
         "-v",
         "--verbose",
         action='store_true',
-        help=tr.tr('''Increase output verbosity'''))
+        help=tr.tr('''Increase output verbosity.'''))
 
     parser.add_argument(
         "--debug",
         action='store_true',
         help=tr.tr('''Enable the debug mode: causes a lot of output
-                   and generates big logs'''))
+                   and generates big logs.'''))
+
+    parser.add_argument(
+        "--style",
+        nargs=1,
+        metavar='STYLE',
+        choices=styles.enumarateStyles(),
+        help=tr.tr('''Override the application style with %(metavar)s.
+                   The values allowed for %(metavar)s are: %(choices)s.'''))
 
     args = vars(parser.parse_args(sys.argv[1:]))
 

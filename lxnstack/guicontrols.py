@@ -1157,6 +1157,7 @@ class PlotSubWidget(QtGui.QWidget):
         assert isinstance(parent, PlotWidget), "parent is not a PlotWidget"
         QtGui.QWidget.__init__(self, parent)
         gboxlayout = Qt.QGridLayout()
+        titlelayout = Qt.QHBoxLayout()
 
         self._click_offset = QtCore.QPoint()
         self._padding = (10, 10)
@@ -1174,16 +1175,20 @@ class PlotSubWidget(QtGui.QWidget):
         }
         self._resizing = False
         self._tlt_lbl = QtGui.QLabel()
-        self.close_button = QtGui.QPushButton('x', self._tlt_lbl)
+        self.close_button = QtGui.QPushButton('X')
 
         self._tlt_lbl.setAlignment(QtCore.Qt.AlignCenter)
         self._tlt_lbl.setObjectName("Title")
+        self._tlt_lbl.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding,
+                              QtGui.QSizePolicy.MinimumExpanding))
 
         self.close_button.setObjectName("Close")
-        self.close_button.setMaximumSize(25, 25)
-        self.close_button.resize(15, 15)
-        self.close_button.move(0, 0)
         self.close_button.setCursor(QtCore.Qt.PointingHandCursor)
+        
+        self.close_button.setSizePolicy(
+            QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
+                              QtGui.QSizePolicy.MinimumExpanding))
 
         self.setCursor(QtCore.Qt.SizeAllCursor)
         self.setMouseTracking(True)
@@ -1192,9 +1197,12 @@ class PlotSubWidget(QtGui.QWidget):
 
         self.setMinimumSize(100, 50)
 
+        titlelayout.addWidget(self.close_button)
+        titlelayout.addWidget(self._tlt_lbl)
+
         gboxlayout.setContentsMargins(self._grip_size, self._grip_size,
                                       self._grip_size, self._grip_size)
-        gboxlayout.addWidget(self._tlt_lbl, 0, 0, 1, 2)
+        gboxlayout.addLayout(titlelayout, 0, 0, 1, 2)
 
         self.setLayout(gboxlayout)
         self.setEnabled(True)
@@ -1398,14 +1406,18 @@ class PlotPropertyDialogWidget(PlotSubWidget):
             QLabel#Title
             {
                 background-color: lightgray;
+                color: black;
+                min-height: 15;
             }
 
             QPushButton#Close
             {
-                background-color: transparent;
+                background-color: lightgray;
                 color: black;
                 border: none;
                 font: bold;
+                min-width: 25;
+                min-height: 15;
             }
 
             QPushButton#Close:hover:!pressed

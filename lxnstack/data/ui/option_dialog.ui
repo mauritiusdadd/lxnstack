@@ -118,8 +118,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>441</width>
-               <height>233</height>
+               <width>434</width>
+               <height>271</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_11">
@@ -292,6 +292,31 @@ for temporary files</string>
               </item>
              </layout>
             </widget>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabAppearence">
+      <attribute name="title">
+       <string>Appearence</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_12">
+       <item>
+        <widget class="QGroupBox" name="groupBox_2">
+         <property name="title">
+          <string>Applicaton Theme</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_13">
+          <item>
+           <widget class="QListWidget" name="themeListWidget">
+            <item>
+             <property name="text">
+              <string>&lt;SYSTEM THEME&gt;</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>
@@ -487,7 +512,7 @@ the alignment points</string>
              <item>
               <widget class="QCheckBox" name="minQualitycheckBox">
                <property name="text">
-                <string>Auto detect bets quality</string>
+                <string>Auto detect best quality</string>
                </property>
                <property name="checked">
                 <bool>true</bool>

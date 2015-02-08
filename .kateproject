@@ -1,10 +1,18 @@
 {
-  "name": "lxnstack",
-  "files": [{"directory": ".",
-             "filters": ["*.py", "*.ui", "*.sh"],
-             "recursive": 1},
-            {"directory": "./scripts",
+    "name": "lxnstack",
+    "files": [
+        {
+            "directory": ".",
+            "filters": [
+                "*.py", "*.ui",
+                "*.sh", "*.css"
+            ],
+            "recursive": 1
+        },
+        {
+            "directory": "./scripts",
              "filters": ["*"],
-             "recursive": 1}
-           ]
+             "recursive": 1
+        }
+    ]
 }

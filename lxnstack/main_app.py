@@ -30,8 +30,9 @@ import cv2
 
 import paths
 import log
-import videocapture
 import utils
+import styles
+import videocapture
 import imgfeatures
 import mappedimage
 import guicontrols
@@ -149,6 +150,10 @@ class theApp(Qt.QObject):
                                                  'video_dialog.ui'))
 
         self.dlg.refreshPushButton.setIcon(utils.getQIcon("view-refresh"))
+        
+        self._stylesheets = styles.enumarateStylesSheet()
+        for stylesheet_file in self._stylesheets:
+            self.dlg.themeListWidget.addItem(stylesheet_file)
 
         self.statusBar = self.wnd.statusBar()
         self.statusLabelMousePos = Qt.QLabel()
@@ -351,9 +356,8 @@ class theApp(Qt.QObject):
         self.wnd.alignMethodComboBox.currentIndexChanged.connect(
             self.changeAlignMethod)
 
-        self.dlg.jetCheckBox.setCheckState(2)
-        self.dlg.jetCheckBox.setCheckState(2)
-
+        self.dlg.themeListWidget.currentItemChanged.connect(
+            self.setApplicationStyleSheet)
         self.dlg.devComboBox.currentIndexChanged.connect(
             self.setCurrentCaptureDevice)
         self.dlg.refreshPushButton.clicked.connect(
@@ -417,13 +421,17 @@ class theApp(Qt.QObject):
 
     def __reload_modules__(self):
         # debug purpose only
-        reload(videocapture)
+        reload(paths)
         reload(utils)
+        reload(styles)
+        reload(videocapture)
         reload(imgfeatures)
         reload(mappedimage)
         reload(guicontrols)
+        reload(colormaps)
+        reload(translation)
+        reload(lightcurves)
 
-    # TODO: switch to argparse module
     def checkArguments(self, args):
 
         self.args = args
@@ -490,6 +498,9 @@ class theApp(Qt.QObject):
         if self.args['lightcurve']:
             self.generateLightCurves(0)
 
+        if self.args['style'] is not None:
+            styles.setApplicationStyle(self.args['style'][0])
+
         self.setFullyLoaded()
 
     def criticalError(self, msg, msgbox=True):
@@ -520,6 +531,15 @@ class theApp(Qt.QObject):
 
     def deactivateResultControls(self):
         self.action_save_result.setEnabled(False)
+
+    def setApplicationStyleSheet(self, current, previous):
+        stylename = str(current.text())
+        try:
+            filename = self._stylesheets[stylename]
+        except KeyError:
+            filename = None
+        styles.setApplicationStyleSheet(filename)
+        self._current_stylesheet = stylename
 
     def updateSaveOptions(self, *args):
 
