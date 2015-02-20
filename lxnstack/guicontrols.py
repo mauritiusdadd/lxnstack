@@ -19,7 +19,7 @@ import os
 import paths
 import logging
 
-from PyQt4 import Qt, QtCore, QtGui
+from PyQt4 import Qt, QtCore, QtGui, uic
 
 import translation as tr
 import plotting
@@ -38,6 +38,18 @@ UPDATED = 0x0002
 NEEDS_IMAGE_UPDATE = 0x0004
 NEEDS_FEATURES_UPDATE = 0x0004
 
+class AboutWindow(object):
+
+    def __init__(self):
+        self._dialog=uic.loadUi(
+            os.path.join(paths.UI_PATH, 'about_dialog.ui'))
+
+        self._dialog.iconLabel.setPixmap(
+            QtGui.QPixmap(os.path.join(paths.RESOURCES_PATH,
+                                       paths.PROGRAM_NAME+".png")))
+
+    def exec_(self):
+        return self._dialog.exec_()
 
 class SplashScreen(Qt.QObject):
 

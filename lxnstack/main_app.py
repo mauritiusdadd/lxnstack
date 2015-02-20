@@ -138,8 +138,7 @@ class theApp(Qt.QObject):
                                            'main.ui'))
         self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                            'option_dialog.ui'))
-        self.about_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                                 'about_dialog.ui'))
+        self.about_dlg = guicontrols.AboutWindow()
         self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                                 'save_dialog.ui'))
         self.stack_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
