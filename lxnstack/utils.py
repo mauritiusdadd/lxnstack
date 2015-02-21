@@ -449,6 +449,229 @@ def getNumberOfComponents(mode):
         return 0
 
 
+class SaveImageDialog(object):
+
+    def __init__(self, url=""):
+        self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
+                                                'save_dialog.ui'))
+        self.default_url = url
+
+        try:
+            # Connecting signals
+            self.save_dlg.radioButtonJpeg.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonPng.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonTiff.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonFits.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonNumpy.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonInt.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButtonFloat.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButton8.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButton16.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButton32.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.radioButton64.toggled.connect(
+                self._updateSaveOptions)
+            self.save_dlg.checkBoxUnsigned.stateChanged.connect(
+                self._updateSaveOptions)
+            self.save_dlg.pushButtonDestDir.clicked.connect(
+                self._getDestDir)
+            self.save_dlg.radioButtonFits.setEnabled(FITS_SUPPORT)
+
+            self.save_dlg.saveMastersCheckBox.hide()
+
+        except Exception as exc:
+            log.log(repr(self),
+                    "Unsupported dialog window: " + str(exc),
+                    level=logging.ERROR)
+            del self.save_dlg
+
+    def hideMastersCheckBox(self):
+        self.save_dlg.saveMastersCheckBox.hide()
+
+    def showMastersCheckBox(self):
+        self.save_dlg.saveMastersCheckBox.show()
+
+    def setFileName(self, f_name):
+        self.save_dlg.lineEditFileName.setText(f_name)
+
+    def setDestDirName(self, d_name):
+        self.save_dlg.lineEditDestDir.setText(d_name)
+
+    def getDestDir(self):
+        return str(self.save_dlg.lineEditDestDir.text())
+
+    def getFileName(self):
+        return str(self.save_dlg.lineEditFileName.text())
+
+    def getFileFormat(self):
+        flags = 0
+        if self.save_dlg.radioButtonJpeg.isChecked():
+            frmat = 'jpg'
+            flags = (cv2.cv.CV_IMWRITE_JPEG_QUALITY,
+                     int(self.save_dlg.spinBoxIQ.value()))
+        elif self.save_dlg.radioButtonPng.isChecked():
+            frmat = 'png'
+            flags = (cv2.cv.CV_IMWRITE_PNG_COMPRESSION,
+                     int(self.save_dlg.spinBoxIC.value()))
+        elif self.save_dlg.radioButtonTiff.isChecked():
+            frmat = 'tiff'
+        elif self.save_dlg.radioButtonFits.isChecked():
+            frmat = 'fits'
+        elif self.save_dlg.radioButtonNumpy.isChecked():
+            frmat = 'numpy'
+        return frmat, flags
+
+    def getBitsFormat(self):
+        if self.save_dlg.radioButton8.isChecked():
+            bits = 8
+        elif self.save_dlg.radioButton16.isChecked():
+            bits = 16
+        elif self.save_dlg.radioButton32.isChecked():
+            bits = 32
+        elif self.save_dlg.radioButton64.isChecked():
+            bits = 64
+        return bits
+
+    def getDataType(self):
+        if self.save_dlg.radioButtonInt.isChecked():
+            if self.save_dlg.checkBoxUnsigned.checkState() == 2:
+                dtype = 'uint'
+            else:
+                dtype = 'int'
+        elif self.save_dlg.radioButtonFloat.isChecked():
+            dtype = 'float'
+        return dtype
+
+    def isFitsRGB(self):
+        return (self.save_dlg.rgbFitsCheckBox.checkState() == 2)
+
+    def isFitsCompressed(self):
+        return (self.save_dlg.comprFitsCheckBox.checkState() == 2)
+
+    def _getDestDir(self):
+        destdir = str(Qt.QFileDialog.getExistingDirectory(
+            None,
+            tr.tr("Choose the output folder"),
+            os.path.dirname(self.default_url),
+            DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly))
+        self.save_dlg.lineEditDestDir.setText(str(destdir))
+        self.default_url = destdir
+
+    def exec_(self):
+        return self.save_dlg.exec_()
+
+    def _updateSaveOptions(self, *args):
+        if self.save_dlg.radioButtonJpeg.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(True)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+
+            if (self.save_dlg.radioButton32.isChecked() or
+                    self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+
+        elif self.save_dlg.radioButtonPng.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(True)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+
+            if (self.save_dlg.radioButton32.isChecked() or
+                    self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+
+        elif self.save_dlg.radioButtonTiff.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            self.save_dlg.radioButtonInt.setChecked(True)
+            self.save_dlg.radioButton8.setEnabled(True)
+            self.save_dlg.radioButton16.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(False)
+            self.save_dlg.radioButton64.setEnabled(False)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+
+            if (self.save_dlg.radioButton32.isChecked() or
+                    self.save_dlg.radioButton64.isChecked()):
+                self.save_dlg.radioButton8.setChecked(True)
+
+        elif self.save_dlg.radioButtonFits.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(False)
+            self.save_dlg.radioButtonInt.setEnabled(False)
+            self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            self.save_dlg.radioButton8.setEnabled(True)
+            self.save_dlg.radioButton16.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(True)
+            self.save_dlg.radioButton64.setEnabled(True)
+            self.save_dlg.comprFitsCheckBox.setEnabled(True)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(True)
+
+            if self.save_dlg.radioButton8.isChecked():
+                self.save_dlg.radioButtonInt.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(2)
+            elif self.save_dlg.radioButton16.isChecked():
+                self.save_dlg.radioButtonInt.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            elif self.save_dlg.radioButton32.isChecked():
+                self.save_dlg.radioButtonFloat.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            elif self.save_dlg.radioButton64.isChecked():
+                self.save_dlg.radioButtonFloat.setChecked(True)
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+            else:
+                pass  # Should never happen
+
+        elif self.save_dlg.radioButtonNumpy.isChecked():
+            self.save_dlg.groupBoxImageQuality.setEnabled(False)
+            self.save_dlg.groupBoxImageCompression.setEnabled(False)
+            self.save_dlg.radioButtonFloat.setEnabled(True)
+            self.save_dlg.radioButtonInt.setEnabled(True)
+            self.save_dlg.checkBoxUnsigned.setEnabled(True)
+            self.save_dlg.radioButton32.setEnabled(True)
+            self.save_dlg.radioButton64.setEnabled(True)
+            self.save_dlg.comprFitsCheckBox.setEnabled(False)
+            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
+
+            if self.save_dlg.radioButtonFloat.isChecked():
+                self.save_dlg.checkBoxUnsigned.setCheckState(0)
+                self.save_dlg.checkBoxUnsigned.setEnabled(False)
+            else:
+                self.save_dlg.checkBoxUnsigned.setEnabled(True)
+
+        else:
+            pass  # Should never happen
+
+        self.save_dlg.radioButtonFloat.toggled.connect(
+            self._updateSaveOptions)
+
+
 class Frame(Qt.QObject):
 
     """
@@ -1811,47 +2034,10 @@ class Frame(Qt.QObject):
             log.log(repr(self),
                     "Creating a new standard save-dialog window",
                     level=logging.DEBUG)
-            self.save_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                                    'save_dialog.ui'))
+            self.save_dlg = SaveImageDialog()
             external_save_dialog = False
             use_dialog = True
-            try:
-                # Connecting signals
-                self.save_dlg.radioButtonJpeg.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonPng.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonTiff.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonFits.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonNumpy.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonInt.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButtonFloat.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButton8.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButton16.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButton32.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.radioButton64.toggled.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.checkBoxUnsigned.stateChanged.connect(
-                    self._updateSaveOptions)
-                self.save_dlg.pushButtonDestDir.clicked.connect(
-                    self._getDestDir)
-                self.save_dlg.radioButtonFits.setEnabled(FITS_SUPPORT)
 
-                self.save_dlg.saveMastersCheckBox.hide()
-
-            except Exception as exc:
-                log.log(repr(self),
-                        "Unsupported dialog window: " + str(exc),
-                        level=logging.ERROR)
-                del self.save_dlg
         elif save_dlg is False:
             external_save_dialog = False
             use_dialog = False
@@ -1874,7 +2060,7 @@ class Frame(Qt.QObject):
             self.save_dlg = save_dlg
 
             try:
-                self.save_dlg.saveMastersCheckBox.hide()
+                self.save_dlg.hideMastersCheckBox()
             except:
                 # no error here if there is no saveMastersCheckBox
                 pass
@@ -1891,13 +2077,13 @@ class Frame(Qt.QObject):
                 f_name = os.path.basename(filename)
                 d_name = os.path.dirname(filename)
 
-            self.save_dlg.lineEditFileName.setText(f_name)
-            self.save_dlg.lineEditDestDir.setText(d_name)
+            self.save_dlg.setFileName(f_name)
+            self.save_dlg.setDestDirName(d_name)
+            self.save_dlg._updateSaveOptions()
 
-            self._updateSaveOptions()
             if self.save_dlg.exec_() == 1:
-                destdir = str(self.save_dlg.lineEditDestDir.text())
-                name = str(self.save_dlg.lineEditFileName.text())
+                destdir = self.save_dlg.getDestDir()
+                name = self.save_dlg.getFileName()
 
                 valid_dir = os.path.isdir(destdir)
                 invalid_name = bool(name.strip())
@@ -1919,53 +2105,20 @@ class Frame(Qt.QObject):
                                 level=logging.DEBUG)
                         del self.save_dlg
                         return False
-                    destdir = str(self.save_dlg.lineEditDestDir.text())
-                    name = str(self.save_dlg.lineEditFileName.text())
+                    destdir = self.save_dlg.getDestDir()
+                    name = self.save_dlg.getFileName()
 
                     valid_dir = os.path.isdir(destdir)
                     invalid_name = bool(name.strip())
 
-                flags = None
-
-                if self.save_dlg.radioButtonJpeg.isChecked():
-                    frmat = 'jpg'
-                    flags = (cv2.cv.CV_IMWRITE_JPEG_QUALITY,
-                             int(self.save_dlg.spinBoxIQ.value()))
-                elif self.save_dlg.radioButtonPng.isChecked():
-                    frmat = 'png'
-                    flags = (cv2.cv.CV_IMWRITE_PNG_COMPRESSION,
-                             int(self.save_dlg.spinBoxIC.value()))
-                elif self.save_dlg.radioButtonTiff.isChecked():
-                    frmat = 'tiff'
-                elif self.save_dlg.radioButtonFits.isChecked():
-                    frmat = 'fits'
-                elif self.save_dlg.radioButtonNumpy.isChecked():
-                    frmat = 'numpy'
-
-                if self.save_dlg.radioButton8.isChecked():
-                    bits = 8
-                elif self.save_dlg.radioButton16.isChecked():
-                    bits = 16
-                elif self.save_dlg.radioButton32.isChecked():
-                    bits = 32
-                elif self.save_dlg.radioButton64.isChecked():
-                    bits = 64
-
-                if self.save_dlg.radioButtonInt.isChecked():
-                    if self.save_dlg.checkBoxUnsigned.checkState() == 2:
-                        dtype = 'uint'
-                    else:
-                        dtype = 'int'
-                elif self.save_dlg.radioButtonFloat.isChecked():
-                    dtype = 'float'
+                frmat, flags = self.save_dlg.getFileFormat()
+                bits = self.save_dlg.getBitsFormat()
+                dtype = self.save_dlg.getDataType()
 
                 filename = os.path.join(destdir, name+"."+frmat)
 
-                fits_rgb_cb = self.save_dlg.rgbFitsCheckBox
-                fits_cmp_cb = self.save_dlg.comprFitsCheckBox.checkState()
-
-                rgb_fits_mode = (fits_rgb_cb.checkState() == 2)
-                fits_compressed = (fits_cmp_cb == 2)
+                rgb_fits_mode = self.save_dlg.isFitsRGB()
+                fits_compressed = self.save_dlg.isFitsCompressed()
 
                 args["force_overwrite"] = force_overwrite
                 args["frmat"] = frmat
@@ -2070,116 +2223,6 @@ class Frame(Qt.QObject):
                                       flags,
                                       force_overwrite,
                                       override_name=filename)
-
-    def _getDestDir(self):
-        destdir = str(Qt.QFileDialog.getExistingDirectory(
-            None,
-            tr.tr("Choose the output folder"),
-            os.path.dirname(self.url),
-            DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly))
-        self.save_dlg.lineEditDestDir.setText(str(destdir))
-
-    def _updateSaveOptions(self, *args):
-        if self.save_dlg.radioButtonJpeg.isChecked():
-            self.save_dlg.groupBoxImageQuality.setEnabled(True)
-            self.save_dlg.groupBoxImageCompression.setEnabled(False)
-            self.save_dlg.radioButtonFloat.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setCheckState(2)
-            self.save_dlg.radioButtonInt.setChecked(True)
-            self.save_dlg.radioButton32.setEnabled(False)
-            self.save_dlg.radioButton64.setEnabled(False)
-            self.save_dlg.comprFitsCheckBox.setEnabled(False)
-            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
-
-            if (self.save_dlg.radioButton32.isChecked() or
-                    self.save_dlg.radioButton64.isChecked()):
-                self.save_dlg.radioButton8.setChecked(True)
-
-        elif self.save_dlg.radioButtonPng.isChecked():
-            self.save_dlg.groupBoxImageQuality.setEnabled(False)
-            self.save_dlg.groupBoxImageCompression.setEnabled(True)
-            self.save_dlg.radioButtonFloat.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setCheckState(2)
-            self.save_dlg.radioButtonInt.setChecked(True)
-            self.save_dlg.radioButton32.setEnabled(False)
-            self.save_dlg.radioButton64.setEnabled(False)
-            self.save_dlg.comprFitsCheckBox.setEnabled(False)
-            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
-
-            if (self.save_dlg.radioButton32.isChecked() or
-                    self.save_dlg.radioButton64.isChecked()):
-                self.save_dlg.radioButton8.setChecked(True)
-
-        elif self.save_dlg.radioButtonTiff.isChecked():
-            self.save_dlg.groupBoxImageQuality.setEnabled(False)
-            self.save_dlg.groupBoxImageCompression.setEnabled(False)
-            self.save_dlg.radioButtonFloat.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setCheckState(2)
-            self.save_dlg.radioButtonInt.setChecked(True)
-            self.save_dlg.radioButton8.setEnabled(True)
-            self.save_dlg.radioButton16.setEnabled(True)
-            self.save_dlg.radioButton32.setEnabled(False)
-            self.save_dlg.radioButton64.setEnabled(False)
-            self.save_dlg.comprFitsCheckBox.setEnabled(False)
-            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
-
-            if (self.save_dlg.radioButton32.isChecked() or
-                    self.save_dlg.radioButton64.isChecked()):
-                self.save_dlg.radioButton8.setChecked(True)
-
-        elif self.save_dlg.radioButtonFits.isChecked():
-            self.save_dlg.groupBoxImageQuality.setEnabled(False)
-            self.save_dlg.groupBoxImageCompression.setEnabled(False)
-            self.save_dlg.radioButtonFloat.setEnabled(False)
-            self.save_dlg.radioButtonInt.setEnabled(False)
-            self.save_dlg.checkBoxUnsigned.setEnabled(False)
-            self.save_dlg.radioButton8.setEnabled(True)
-            self.save_dlg.radioButton16.setEnabled(True)
-            self.save_dlg.radioButton32.setEnabled(True)
-            self.save_dlg.radioButton64.setEnabled(True)
-            self.save_dlg.comprFitsCheckBox.setEnabled(True)
-            self.save_dlg.rgbFitsCheckBox.setEnabled(True)
-
-            if self.save_dlg.radioButton8.isChecked():
-                self.save_dlg.radioButtonInt.setChecked(True)
-                self.save_dlg.checkBoxUnsigned.setCheckState(2)
-            elif self.save_dlg.radioButton16.isChecked():
-                self.save_dlg.radioButtonInt.setChecked(True)
-                self.save_dlg.checkBoxUnsigned.setCheckState(0)
-            elif self.save_dlg.radioButton32.isChecked():
-                self.save_dlg.radioButtonFloat.setChecked(True)
-                self.save_dlg.checkBoxUnsigned.setCheckState(0)
-            elif self.save_dlg.radioButton64.isChecked():
-                self.save_dlg.radioButtonFloat.setChecked(True)
-                self.save_dlg.checkBoxUnsigned.setCheckState(0)
-            else:
-                pass  # Should never happen
-
-        elif self.save_dlg.radioButtonNumpy.isChecked():
-            self.save_dlg.groupBoxImageQuality.setEnabled(False)
-            self.save_dlg.groupBoxImageCompression.setEnabled(False)
-            self.save_dlg.radioButtonFloat.setEnabled(True)
-            self.save_dlg.radioButtonInt.setEnabled(True)
-            self.save_dlg.checkBoxUnsigned.setEnabled(True)
-            self.save_dlg.radioButton32.setEnabled(True)
-            self.save_dlg.radioButton64.setEnabled(True)
-            self.save_dlg.comprFitsCheckBox.setEnabled(False)
-            self.save_dlg.rgbFitsCheckBox.setEnabled(False)
-
-            if self.save_dlg.radioButtonFloat.isChecked():
-                self.save_dlg.checkBoxUnsigned.setCheckState(0)
-                self.save_dlg.checkBoxUnsigned.setEnabled(False)
-            else:
-                self.save_dlg.checkBoxUnsigned.setEnabled(True)
-
-        else:
-            pass  # Should never happen
-
-        self.save_dlg.radioButtonFloat.toggled.connect(
-            self._updateSaveOptions)
 
 
 def getSupportedFormats():
@@ -2576,7 +2619,7 @@ def brakets(text):
 
 def getSciStr(val, rnd=2):
 
-    fmt_str='{{0:1.{0:d}f}}'.format(int(rnd))
+    fmt_str = '{{0:1.{0:d}f}}'.format(int(rnd))
 
     if val != 0.0:
         exp = int(np.floor(math.log10(abs(val))))
@@ -2596,7 +2639,7 @@ def getTimeStr(val, rnd=2):
         ms_str = ""
     else:
         ms, sec = math.modf(val)
-        fmt_str='{{0:.{0:d}f}}'.format(int(rnd))
+        fmt_str = '{{0:.{0:d}f}}'.format(int(rnd))
         ms_str = fmt_str.format(ms)[1:]
     return time.strftime('%H:%M:%S', time.gmtime(val)) + ms_str
 
@@ -2612,6 +2655,7 @@ def getSciVal(val):
         return (sv, exp)
     else:
         return (0.0, 0)
+
 
 def ceil5(val, rounding=1):
     tens = 10**rounding

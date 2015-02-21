@@ -25,12 +25,13 @@ import paths
 import utils
 import translation as tr
 
-DEFAULT = os.path.join(paths.STYLES_PATH,'default.css')
+DEFAULT = os.path.join(paths.STYLES_PATH, 'default.css')
+
 
 def readStyleSheet(filename):
     if os.path.isfile(filename):
         try:
-            f = open(filename,'r')
+            f = open(filename, 'r')
         except Exception as exc:
             utils.showErrorMsgBox(
                 tr.tr("Cannot open the stylesheet file '%s'") % filename,
@@ -48,11 +49,13 @@ def readStyleSheet(filename):
         utils.showErrorMsgBox(
             tr.tr("The stylesheet file '%s' does not exist.") % filename)
 
+
 def enumarateStyles():
     style_list = []
     for x in QtGui.QStyleFactory.keys():
         style_list.append(str(x).lower())
     return set(style_list)
+
 
 def _findStyleSheetFiles(path):
 
@@ -73,8 +76,8 @@ def _findStyleSheetFiles(path):
                 files[item[0]] = os.path.join(path, item[1])
     return files
 
+
 def enumarateStylesSheet():
-    files = []
 
     log.log("<lxnstack.styles module>",
             'enumerating stock stylesheets',
@@ -93,9 +96,11 @@ def enumarateStylesSheet():
     else:
         return stock
 
+
 def setApplicationStyle(style):
     qapp = QtGui.QApplication.instance()
     qapp.setStyle(QtGui.QStyleFactory.create(style))
+
 
 def setApplicationStyleSheet(filename):
     if filename is not None:

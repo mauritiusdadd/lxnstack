@@ -38,10 +38,11 @@ UPDATED = 0x0002
 NEEDS_IMAGE_UPDATE = 0x0004
 NEEDS_FEATURES_UPDATE = 0x0004
 
+
 class AboutWindow(object):
 
     def __init__(self):
-        self._dialog=uic.loadUi(
+        self._dialog = uic.loadUi(
             os.path.join(paths.UI_PATH, 'about_dialog.ui'))
 
         self._dialog.iconLabel.setPixmap(
@@ -50,6 +51,7 @@ class AboutWindow(object):
 
     def exec_(self):
         return self._dialog.exec_()
+
 
 class SplashScreen(Qt.QObject):
 
@@ -1197,7 +1199,7 @@ class PlotSubWidget(QtGui.QWidget):
 
         self.close_button.setObjectName("Close")
         self.close_button.setCursor(QtCore.Qt.PointingHandCursor)
-        
+
         self.close_button.setSizePolicy(
             QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum,
                               QtGui.QSizePolicy.MinimumExpanding))
@@ -1595,9 +1597,6 @@ class PlotWidget(QtGui.QWidget):
 
         self._prop_qpb.clicked.connect(self._dialog.show)
 
-        _init_legend_x = 0
-        _init_legend_y = self._padding[1]
-
         self.setFocusPolicy(QtCore.Qt.ClickFocus)
 
     def mousePressEvent(self, event):
@@ -1605,7 +1604,7 @@ class PlotWidget(QtGui.QWidget):
         if btn == 1:
             self._is_panning = True
             self._movement_start = (event.x(), event.y())
-    
+
     def mouseReleaseEvent(self, event):
         btn = event.button()
         if btn == 1:
@@ -1623,10 +1622,10 @@ class PlotWidget(QtGui.QWidget):
 
     def zoomIn(self):
         raise NotImplementedError()
-    
+
     def zoomOut(self):
         raise NotImplementedError()
-    
+
     def zoomFit(self):
         raise NotImplementedError()
 
@@ -1706,10 +1705,10 @@ class PlotWidget(QtGui.QWidget):
             painter,
             range_x=(hmin, hmax),
             range_y=(vmin, vmax),
-            padding = self._padding,
-            offset = self._offset,
+            padding=self._padding,
+            offset=self._offset,
             axis_name=self.axis_name,
-            inverted_y = self._inverted_y)
+            inverted_y=self._inverted_y)
 
         # drawing plots
         painter.setBrush(QtCore.Qt.white)
@@ -1851,7 +1850,7 @@ class PlotViewer(QtGui.QWidget):
 
         w = 6400
         h = int(w*ph/pw)
-        
+
         pltpxm = QtGui.QImage(w, h, QtGui.QImage.Format_ARGB32)
         pltpxm.fill(QtCore.Qt.white)
         painter = QtGui.QPainter(pltpxm)
@@ -1868,17 +1867,18 @@ class PlotViewer(QtGui.QWidget):
         try:
             if not pltpxm.save(file_name):
                 utils.showErrorMsgBox(
-                tr.tr("Cannot save the image."),
-                tr.tr("Assure you have the authorization to write the file."))
+                    tr.tr("Cannot save the image."),
+                    tr.tr("Assure you have the authorization " +
+                          "to write the file."))
                 return False
         except Exception as exc:
             utils.showErrorMsgBox(
                 tr.tr("Cannot create the image file: ")+str(exc),
-                tr.tr("Assure you have the authorization to write the file."))
+                tr.tr("Assure you have the authorization " +
+                      "to write the file."))
             return False
         else:
             return True
-
 
     def exportNumericDataCSV(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(

@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-
 from PyQt4 import Qt, QtCore
 import numpy as np
 
@@ -664,11 +662,11 @@ def drawAxis(painter, range_x=(0, 1), range_y=(0, 1),
 
     if n_x_div < 1:
         n_x_div = 1
-    
+
     if n_y_div < 1:
         n_y_div = 1
 
-    gm1 = 1.00
+    # gm1 = 1.00
     gm2 = 2.00
     gm3 = 8.00
 
@@ -733,7 +731,7 @@ def drawAxis(painter, range_x=(0, 1), range_y=(0, 1),
         if x >= maxx:
             break
         count ^= 1
-        
+
         dtxt = utils.getDateStr(x)
         stxt = utils.getTimeStr(x, x_rounding)
 
@@ -755,7 +753,7 @@ def drawAxis(painter, range_x=(0, 1), range_y=(0, 1),
         painter.drawText(p3, stxt)
         if old_dtxt != dtxt and p4.x() > old_dtxt_pnt.x():
             painter.drawText(p4, dtxt)
-            
+
         painter.setPen(Qt.QPen(QtCore.Qt.gray, 1, QtCore.Qt.DotLine))
         painter.drawLine(p1, p5)
         old_dtxt = dtxt
@@ -791,5 +789,5 @@ def drawAxis(painter, range_x=(0, 1), range_y=(0, 1),
     painter.setPen(Qt.QPen(QtCore.Qt.black, 1, QtCore.Qt.SolidLine))
     painter.drawLine(pxy1, px2)
     painter.drawText(Qt.QPointF(x1 + gm3, y2 + h2 - y3), yname)
-    
+
     return ((minx, maxx), (miny, maxy))
