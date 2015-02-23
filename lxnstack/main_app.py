@@ -141,8 +141,7 @@ class theApp(Qt.QObject):
         self.about_dlg = guicontrols.AboutWindow()
         self.stack_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                                  'stack_dialog.ui'))
-        self.align_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                                 'align_dialog.ui'))
+        self.align_dlg = guicontrols.AlignmentDialog()
         self.video_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                                  'video_dialog.ui'))
 
@@ -4153,12 +4152,9 @@ class theApp(Qt.QObject):
             derotate = bool(do_derot)
             reset = bool(do_reset)
         elif self.align_dlg.exec_():
-            align_only = self.align_dlg.alignOnlyRadioButton.isChecked()
-            derot_only = self.align_dlg.derotateOnlyRadioButton.isChecked()
-            align_derot = self.align_dlg.alignDerotateRadioButton.isChecked()
-            align = align_derot or align_only
-            derotate = align_derot or derot_only
-            reset = self.align_dlg.resetRadioButton.isChecked()
+            align = self.align_dlg.getAlign()
+            derotate = self.align_dlg.getDerotate()
+            reset = self.align_dlg.getReset()
         else:
             return False
 

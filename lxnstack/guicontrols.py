@@ -39,11 +39,20 @@ NEEDS_IMAGE_UPDATE = 0x0004
 NEEDS_FEATURES_UPDATE = 0x0004
 
 
-class AboutWindow(object):
+class DialogWindow(object):
+
+    def __init__(self, uifile):
+        self._dialog = uic.loadUi(
+            os.path.join(paths.UI_PATH, uifile))
+
+    def exec_(self):
+        return self._dialog.exec_()
+
+
+class AboutWindow(DialogWindow):
 
     def __init__(self):
-        self._dialog = uic.loadUi(
-            os.path.join(paths.UI_PATH, 'about_dialog.ui'))
+        DialogWindow.__init__(self, 'about_dialog.ui')
 
         self._dialog.iconLabel.setPixmap(
             QtGui.QPixmap(os.path.join(paths.RESOURCES_PATH,
@@ -51,6 +60,25 @@ class AboutWindow(object):
 
     def exec_(self):
         return self._dialog.exec_()
+
+
+class AlignmentDialog(DialogWindow):
+
+    def __init__(self):
+        DialogWindow.__init__(self, 'align_dialog.ui')
+
+    def getAlign(self):
+        align_only = self._dialog.alignOnlyRadioButton.isChecked()
+        align_derot = self._dialog.alignDerotateRadioButton.isChecked()
+        return bool(align_derot or align_only)
+
+    def getDerotate(self):
+        derot_only = self._dialog.derotateOnlyRadioButton.isChecked()
+        align_derot = self._dialog.alignDerotateRadioButton.isChecked()
+        return bool(align_derot or derot_only)
+
+    def getReset(self):
+        return bool(self._dialog.resetRadioButton.isChecked())
 
 
 class SplashScreen(Qt.QObject):
