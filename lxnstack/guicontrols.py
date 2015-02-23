@@ -81,6 +81,51 @@ class AlignmentDialog(DialogWindow):
         return bool(self._dialog.resetRadioButton.isChecked())
 
 
+class VideSaveDialog(DialogWindow):
+
+    def __init__(self):
+        DialogWindow.__init__(self, 'video_dialog.ui')
+
+    def getCodecFCC(self):
+        cidx = self._dialog.codecComboBox.currentIndex()
+        if cidx == 0:
+            fcc_str = 'DIVX'
+            # max_res = (4920, 4920)
+        elif cidx == 0:
+            fcc_str = 'MJPG'
+            # max_res = (9840, 9840)
+        elif cidx == 0:
+            fcc_str = 'U263'
+            # max_res = (2048, 1024)
+        return fcc_str
+
+    def useCustomSize(self):
+        return bool(self._dialog.fullFrameCheckBox.checkState() == 0)
+
+    def getFrameSize(self, wid, hei):
+        """
+            Returns the new frame size and the zoom factor
+        """
+        if not self.useCustomSize():
+            size = (wid, hei)
+            fzoom = 1
+        else:
+            fh = self._dialog.resSpinBox.value()
+            fzoom = float(fh)/float(hei)
+            fw = int(wid*fzoom)
+            size = (fw, fh)
+        return size, fzoom
+
+    def getFps(self):
+        return self._dialog.fpsSpinBox.value()
+
+    def getFitLevels(self):
+        return bool(self._dialog.fitVideoCheckBox.checkState() == 2)
+
+    def useAligedImages(self):
+        return bool(self._dialog.useAligedCheckBox.checkState() == 2)
+
+
 class SplashScreen(Qt.QObject):
 
     def __init__(self):

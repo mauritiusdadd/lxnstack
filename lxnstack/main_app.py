@@ -142,8 +142,7 @@ class theApp(Qt.QObject):
         self.stack_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                                  'stack_dialog.ui'))
         self.align_dlg = guicontrols.AlignmentDialog()
-        self.video_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                                 'video_dialog.ui'))
+        self.video_dlg = guicontrols.VideSaveDialog()
 
         self.dlg.refreshPushButton.setIcon(utils.getQIcon("view-refresh"))
 
@@ -5759,30 +5758,12 @@ class theApp(Qt.QObject):
 
         self.video_dlg.exec_()
 
-        cidx = self.video_dlg.codecComboBox.currentIndex()
-        custom_size = (self.video_dlg.fullFrameCheckBox.checkState() == 0)
-        fps = self.video_dlg.fpsSpinBox.value()
-        size = (self.currentWidth, self.currentHeight)
-        fitlvl = (self.video_dlg.fitVideoCheckBox.checkState() == 2)
-
-        fh = self.video_dlg.resSpinBox.value()
-
-        if cidx == 0:
-            fcc_str = 'DIVX'
-            # max_res = (4920, 4920)
-        elif cidx == 0:
-            fcc_str = 'MJPG'
-            # max_res = (9840, 9840)
-        elif cidx == 0:
-            fcc_str = 'U263'
-            # max_res = (2048, 1024)
-
-        if not custom_size:
-            size = (self.currentWidth, self.currentHeight)
-        else:
-            fzoom = float(fh)/float(self.currentHeight)
-            fw = int(self.currentWidth*fzoom)
-            size = (fw, fh)
+        fps = self.video_dlg.getFps()
+        fitlvl = self.video_dlg.getFitLevels()
+        fcc_str = self.video_dlg.getCodecFCC()
+        size, fzoom = self.video_dlg.getFrameSize(
+            self.currentWidth,
+            self.currentHeight)
 
         try:
             vw = cv2.VideoWriter(file_name,
@@ -5842,10 +5823,10 @@ class theApp(Qt.QObject):
 
                     _rgb = (len(img.shape) == 3)
 
-                    if self.video_dlg.useAligedCheckBox.checkState() == 2:
+                    if self.video_dlg.useAligedImages():
                         img = self.registerImages(frm, img)
 
-                    if custom_size:
+                    if self.video_dlg.useCustomSize():
                         log.log(repr(self),
                                 'resizing image to ' + str(size),
                                 level=logging.DEBUG)
@@ -5872,7 +5853,7 @@ class theApp(Qt.QObject):
                                 'converting to BRG format...',
                                 level=logging.DEBUG)
 
-                        img = utils.getColormappedImage(img,
+                        img = cmaps.getColormappedImage(img,
                                                         self.current_colormap,
                                                         fitlvl)
 
