@@ -139,8 +139,7 @@ class theApp(Qt.QObject):
         self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,
                                            'option_dialog.ui'))
         self.about_dlg = guicontrols.AboutWindow()
-        self.stack_dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                                 'stack_dialog.ui'))
+        self.stack_dlg = guicontrols.StackingDialog()
         self.align_dlg = guicontrols.AlignmentDialog()
         self.video_dlg = guicontrols.VideSaveDialog()
 
@@ -4516,25 +4515,21 @@ class theApp(Qt.QObject):
         # selecting method and setting options
         # before stacking
 
-        if(self.wnd.masterBiasCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(1, False)
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(1, True)
+        self.stack_dlg.setSectionDisabled(
+            self.stack_dlg.section_light,
+            skip_light)
 
-        if(self.wnd.masterDarkCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(2, False)
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(2, True)
+        self.stack_dlg.setSectionDisabled(
+            self.stack_dlg.section_bias,
+            self.wnd.masterBiasCheckBox.checkState())
 
-        if(self.wnd.masterFlatCheckBox.checkState() == 2):
-            self.stack_dlg.tabWidget.setTabEnabled(3, False)
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(3, True)
+        self.stack_dlg.setSectionDisabled(
+            self.stack_dlg.section_dark,
+            self.wnd.masterDarkCheckBox.checkState())
 
-        if skip_light:
-            self.stack_dlg.tabWidget.setTabEnabled(0, False)
-        else:
-            self.stack_dlg.tabWidget.setTabEnabled(0, True)
+        self.stack_dlg.setSectionDisabled(
+            self.stack_dlg.section_flat,
+            self.wnd.masterFlatCheckBox.checkState())
 
         if method is not None:
             bias_method = method
@@ -4543,45 +4538,23 @@ class theApp(Qt.QObject):
             lght_method = method
 
         elif self.stack_dlg.exec_():
-            bias_cb = self.stack_dlg.biasStackingMethodComboBox
-            dark_cb = self.stack_dlg.darkStackingMethodComboBox
-            flat_cb = self.stack_dlg.flatStackingMethodComboBox
-            lght_cb = self.stack_dlg.ligthStackingMethodComboBox
+            methods = self.stack_dlg.getStackingMethods()
 
-            bias_method = bias_cb.currentIndex()
-            dark_method = dark_cb.currentIndex()
-            flat_method = flat_cb.currentIndex()
-            lght_method = lght_cb.currentIndex()
+            lght_method = methods[self.stack_dlg.section_light]
+            bias_method = methods[self.stack_dlg.section_bias]
+            dark_method = methods[self.stack_dlg.section_dark]
+            flat_method = methods[self.stack_dlg.section_flat]
         else:
             return False
 
-        bias_args = {'lk': self.stack_dlg.biasLKappa.value(),
-                     'hk': self.stack_dlg.biasHKappa.value(),
-                     'iterations': self.stack_dlg.biasKIters.value(),
-                     'debayerize_result': False}
+        stacking_params = self.stack_dlg.getStackingParameters()
 
-        dark_args = {'lk': self.stack_dlg.darkLKappa.value(),
-                     'hk': self.stack_dlg.darkHKappa.value(),
-                     'iterations': self.stack_dlg.darkKIters.value(),
-                     'debayerize_result': False}
+        bias_args = stacking_params[self.stack_dlg.section_bias]
+        dark_args = stacking_params[self.stack_dlg.section_dark]
+        flat_args = stacking_params[self.stack_dlg.section_flat]
+        lght_args = stacking_params[self.stack_dlg.section_light]
+        hotp_args = self.stack_dlg.getHPCorrectionParameters()
 
-        flat_args = {'lk': self.stack_dlg.flatLKappa.value(),
-                     'hk': self.stack_dlg.flatHKappa.value(),
-                     'iterations': self.stack_dlg.flatKIters.value(),
-                     'debayerize_result': False}
-
-        lght_args = {'lk': self.stack_dlg.ligthLKappa.value(),
-                     'hk': self.stack_dlg.ligthHKappa.value(),
-                     'iterations': self.stack_dlg.ligthKIters.value(),
-                     'debayerize_result': True}
-
-        hp_use_smrt = bool(self.stack_dlg.hotSmartGroupBox.isChecked())
-        hp_use_glbl = bool(self.stack_dlg.hotGlobalRadioButton.isChecked())
-        hp_trashold = self.stack_dlg.hotTrasholdDoubleSpinBox.value()
-
-        hotp_args = {'hp_smart': hp_use_smrt,
-                     'hp_global': hp_use_glbl,
-                     'hp_trashold': hp_trashold}
         self.lock()
 
         self.master_bias_file = str(self.wnd.masterBiasLineEdit.text())

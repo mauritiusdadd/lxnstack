@@ -62,6 +62,79 @@ class AboutWindow(DialogWindow):
         return self._dialog.exec_()
 
 
+class StackingDialog(DialogWindow):
+
+    section_light = 0
+    section_bias = 1
+    section_dark = 2
+    section_flat = 3
+
+    def __init__(self):
+        DialogWindow.__init__(self, 'stack_dialog.ui')
+
+    def setSectionEnabled(self, section, val):
+        self._dialog.tabWidget.setTabEnabled(section, bool(val))
+
+    def setSectionDisabled(self, section, val):
+        self._dialog.tabWidget.setTabEnabled(section, not bool(val))
+
+    def getStackingMethods(self):
+        bias_cb = self._dialog.biasStackingMethodComboBox
+        dark_cb = self._dialog.darkStackingMethodComboBox
+        flat_cb = self._dialog.flatStackingMethodComboBox
+        lght_cb = self._dialog.ligthStackingMethodComboBox
+
+        methods = {
+            self.section_light: lght_cb.currentIndex(),
+            self.section_bias: bias_cb.currentIndex(),
+            self.section_dark: dark_cb.currentIndex(),
+            self.section_flat: flat_cb.currentIndex(),
+        }
+
+        return methods
+
+    def getStackingParameters(self):
+        methods = {
+            self.section_light: {
+                'lk': self._dialog.ligthLKappa.value(),
+                'hk': self._dialog.ligthHKappa.value(),
+                'iterations': self._dialog.ligthKIters.value(),
+                'debayerize_result': True
+            },
+            self.section_bias: {
+                'lk': self._dialog.biasLKappa.value(),
+                'hk': self._dialog.biasHKappa.value(),
+                'iterations': self._dialog.biasKIters.value(),
+                'debayerize_result': False
+            },
+            self.section_dark: {
+                'lk': self._dialog.darkLKappa.value(),
+                'hk': self._dialog.darkHKappa.value(),
+                'iterations': self._dialog.darkKIters.value(),
+                'debayerize_result': False
+            },
+            self.section_flat: {
+                'lk': self._dialog.flatLKappa.value(),
+                'hk': self._dialog.flatHKappa.value(),
+                'iterations': self._dialog.flatKIters.value(),
+                'debayerize_result': False
+            },
+        }
+
+        return methods
+
+    def getHPCorrectionParameters(self):
+        hp_use_smrt = bool(self._dialog.hotSmartGroupBox.isChecked())
+        hp_use_glbl = bool(self._dialog.hotGlobalRadioButton.isChecked())
+        hp_trashold = self._dialog.hotTrasholdDoubleSpinBox.value()
+
+        hotp_args = {'hp_smart': hp_use_smrt,
+                     'hp_global': hp_use_glbl,
+                     'hp_trashold': hp_trashold}
+
+        return hotp_args
+
+
 class AlignmentDialog(DialogWindow):
 
     def __init__(self):
