@@ -206,20 +206,37 @@ class SplashScreen(Qt.QObject):
         Qt.QObject.__init__(self)
 
         splashfile = os.path.join(paths.DATA_PATH, "splashscreen.jpg")
+
+        self._msg = ""
         self._pxm = Qt.QPixmap(splashfile)
         self._qss = Qt.QSplashScreen(self._pxm,
                                      QtCore.Qt.WindowStaysOnTopHint |
                                      QtCore.Qt.X11BypassWindowManagerHint)
+        self._progress = QtGui.QProgressBar(self._qss)
 
-        self._msg = ''
-        self._maxv = 100.0
-        self._minv = 0.0
-        self._cval = 0.0
+        h = self._pxm.height()
+        w = self._pxm.width()
 
-        self._qss.drawContents = self._drawContents
+        self._progress.setMaximum(100)
+        self._progress.setMinimum(0)
+        self._progress.setGeometry(10, h-50, w-20, 20)
+        self._progress.setStyleSheet("""
+        QSplashScreen QProgressBar {
+            border: 1px solid gray;
+            border-radius: 0px;
+            background-color: black;
+            color: white;
+            height: 1em;
+        }
+
+        QSplashScreen QProgressBar::chunk {
+            background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                       stop: 0 #0A0AFF, stop: 1 #0A0A9B);
+            width: 20px;
+        }
+        """)
 
         self._qss.show()
-
         self.processEvents()
 
     def close(self):
@@ -227,69 +244,33 @@ class SplashScreen(Qt.QObject):
         self._qss.close()
 
     def setMaximum(self, val):
-        self._maxv = val
-        self.update()
+        self._progress.setMaximum(val)
 
     def setMinimum(self, val):
-        self._minv = val
-        self.update()
+        self._progress.setMainimum(val)
 
     def setValue(self, val):
-        for i in np.arange(self._cval, val, (self._maxv - self._minv) / 100.0):
-            self._cval = i
-            self.update()
+        self._progress.setValue(val)
 
     def maximum(self):
-        return self._maxv
+        return self._progress.maximum()
 
     def minimum(self):
-        return self._minv
+        return self._progress.mainimum()
 
     def value(self):
-        return self._cval
+        return self._progress.value()
 
     def message(self):
         return self._msg
 
     def showMessage(self, msg):
         self._msg = msg
-        self.update()
+        self._progress.setFormat("    " + str(msg) + " %p%")
 
     def update(self):
         self._qss.update()
         self.processEvents()
-
-    def _drawContents(self, painter):
-
-        view_port = painter.viewport()
-
-        w = view_port.right()
-        h = view_port.bottom()
-
-        painter.setPen(Qt.QColor(55, 55, 55, 255))
-        painter.setBrush(Qt.QColor(0, 0, 0, 255))
-        painter.drawRect(10, h-25, w-20, 15)
-
-        redlg = Qt.QLinearGradient(0, 0, w, 0)
-        redlg.setColorAt(0, Qt.QColor(10, 10, 155))
-        redlg.setColorAt(0.8, Qt.QColor(10, 10, 255))
-
-        alg = Qt.QLinearGradient(0, h-25, 0, h)
-        alg.setColorAt(0, Qt.QColor(0, 0, 0, 150))
-        alg.setColorAt(0.5, Qt.QColor(0, 0, 0, 0))
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(redlg)
-        painter.drawRect(11, h-24, (w-21) * self._cval / self._maxv, 14)
-
-        painter.setBrush(alg)
-        painter.drawRect(11, h-24, (w-21) * self._cval / self._maxv, 14)
-
-        painter.setPen(QtCore.Qt.white)
-        rect = Qt.QRectF(10, h-23, w-20, 15)
-        painter.drawText(rect, QtCore.Qt.AlignCenter, str(self._msg))
-
-        return QtGui.QSplashScreen.drawContents(self._qss, painter)
 
     def finish(self, qwid):
         self._qss.finish(qwid)
