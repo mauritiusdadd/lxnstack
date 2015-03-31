@@ -109,6 +109,8 @@ class theApp(Qt.QObject):
         self.point_idx = -1
         self.star_idx = -1
 
+        self.current_style = 0
+
         self._bas = None
         self._drk = None
         self._stk = None
@@ -136,18 +138,11 @@ class theApp(Qt.QObject):
 
         self.wnd = uic.loadUi(os.path.join(paths.UI_PATH,
                                            'main.ui'))
-        self.dlg = uic.loadUi(os.path.join(paths.UI_PATH,
-                                           'option_dialog.ui'))
+        self.dlg = guicontrols.OptionsDialog()
         self.about_dlg = guicontrols.AboutWindow()
         self.stack_dlg = guicontrols.StackingDialog()
         self.align_dlg = guicontrols.AlignmentDialog()
         self.video_dlg = guicontrols.VideSaveDialog()
-
-        self.dlg.refreshPushButton.setIcon(utils.getQIcon("view-refresh"))
-
-        self._stylesheets = styles.enumarateStylesSheet()
-        for stylesheet_file in self._stylesheets:
-            self.dlg.themeListWidget.addItem(stylesheet_file)
 
         self.statusBar = self.wnd.statusBar()
         self.statusLabelMousePos = Qt.QLabel()
@@ -348,21 +343,19 @@ class theApp(Qt.QObject):
         self.wnd.alignMethodComboBox.currentIndexChanged.connect(
             self.changeAlignMethod)
 
-        self.dlg.themeListWidget.currentItemChanged.connect(
-            self.setApplicationStyleSheet)
-        self.dlg.devComboBox.currentIndexChanged.connect(
+        self.dlg._dialog.devComboBox.currentIndexChanged.connect(
             self.setCurrentCaptureDevice)
-        self.dlg.refreshPushButton.clicked.connect(
+        self.dlg._dialog.refreshPushButton.clicked.connect(
             self.updateCaptureDevicesList)
-        self.dlg.fTypeComboBox.currentIndexChanged.connect(
+        self.dlg._dialog.fTypeComboBox.currentIndexChanged.connect(
             self.setFloatPrecision)
-        self.dlg.tempPathPushButton.clicked.connect(
+        self.dlg._dialog.tempPathPushButton.clicked.connect(
             self._set_temp_path)
-        self.dlg.phaseIntOrderSlider.valueChanged.connect(
+        self.dlg._dialog.phaseIntOrderSlider.valueChanged.connect(
             self.setPhaseInterpolationOrder)
-        self.dlg.intOrderSlider.valueChanged.connect(
+        self.dlg._dialog.intOrderSlider.valueChanged.connect(
             self.setInterpolationOrder)
-        self.dlg.showPhaseImgCheckBox.stateChanged.connect(
+        self.dlg._dialog.showPhaseImgCheckBox.stateChanged.connect(
             self.setShowPhaseIamge)
 
         self._resetPreferencesDlg()
@@ -491,15 +484,6 @@ class theApp(Qt.QObject):
         self._preview_data = None
         self._preview_image = None
 
-    def setApplicationStyleSheet(self, current, previous):
-        stylename = str(current.text())
-        try:
-            filename = self._stylesheets[stylename]
-        except KeyError:
-            filename = None
-        styles.setApplicationStyleSheet(filename)
-        self._current_stylesheet = stylename
-
     def _generateOpenStrings(self):
         self.supported_formats = utils.getSupportedFormats()
         # all supported formats
@@ -605,59 +589,62 @@ class theApp(Qt.QObject):
         self.master_flat_mul_factor = val
 
     def _resetPreferencesDlg(self):
-        idx = self.dlg.langComboBox.findData(self.__current_lang)
-        self.dlg.langComboBox.setCurrentIndex(idx)
+        idx = self.dlg._dialog.langComboBox.findData(self.__current_lang)
+        self.dlg._dialog.langComboBox.setCurrentIndex(idx)
 
-        self.dlg.useCustomLangCheckBox.setCheckState(self.custom_chkstate)
-        self.dlg.fTypeComboBox.setCurrentIndex(self.ftype_idx)
+        self.dlg._dialog.useCustomLangCheckBox.setCheckState(self.custom_chkstate)
+        self.dlg._dialog.fTypeComboBox.setCurrentIndex(self.ftype_idx)
 
-        self.dlg.rgbFitsCheckBox.setCheckState(
+        self.dlg._dialog.rgbFitsCheckBox.setCheckState(
             int(self.frame_open_args['rgb_fits_mode'])*2)
-        self.dlg.decodeCR2CheckBox.setCheckState(
+        self.dlg._dialog.decodeCR2CheckBox.setCheckState(
             int(self.frame_open_args['convert_cr2'])*2)
 
-        self.dlg.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
+        self.dlg._dialog.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
 
-        self.dlg.rWSpinBox.setValue(self.aap_rectangle[0])
-        self.dlg.rHSpinBox.setValue(self.aap_rectangle[1])
+        self.dlg._dialog.rWSpinBox.setValue(self.aap_rectangle[0])
+        self.dlg._dialog.rHSpinBox.setValue(self.aap_rectangle[1])
 
-        self.dlg.maxPointsSpinBox.setValue(self.max_points)
-        self.dlg.minQualityDoubleSpinBox.setValue(self.min_quality)
+        self.dlg._dialog.maxPointsSpinBox.setValue(self.max_points)
+        self.dlg._dialog.minQualityDoubleSpinBox.setValue(self.min_quality)
 
-        self.dlg.langFileLineEdit.setText(self.__current_lang)
+        self.dlg._dialog.langFileLineEdit.setText(self.__current_lang)
 
-        self.dlg.autoSizeCheckBox.setCheckState(
+        self.dlg._dialog.autoSizeCheckBox.setCheckState(
             self.checked_autodetect_rectangle_size)
 
-        self.dlg.wholeImageCheckBox.setChecked(
+        self.dlg._dialog.wholeImageCheckBox.setChecked(
             self.aap_wholeimage)
 
-        self.dlg.autoSizeCheckBox.setChecked(
+        self.dlg._dialog.autoSizeCheckBox.setChecked(
             self.checked_autodetect_rectangle_size)
 
-        self.dlg.minQualitycheckBox.setCheckState(
+        self.dlg._dialog.minQualitycheckBox.setCheckState(
             self.checked_autodetect_min_quality)
 
-        self.dlg.autoFolderscheckBox.setCheckState(
+        self.dlg._dialog.autoFolderscheckBox.setCheckState(
             self.checked_seach_dark_flat)
 
-        self.dlg.tempPathCheckBox.setCheckState(
+        self.dlg._dialog.tempPathCheckBox.setCheckState(
             self.checked_custom_temp_dir)
 
-        self.dlg.tempPathLineEdit.setText(
+        self.dlg._dialog.tempPathLineEdit.setText(
             self.custom_temp_path)
 
-        self.dlg.compressedTempCheckBox.setCheckState(
+        self.dlg._dialog.compressedTempCheckBox.setCheckState(
             self.checked_compressed_temp)
 
-        self.dlg.showPhaseImgCheckBox.setCheckState(
+        self.dlg._dialog.showPhaseImgCheckBox.setCheckState(
             self.checked_show_phase_img)
 
-        self.dlg.phaseIntOrderSlider.setValue(
+        self.dlg._dialog.phaseIntOrderSlider.setValue(
             self.phase_interpolation_order)
 
-        self.dlg.intOrderSlider.setValue(
+        self.dlg._dialog.intOrderSlider.setValue(
             self.interpolation_order)
+
+        self.dlg._dialog.themeListWidget.setCurrentRow(
+            self.current_style)
 
         if self.checked_custom_temp_dir == 2:
             self.temp_path = os.path.expandvars(self.custom_temp_path)
@@ -673,19 +660,19 @@ class theApp(Qt.QObject):
             utils.DIALOG_OPTIONS)
 
         self.custom_temp_path = str(tmp_path)
-        self.dlg.tempPathLineEdit.setText(self.custom_temp_path)
+        self.dlg._dialog.tempPathLineEdit.setText(self.custom_temp_path)
 
     def showCaptureProperties(self):
 
-        self.dlg.tabWidget.setCurrentIndex(2)
+        self.dlg._dialog.tabWidget.setCurrentIndex(2)
 
         if self.isPreviewing:
-            self.dlg.tabWidget.setCurrentIndex(2)
-            self.dlg.show()
+            self.dlg._dialog.tabWidget.setCurrentIndex(2)
+            self.dlg._dialog.show()
         else:
-            current_tab_idx = self.dlg.tabWidget.currentIndex()
-            self.dlg.exec_()
-            self.dlg.tabWidget.setCurrentIndex(current_tab_idx)
+            current_tab_idx = self.dlg._dialog.tabWidget.currentIndex()
+            self.dlg._dialog.exec_()
+            self.dlg._dialog.tabWidget.setCurrentIndex(current_tab_idx)
 
     def setCurrentCaptureDevice(self, index):
 
@@ -694,24 +681,24 @@ class theApp(Qt.QObject):
                 return False
             else:
                 self.current_cap_device.lockStateChanged.disconnect(
-                    self.dlg.refreshPushButton.setDisabled)
-                self.dlg.controlsLayout.removeWidget(
+                    self.dlg._dialog.refreshPushButton.setDisabled)
+                self.dlg._dialog.controlsLayout.removeWidget(
                     self.current_cap_device.getControlUI())
                 self.current_cap_device.getControlUI().setParent(None)
                 self.current_cap_device.getControlUI().hide()
 
         self.current_cap_combo_idx = index
         self.current_cap_device = self.devices[index]['device']
-        self.current_cap_device_title = self.dlg.devComboBox.currentText()
+        self.current_cap_device_title = self.dlg._dialog.devComboBox.currentText()
         self.current_cap_device.lockStateChanged.connect(
-            self.dlg.refreshPushButton.setDisabled)
+            self.dlg._dialog.refreshPushButton.setDisabled)
 
         for action in self.capture_devices_menu._video_action_group.actions():
             if index == action.index:
                 action.setChecked(True)
 
         # adding the device's controls widget
-        self.dlg.controlsLayout.addWidget(
+        self.dlg._dialog.controlsLayout.addWidget(
             self.current_cap_device.getControlUI())
         self.current_cap_device.getControlUI().show()
 
@@ -723,11 +710,11 @@ class theApp(Qt.QObject):
     def _setCurrentCaptureDeviceFromActions(self, checked):
         for action in self.capture_devices_menu._video_action_group.actions():
             if action.isChecked():
-                self.dlg.devComboBox.setCurrentIndex(action.index)
+                self.dlg._dialog.devComboBox.setCurrentIndex(action.index)
 
     def updateCaptureDevicesList(self):
         self.devices = tuple(videocapture.listVideoDevices())
-        self.dlg.devComboBox.clear()
+        self.dlg._dialog.devComboBox.clear()
         action_group = QtGui.QActionGroup(self.capture_devices_menu)
         self.capture_devices_menu._video_action_group = action_group
         self.capture_devices_menu.clear()
@@ -736,7 +723,7 @@ class theApp(Qt.QObject):
             index = self.devices.index(device)
             name = "[{0: ^6s}] {1}".format(device['interface'],
                                            device['name'])
-            self.dlg.devComboBox.insertItem(index, name)
+            self.dlg._dialog.devComboBox.insertItem(index, name)
             action = self.capture_devices_menu.addAction(name)
             action.index = index
             action.setCheckable(True)
@@ -746,73 +733,76 @@ class theApp(Qt.QObject):
     def setPreferences(self):
 
         qtr = Qt.QTranslator()
-        self.dlg.langComboBox.clear()
+        self.dlg._dialog.langComboBox.clear()
         for qmf in os.listdir(paths.LANG_PATH):
             fl = os.path.join(paths.LANG_PATH, qmf)
             if qtr.load(fl):
-                self.dlg.langComboBox.addItem(qmf, fl)
+                self.dlg._dialog.langComboBox.addItem(qmf, fl)
         self._resetPreferencesDlg()
 
         if self.current_cap_combo_idx < 0:
             self.current_cap_combo_idx = 0
 
-        self.dlg.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
+        self.dlg._dialog.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
 
         if self.isPreviewing:
-            self.dlg.tabWidget.setCurrentIndex(2)
-            self.dlg.show()
+            self.dlg._dialog.tabWidget.setCurrentIndex(2)
+            self.dlg._dialog.show()
             return True
         else:
             pass
 
-        if self.dlg.exec_() == 1:
+        if self.dlg._dialog.exec_() == 1:
             # update settings
-            r_w = int(self.dlg.rWSpinBox.value())
-            r_h = int(self.dlg.rHSpinBox.value())
+            r_w = int(self.dlg._dialog.rWSpinBox.value())
+            r_h = int(self.dlg._dialog.rHSpinBox.value())
 
             self.aap_rectangle = (r_w, r_h)
 
             self.custom_chkstate = int(
-                self.dlg.useCustomLangCheckBox.checkState())
+                self.dlg._dialog.useCustomLangCheckBox.checkState())
 
             self.max_points = int(
-                self.dlg.maxPointsSpinBox.value())
+                self.dlg._dialog.maxPointsSpinBox.value())
 
             self.min_quality = float(
-                self.dlg.minQualityDoubleSpinBox.value())
+                self.dlg._dialog.minQualityDoubleSpinBox.value())
 
             self.current_cap_combo_idx = int(
-                self.dlg.devComboBox.currentIndex())
+                self.dlg._dialog.devComboBox.currentIndex())
 
             self.aap_wholeimage = int(
-                self.dlg.wholeImageCheckBox.checkState())
+                self.dlg._dialog.wholeImageCheckBox.checkState())
 
             self.checked_autodetect_rectangle_size = int(
-                self.dlg.autoSizeCheckBox.checkState())
+                self.dlg._dialog.autoSizeCheckBox.checkState())
 
             self.frame_open_args['rgb_fits_mode'] = bool(
-                int(self.dlg.rgbFitsCheckBox.checkState()) == 2)
+                int(self.dlg._dialog.rgbFitsCheckBox.checkState()) == 2)
 
             self.frame_open_args['convert_cr2'] = bool(
-                int(self.dlg.decodeCR2CheckBox.checkState()) == 2)
+                int(self.dlg._dialog.decodeCR2CheckBox.checkState()) == 2)
 
             self.checked_autodetect_min_quality = int(
-                self.dlg.minQualitycheckBox.checkState())
+                self.dlg._dialog.minQualitycheckBox.checkState())
 
             self.checked_seach_dark_flat = int(
-                self.dlg.autoFolderscheckBox.checkState())
+                self.dlg._dialog.autoFolderscheckBox.checkState())
 
             self.ftype_idx = int(
-                self.dlg.fTypeComboBox.currentIndex())
+                self.dlg._dialog.fTypeComboBox.currentIndex())
 
             self.checked_custom_temp_dir = int(
-                self.dlg.tempPathCheckBox.checkState())
+                self.dlg._dialog.tempPathCheckBox.checkState())
 
             self.checked_compressed_temp = int(
-                self.dlg.compressedTempCheckBox.checkState())
+                self.dlg._dialog.compressedTempCheckBox.checkState())
 
             self.custom_temp_path = str(
-                self.dlg.tempPathLineEdit.text())
+                self.dlg._dialog.tempPathLineEdit.text())
+
+            self.current_style = int(
+                    self.dlg._dialog.themeListWidget.currentRow())
 
             self.saveSettings()
 
@@ -936,7 +926,7 @@ class theApp(Qt.QObject):
         self.action_start_capture.setEnabled(False)
 
         self.direct_capture_type_tcb.setEnabled(False)
-        self.dlg.refreshPushButton.setEnabled(False)
+        self.dlg._dialog.refreshPushButton.setEnabled(False)
 
         self.__video_capture_stopped = False
         self.__video_capture_started = True
@@ -955,7 +945,7 @@ class theApp(Qt.QObject):
         self.action_start_capture.setEnabled(True)
 
         self.direct_capture_type_tcb.setEnabled(True)
-        self.dlg.refreshPushButton.setEnabled(True)
+        self.dlg._dialog.refreshPushButton.setEnabled(True)
 
         self.__video_capture_stopped = True
         self.__video_capture_started = False
@@ -1018,10 +1008,10 @@ class theApp(Qt.QObject):
 
                 self.isPreviewing = True
 
-                self.dlg.refreshPushButton.setEnabled(False)
-                old_tooltip = str(self.dlg.refreshPushButton.toolTip())
+                self.dlg._dialog.refreshPushButton.setEnabled(False)
+                old_tooltip = str(self.dlg._dialog.refreshPushButton.toolTip())
 
-                self.dlg.refreshPushButton.setToolTip(
+                self.dlg._dialog.refreshPushButton.setToolTip(
                     tr.tr("Cannot refresh devices list") + ": " +
                     tr.tr("current device is in use"))
 
@@ -1044,8 +1034,8 @@ class theApp(Qt.QObject):
                                    override_cursor=False)
 
                 self.current_cap_device.close()
-                self.dlg.refreshPushButton.setEnabled(True)
-                self.dlg.refreshPushButton.setToolTip(old_tooltip)
+                self.dlg._dialog.refreshPushButton.setEnabled(True)
+                self.dlg._dialog.refreshPushButton.setToolTip(old_tooltip)
                 self.stopDirectVideoCapture()
                 self.action_start_capture.setEnabled(False)
             else:
@@ -1283,46 +1273,46 @@ class theApp(Qt.QObject):
                           Qt.QPoint(self.aap_rectangle[0],
                                     self.aap_rectangle[1]))
         settings.setValue("autodetect_rectangle",
-                          int(self.dlg.autoSizeCheckBox.checkState()))
+                          int(self.dlg._dialog.autoSizeCheckBox.checkState()))
         settings.setValue("autodetect_quality",
-                          int(self.dlg.minQualitycheckBox.checkState()))
+                          int(self.dlg._dialog.minQualitycheckBox.checkState()))
         settings.setValue("max_align_points",
                           int(self.max_points))
         settings.setValue("min_point_quality",
                           float(self.min_quality))
         settings.setValue("use_whole_image",
-                          int(self.dlg.wholeImageCheckBox.checkState()))
+                          int(self.dlg._dialog.wholeImageCheckBox.checkState()))
         settings.setValue("current_colormap",
                           int(self.current_colormap))
         settings.setValue("toolbar_locked",
                           bool(self.action_lock_toolbars.isChecked()))
         settings.setValue("auto_rgb_fits",
-                          int(self.dlg.rgbFitsCheckBox.checkState()))
+                          int(self.dlg._dialog.rgbFitsCheckBox.checkState()))
         settings.setValue("auto_convert_cr2",
-                          int(self.dlg.decodeCR2CheckBox.checkState()))
+                          int(self.dlg._dialog.decodeCR2CheckBox.checkState()))
         settings.setValue("auto_search_dark_flat",
-                          int(self.dlg.autoFolderscheckBox.checkState()))
+                          int(self.dlg._dialog.autoFolderscheckBox.checkState()))
         settings.setValue("sharp1",
                           float(self.wnd.sharp1DoubleSpinBox.value()))
         settings.setValue("sharp2",
                           float(self.wnd.sharp2DoubleSpinBox.value()))
         settings.setValue("phase_image",
-                          int(self.dlg.showPhaseImgCheckBox.checkState()))
+                          int(self.dlg._dialog.showPhaseImgCheckBox.checkState()))
         settings.setValue("phase_order",
-                          int(self.dlg.phaseIntOrderSlider.value()))
+                          int(self.dlg._dialog.phaseIntOrderSlider.value()))
         settings.setValue("interpolation_order",
-                          int(self.dlg.intOrderSlider.value()))
+                          int(self.dlg._dialog.intOrderSlider.value()))
         settings.endGroup()
 
         settings.beginGroup("settings")
-        if self.dlg.useCustomLangCheckBox.checkState() == 2:
-            self.__current_lang = str(self.dlg.langFileLineEdit.text())
+        if self.dlg._dialog.useCustomLangCheckBox.checkState() == 2:
+            self.__current_lang = str(self.dlg._dialog.langFileLineEdit.text())
             settings.setValue("custom_language", 2)
         else:
-            idx = self.dlg.langComboBox.currentIndex()
+            idx = self.dlg._dialog.langComboBox.currentIndex()
             settings.setValue("custom_language", 0)
             if idx >= 0:
-                lang = self.dlg.langComboBox.itemData(idx)
+                lang = self.dlg._dialog.langComboBox.itemData(idx)
                 if type(lang) == Qt.QVariant:
                     self.__current_lang = str(lang.toString())
                 else:
@@ -1340,6 +1330,11 @@ class theApp(Qt.QObject):
                           str(self.custom_temp_path))
         settings.setValue("use_zipped_tempfiles",
                           int(self.checked_compressed_temp))
+        current_style_item = self.dlg._dialog.themeListWidget.item(
+                self.current_style)
+        settings.setValue("current_style_name",
+                          str(current_style_item.text()))
+
         settings.endGroup()
 
     def loadSettings(self):
@@ -1364,9 +1359,9 @@ class theApp(Qt.QObject):
             "use_whole_image", None, int)
         self.action_lock_toolbars.setChecked(settings.value(
             "toolbar_locked", None, bool))
-        self.dlg.decodeCR2CheckBox.setCheckState(settings.value(
+        self.dlg._dialog.decodeCR2CheckBox.setCheckState(settings.value(
             "auto_convert_cr2", None, int))
-        self.dlg.rgbFitsCheckBox.setCheckState(settings.value(
+        self.dlg._dialog.rgbFitsCheckBox.setCheckState(settings.value(
             "auto_rgb_fits", None, int))
         self.checked_seach_dark_flat = settings.value(
             "auto_search_dark_flat", None, int)
@@ -1401,16 +1396,26 @@ class theApp(Qt.QObject):
             "custom_temp_path", None, str))
         self.checked_compressed_temp = int(settings.value(
             "use_zipped_tempfiles", None, int))
+        current_style_name = str(settings.value(
+            "current_style_name", None, str))
+        current_style_item = self.dlg._dialog.themeListWidget.findItems(
+            current_style_name,
+            QtCore.Qt.MatchExactly)[0]
+        self.current_style = self.dlg._dialog.themeListWidget.row(
+                current_style_item)
         settings.endGroup()
 
-        self.dlg.wholeImageCheckBox.setCheckState(
+        self.dlg._dialog.wholeImageCheckBox.setCheckState(
             self.aap_wholeimage)
 
-        self.dlg.minQualitycheckBox.setCheckState(
+        self.dlg._dialog.minQualitycheckBox.setCheckState(
             self.checked_autodetect_min_quality)
 
-        self.dlg.autoFolderscheckBox.setCheckState(
+        self.dlg._dialog.autoFolderscheckBox.setCheckState(
             self.checked_seach_dark_flat)
+
+        self.dlg._dialog.themeListWidget.setCurrentRow(
+            self.current_style)
 
         self.wnd.alignMethodComboBox.setCurrentIndex(
             self.current_align_method)
@@ -2069,13 +2074,13 @@ class theApp(Qt.QObject):
             self.currentHeight = imh
             self.currentDepht = dep
 
-            if self.dlg.autoSizeCheckBox.checkState() == 2:
+            if self.dlg._dialog.autoSizeCheckBox.checkState() == 2:
                 r_w = int(self.currentWidth/10)
                 r_h = int(self.currentHeight/10)
                 r_l = max(r_w, r_h)
                 self.aap_rectangle = (r_l, r_h)
-                self.dlg.rWSpinBox.setValue(r_l)
-                self.dlg.rHSpinBox.setValue(r_l)
+                self.dlg._dialog.rWSpinBox.setValue(r_l)
+                self.dlg._dialog.rHSpinBox.setValue(r_l)
 
         self.current_dir = os.path.dirname(str(newlist[0]))
         rejected = ''
@@ -2866,13 +2871,13 @@ class theApp(Qt.QObject):
         return idx - 1
 
     def addAlignPoint(self):
-        if self.dlg.autoSizeCheckBox.checkState() == 2:
+        if self.dlg._dialog.autoSizeCheckBox.checkState() == 2:
             r_w = int(self.currentWidth/10)
             r_h = int(self.currentHeight/10)
             r_l = max(r_w, r_h)
             self.aap_rectangle = (r_l, r_h)
-            self.dlg.rWSpinBox.setValue(r_l)
-            self.dlg.rHSpinBox.setValue(r_l)
+            self.dlg._dialog.rWSpinBox.setValue(r_l)
+            self.dlg._dialog.rHSpinBox.setValue(r_l)
 
         idx = self.addFeature(imgfeatures.AlignmentPoint,
                               'ap#{0:05d}',

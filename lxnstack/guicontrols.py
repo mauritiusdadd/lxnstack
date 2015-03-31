@@ -24,6 +24,7 @@ from PyQt4 import Qt, QtCore, QtGui, uic
 import translation as tr
 import plotting
 import utils
+import styles
 import colormaps as cmaps
 import mappedimage
 import numpy as np
@@ -60,6 +61,30 @@ class AboutWindow(DialogWindow):
 
     def exec_(self):
         return self._dialog.exec_()
+
+
+class OptionsDialog(DialogWindow):
+
+    def __init__(self):
+        DialogWindow.__init__(self, 'option_dialog.ui')
+
+        self._dialog.refreshPushButton.setIcon(utils.getQIcon("view-refresh"))
+
+        self._stylesheets = styles.enumarateStylesSheet()
+        for stylesheet_file in self._stylesheets:
+            self._dialog.themeListWidget.addItem(stylesheet_file)
+
+        self._dialog.themeListWidget.currentItemChanged.connect(
+            self.setApplicationStyleSheet)
+
+    def setApplicationStyleSheet(self, current, previous):
+        stylename = str(current.text())
+        try:
+            filename = self._stylesheets[stylename]
+        except KeyError:
+            filename = None
+        styles.setApplicationStyleSheet(filename)
+        self._current_stylesheet = stylename
 
 
 class StackingDialog(DialogWindow):
