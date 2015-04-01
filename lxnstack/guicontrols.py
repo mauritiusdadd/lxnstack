@@ -675,6 +675,7 @@ class ImageViewer(QtGui.QWidget):
 
     def setFeatures(self, flist):
         self.image_features = flist
+        self.imageLabel.repaint()
 
     def doSaveImage(self):
         if self.mapped_image is not None:
