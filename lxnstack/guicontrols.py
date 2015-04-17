@@ -487,6 +487,44 @@ class ToolComboCheckBox(ToolComboBox):
         self.itemChanged = self._selector.itemChanged
 
 
+class ExifViewer(QtGui.QDialog):
+
+    def __init__(self, title=""):
+
+        QtGui.QDialog.__init__(self)
+
+        self.setWindowTitle(title)
+        self._table = QtGui.QTableWidget(0, 2)
+
+        mainlayout = QtGui.QVBoxLayout()
+        mainlayout.addWidget(self._table)
+
+        self.setLayout(mainlayout)
+
+    def showImageProperties(self, p):
+        self._table.clear()
+        self._table.setSortingEnabled(False)
+        self._table.setHorizontalHeaderLabels(
+            ("Key", "Value"))
+        self._table.horizontalHeader().setResizeMode(
+                1,
+                QtGui.QHeaderView.Stretch)
+        self._table.verticalHeader().hide()
+
+        for key in p.keys():
+
+            if key == 'listItem':
+                continue
+            key_item = QtGui.QTableWidgetItem(str(key))
+            val_item = QtGui.QTableWidgetItem(str(p[key]))
+
+            self._table.insertRow(0)
+            self._table.setItem(0, 0, key_item)
+            self._table.setItem(0, 1, val_item)
+
+        self._table.setSortingEnabled(True)
+
+
 class ImageViewer(QtGui.QWidget):
 
     # titleChanged = QtCore.pyqtSignal(str)
@@ -509,7 +547,9 @@ class ImageViewer(QtGui.QWidget):
         self.colorbarmap = mappedimage.MappedImage(name='colorbar')
         self.user_cursor = QtCore.Qt.OpenHandCursor
         self.levels_range = [0, 100]
+        self.image_name = ""
         self.image_features = []
+        self.image_properties = {}
         self.statusLabelMousePos = infolabel
 
         toolbar = Qt.QToolBar('ImageViewerToolBar')
@@ -526,6 +566,11 @@ class ImageViewer(QtGui.QWidget):
             self)
 
         action_edit_levels.setCheckable(True)
+
+        action_show_exif = QtGui.QAction(
+            utils.getQIcon("show-exif"),
+            tr.tr('Show image properties'),
+            self)
 
         # colormap controls
         self.colormap_selector = ToolComboBox(
@@ -627,6 +672,7 @@ class ImageViewer(QtGui.QWidget):
 
         toolbar.addAction(save_action)
         toolbar.addAction(action_edit_levels)
+        toolbar.addAction(action_show_exif)
         toolbar.addWidget(self.colormap_selector)
         toolbar.addWidget(self.zoomCheckBox)
         toolbar.addWidget(self.zoomSlider)
@@ -659,6 +705,7 @@ class ImageViewer(QtGui.QWidget):
 
         save_action.triggered.connect(self.doSaveImage)
         action_edit_levels.triggered.connect(self.doEditLevels)
+        action_show_exif.triggered.connect(self.showImageProperties)
 
         self.mapped_image.remapped.connect(self.updateImage)
         self.zoomCheckBox.stateChanged.connect(self.setZoomMode)
@@ -681,6 +728,11 @@ class ImageViewer(QtGui.QWidget):
         if self.mapped_image is not None:
             frm = utils.Frame()
             frm.saveData(data=self.mapped_image.getMappedData())
+
+    def showImageProperties(self):
+        ev = ExifViewer(self.image_name+" "+tr.tr("properties"))
+        ev.showImageProperties(self.image_properties)
+        ev.exec_()
 
     def setColorMapID(self, cmapid):
         self.setColorMap(cmaps.COLORMAPS[cmapid])

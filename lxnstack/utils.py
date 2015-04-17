@@ -1170,7 +1170,12 @@ class Frame(Qt.QObject):
             for date_tag, time_tag in (('DATE-OBS', 'TIME-OBS'),
                                        ('DATE', 'TIME')):
                 if date_tag in header:
-                    ctime = _getCTime(header[date_tag], 'T')
+                    try:
+                        ctime = _getCTime(header[date_tag], 'T')
+                    except:
+                        log.log(repr(self),
+                                "FITS: corrupted or invaild time format",
+                                level=logging.WARNING)
 
             # Checking for 3 ImageHDU (red, green and blue components)
             if self.RGB_mode and (len(hdu_table) >= 3):

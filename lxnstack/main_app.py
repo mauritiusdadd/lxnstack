@@ -1488,7 +1488,9 @@ class theApp(Qt.QObject):
         if type(image) == utils.Frame:
             iv.showImage(self.debayerize(image.getData(asarray=True)))
             self.mdi_windows[sw]['references'] = [image, ]
+            iv.image_name = image.name
             iv.image_features = image.getAllFeatures()
+            iv.image_properties = image.properties
             image.featuresChanged.connect(iv.setFeatures)
         else:
             iv.showImage(image)
