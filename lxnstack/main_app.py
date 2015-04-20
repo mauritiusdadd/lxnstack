@@ -1863,6 +1863,7 @@ class theApp(Qt.QObject):
         menu_video.addAction(self.action_start_capture)
         menu_video.addAction(self.action_stop_capture)
         self.capture_devices_menu = menu_video.addMenu("capture devices")
+        self.capture_devices_menu.setIcon(utils.getQIcon("camera"))
 
         # Stacking menu
         menu_stacking.addAction(self.action_align)
@@ -1949,6 +1950,7 @@ class theApp(Qt.QObject):
 
         devices_button = QtGui.QToolButton()
         devices_button.setMenu(self.capture_devices_menu)
+        devices_button.setIcon(utils.getQIcon("camera"))
         devices_button.setPopupMode(QtGui.QToolButton.InstantPopup)
 
         toolbar.addWidget(devices_button)
