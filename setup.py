@@ -18,7 +18,7 @@ setup(name='lxnstack',
                   ('share/applications', ['mime/lxnstack.desktop']),
                   ('share/lxnstack/', ['mime/lxnstack-project.xml',
                                        'mime/lxnstack.png']),
-                  ('share/icons/', ['mime/lxnstack.png']),
+                  ('share/pixmaps/', ['mime/lxnstack.png']),
                   ],
       scripts=['scripts/lxnstack']
       )
