@@ -2835,11 +2835,11 @@ class CaptureJob(Qt.QObject):
                                              "{0:08x}".format(captured_frames))
                     frm = utils.Frame(file_name)
                     try:
-                        frm.save(data=self._device.getFrame(),
-                                 force_overwrite=True,
-                                 save_dlg=False,
-                                 fmat='fits',
-                                 bits='16')
+                        frm.saveData(data=self._device.getFrame(),
+                                     force_overwrite=True,
+                                     save_dlg=False,
+                                     frmat='fits',
+                                     bits='16')
                     except Exception as exc:
                         log.log(repr(self),
                                 "An error has occured during " +
