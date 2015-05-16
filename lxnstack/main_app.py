@@ -693,9 +693,25 @@ class theApp(Qt.QObject):
         self.current_cap_device.lockStateChanged.connect(
             self.dlg._dialog.refreshPushButton.setDisabled)
 
+        log.log(repr(self),
+                "Setting current capture device to " +
+                str(self.current_cap_device),
+                level=logging.INFO)
+
+        _action_match = False
         for action in self.capture_devices_menu._video_action_group.actions():
             if index == action.index:
+                _action_match = True
                 action.setChecked(True)
+                break
+
+        if not _action_match:
+            log.log(repr(self),
+                    "BUG: no action for device " +
+                    str(self.current_cap_device),
+                    level=logging.DEBUG)
+
+        self.action_enable_video.setEnabled(True)
 
         # adding the device's controls widget
         self.dlg._dialog.controlsLayout.addWidget(
@@ -713,6 +729,9 @@ class theApp(Qt.QObject):
                 self.dlg._dialog.devComboBox.setCurrentIndex(action.index)
 
     def updateCaptureDevicesList(self):
+        log.log(repr(self),
+                "Updating video capture devices list",
+                level=logging.DEBUG)
         self.devices = tuple(videocapture.listVideoDevices())
         self.dlg._dialog.devComboBox.clear()
         action_group = QtGui.QActionGroup(self.capture_devices_menu)
@@ -723,12 +742,12 @@ class theApp(Qt.QObject):
             index = self.devices.index(device)
             name = "[{0: ^6s}] {1}".format(device['interface'],
                                            device['name'])
-            self.dlg._dialog.devComboBox.insertItem(index, name)
             action = self.capture_devices_menu.addAction(name)
             action.index = index
             action.setCheckable(True)
             action.toggled.connect(self._setCurrentCaptureDeviceFromActions)
             self.capture_devices_menu._video_action_group.addAction(action)
+            self.dlg._dialog.devComboBox.insertItem(index, name)
 
     def setPreferences(self):
 
@@ -1023,6 +1042,7 @@ class theApp(Qt.QObject):
                 # preview main loop
                 self.lockSidebar()
 
+                self.direct_capture_type_tcb.setEnabled(True)
                 while (self.isPreviewing):
                     QtGui.QApplication.instance().processEvents()
                     if self.current_cap_device.isLocked():
@@ -1038,6 +1058,7 @@ class theApp(Qt.QObject):
                 self.dlg._dialog.refreshPushButton.setToolTip(old_tooltip)
                 self.stopDirectVideoCapture()
                 self.action_start_capture.setEnabled(False)
+                self.direct_capture_type_tcb.setEnabled(False)
             else:
                 self.isPreviewing = False
                 log.log(repr(self),
@@ -1808,6 +1829,7 @@ class theApp(Qt.QObject):
         self.action_enable_video.setCheckable(True)
         self.action_enable_video.toggled.connect(
             self.enableVideoPreview)
+        self.action_enable_video.setEnabled(False)
 
         self.action_start_capture = QtGui.QAction(
             utils.getQIcon("video-recording-start"),
