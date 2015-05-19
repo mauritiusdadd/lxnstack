@@ -3507,6 +3507,8 @@ class theApp(Qt.QObject):
                     ' project name: \''+str(project_fname)+'\'',
                     level=logging.DEBUG)
 
+        proj_path = os.path.dirname(project_fname)
+
         try:
             dom = minidom.parse(project_fname)
         except Exception as err:
@@ -3617,19 +3619,22 @@ class theApp(Qt.QObject):
 
             try:
                 url_node = master_bias_node.getElementsByTagName('url')[0]
-                master_bias_url = url_node.childNodes[0].data
+                node_url = url_node.childNodes[0].data
+                master_bias_url = utils.getProjectAbsURL(proj_path, node_url)
             except:
                 master_bias_url = ''
 
             try:
                 url_node = master_dark_node.getElementsByTagName('url')[0]
-                master_dark_url = url_node.childNodes[0].data
+                node_url = url_node.childNodes[0].data
+                master_dark_url = utils.getProjectAbsURL(proj_path, node_url)
             except:
                 master_dark_url = ''
 
             try:
                 url_node = master_flat_node.getElementsByTagName('url')[0]
-                master_flat_url = url_node.childNodes[0].data
+                node_url = url_node.childNodes[0].data
+                master_flat_url = utils.getProjectAbsURL(proj_path, node_url)
             except:
                 master_flat_url = ''
 
@@ -3660,7 +3665,8 @@ class theApp(Qt.QObject):
                             im_bias_used = 2
 
                     url_bias_node = node.getElementsByTagName('url')[0]
-                    im_bias_url = url_bias_node.childNodes[0].data
+                    _bias_url = url_bias_node.childNodes[0].data
+                    im_bias_url = utils.getProjectAbsURL(proj_path, _bias_url)
 
                     if 'page' in url_bias_node.attributes.keys():
                         im_bias_page = url_bias_node.getAttribute('page')
@@ -3715,7 +3721,9 @@ class theApp(Qt.QObject):
                         im_dark_used = 2
 
                 url_dark_node = node.getElementsByTagName('url')[0]
-                im_dark_url = url_dark_node.childNodes[0].data
+                _dark_url = url_dark_node.childNodes[0].data
+                im_dark_url = utils.getProjectAbsURL(proj_path, _dark_url)
+
                 if 'page' in url_dark_node.attributes.keys():
                     im_dark_page = url_dark_node.getAttribute('page')
                     darkfrm = utils.Frame(im_dark_url,
@@ -3768,7 +3776,9 @@ class theApp(Qt.QObject):
                         im_flat_name = 2
 
                 url_flat_node = node.getElementsByTagName('url')[0]
-                im_flat_url = url_flat_node.childNodes[0].data
+                _flat_url = url_flat_node.childNodes[0].data
+                im_flat_url = utils.getProjectAbsURL(proj_path, _flat_url)
+
                 if 'page' in url_flat_node.attributes.keys():
                     im_flat_page = url_flat_node.getAttribute('page')
                     flatfrm = utils.Frame(im_flat_url,
@@ -3818,7 +3828,8 @@ class theApp(Qt.QObject):
                         raise exc
 
                 im_url_node = node.getElementsByTagName('url')[0]
-                im_url = im_url_node.childNodes[0].data
+                _url = im_url_node.childNodes[0].data
+                im_url = utils.getProjectAbsURL(proj_path, _url)
 
                 if 'page' in im_url_node.attributes.keys():
                     im_page = im_url_node.getAttribute('page')

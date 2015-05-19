@@ -449,6 +449,14 @@ def getNumberOfComponents(mode):
         return 0
 
 
+def getProjectAbsURL(project_dir, url):
+    if os.path.isabs(url):
+        return url
+    else:
+        abs_url = os.path.join(project_dir, url)
+        return os.path.realpath(abs_url)
+
+
 class SaveImageDialog(object):
 
     def __init__(self, url=""):
