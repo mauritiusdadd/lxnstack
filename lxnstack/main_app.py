@@ -1539,11 +1539,13 @@ class theApp(Qt.QObject):
         else:
             sw = mdisubwindow
             newtab = False
-
-        sw_type = self.mdi_windows[sw]['type']
-        if ((not (sw in self.mdi_windows.keys())) or
-                (sw_type != guicontrols.DIFFERENCEVIEWER)):
+        if sw is None:
             newtab = True
+        else:
+            sw_type = self.mdi_windows[sw]['type']
+            if ((not (sw in self.mdi_windows.keys())) or
+                    (sw_type != guicontrols.DIFFERENCEVIEWER)):
+                newtab = True
 
         if (not newtab) and (sw is not None):
             sw.setWindowTitle("manual alignment")
@@ -3089,7 +3091,6 @@ class theApp(Qt.QObject):
         if self.dif_image_idx >= 0:
             img = self.framelist[self.dif_image_idx]
             img.offset[0] = val
-            print("ooooo")
             self.showDifference(reload_images=False)
 
     def shiftOffsetY(self, val):
