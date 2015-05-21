@@ -1568,7 +1568,10 @@ class theApp(Qt.QObject):
             iv.setRefShift(reference.offset[0],
                            reference.offset[1],
                            reference.angle)
-        except:
+        except Exception as exc:
+            log.log(repr(self),
+                    "Exception: " + str(exc),
+                    level=logging.DEBUG)
             pass
 
         self.mdi_windows[sw]['widget'] = iv
@@ -3086,6 +3089,7 @@ class theApp(Qt.QObject):
         if self.dif_image_idx >= 0:
             img = self.framelist[self.dif_image_idx]
             img.offset[0] = val
+            print("ooooo")
             self.showDifference(reload_images=False)
 
     def shiftOffsetY(self, val):

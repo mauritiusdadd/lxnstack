@@ -722,7 +722,7 @@ class ImageViewer(QtGui.QWidget):
 
     def setFeatures(self, flist):
         self.image_features = flist
-        self.imageLabel.repaint()
+        self.imageLabel.update()
 
     def doSaveImage(self):
         if self.mapped_image is not None:
@@ -1278,10 +1278,18 @@ class DifferenceViewer(ImageViewer):
 
     def setOffset(self, dx, dy, theta):
         self.offset = (dx, dy, theta)
+        log.log(repr(self),
+                "Setting image offset to " + str(self.offset),
+                level=logging.DEBUG)
+        self.imageLabel.update()
         self.update()
 
     def setRefShift(self, dx, dy, theta):
         self.ref_shift = (dx, dy, theta)
+        log.log(repr(self),
+                "Setting reference image offset to " + str(self.ref_shift),
+                level=logging.DEBUG)
+        self.imageLabel.update()
         self.update()
 
     def setRefImage(self, image):
