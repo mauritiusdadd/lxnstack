@@ -5833,6 +5833,23 @@ class theApp(Qt.QObject):
             self.lock(False)
             self.progress.setMaximum(len(self.framelist))
             count = 0
+
+            self.stack(skip_light=True)
+
+            QtGui.QApplication.instance().processEvents()
+
+            self.lock()
+
+            masters = self.generateMasters(self._bas,
+                                           self._drk,
+                                           self._flt,
+                                           None)
+            master_bias = masters[0]
+            master_dark = masters[1]
+            master_flat = masters[2]
+            hot_pixels = masters[3]
+
+
             self.statusBar.showMessage(tr.tr('Writing video, please wait...'))
 
             for frm in self.framelist:
@@ -5850,10 +5867,16 @@ class theApp(Qt.QObject):
                             'loading data...',
                             level=logging.DEBUG)
 
-                    img = self.debayerize(frm.getData(asarray=True,
-                                                      asuint8=True,
-                                                      fit_levels=fitlvl))
-                    img = img.astype(np.uint8)
+                    img = self.calibrate(
+                        frm.getData(asarray=True, ftype=self.ftype),
+                        master_bias,
+                        master_dark,
+                        master_flat,
+                        hot_pixels,
+                        debayerize_result=False)
+
+                    img = self.debayerize(img)
+                    img = utils.normToUint8(img, fitlvl).astype(np.uint8)
 
                     _rgb = (len(img.shape) == 3)
 
