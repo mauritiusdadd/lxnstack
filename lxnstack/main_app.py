@@ -4752,43 +4752,46 @@ class theApp(Qt.QObject):
                     "generating hot-pixels map",
                     level=logging.DEBUG)
 
-            if hot_pixels_options['hp_smart']:
-                trashold = hot_pixels_options['hp_trashold']
-
-                if (len(master_dark.shape) == 2 or
-                        hot_pixels_options['hp_global']):
-                    mean_dark = master_dark.mean()
-                    ddev_dark = master_dark.std()
-                    diff_dark = abs(master_dark-mean_dark)
-                    clip_datk = trashold*ddev_dark
-
-                    hp_list = np.argwhere(diff_dark >= clip_datk)
-                    hot_pixels = {'global': True,
-                                  'data': hp_list}
-                    hp_count = len(hot_pixels['data'])
-
-                    log.log(repr(self),
-                            "Found " + str(hp_count) + " hot pixels",
-                            level=logging.INFO)
-
-                elif len(master_dark.shape) == 3:
-                    hot_pixels = {'global': False,
-                                  'data': []}
-                    hp_count = 0
-
-                    for c in range(master_dark.shape[2]):
-                        mean_dark = master_dark[..., c].mean()
-                        ddev_dark = master_dark[..., c].std()
-                        diff_dark = abs(master_dark[..., c]-mean_dark)
+            if hot_pixels_options is not None:
+                try:
+                    trashold = hot_pixels_options['hp_trashold']
+                except KeyError:
+                    hot_pixels = None
+                else:
+                    if (len(master_dark.shape) == 2 or
+                            hot_pixels_options['hp_global']):
+                        mean_dark = master_dark.mean()
+                        ddev_dark = master_dark.std()
+                        diff_dark = abs(master_dark-mean_dark)
                         clip_datk = trashold*ddev_dark
 
                         hp_list = np.argwhere(diff_dark >= clip_datk)
-                        hp_count += len(hp_list)
-                        hot_pixels['data'].append(hp_list)
+                        hot_pixels = {'global': True,
+                                      'data': hp_list}
+                        hp_count = len(hot_pixels['data'])
 
-                    log.log(repr(self),
-                            "Found "+str(hp_count)+" hot pixels",
-                            level=logging.INFO)
+                        log.log(repr(self),
+                                "Found " + str(hp_count) + " hot pixels",
+                                level=logging.INFO)
+
+                    elif len(master_dark.shape) == 3:
+                        hot_pixels = {'global': False,
+                                      'data': []}
+                        hp_count = 0
+
+                        for c in range(master_dark.shape[2]):
+                            mean_dark = master_dark[..., c].mean()
+                            ddev_dark = master_dark[..., c].std()
+                            diff_dark = abs(master_dark[..., c]-mean_dark)
+                            clip_datk = trashold*ddev_dark
+
+                            hp_list = np.argwhere(diff_dark >= clip_datk)
+                            hp_count += len(hp_list)
+                            hot_pixels['data'].append(hp_list)
+
+                        log.log(repr(self),
+                                "Found "+str(hp_count)+" hot pixels",
+                                level=logging.INFO)
             else:
                 hot_pixels = None
         else:
@@ -5547,9 +5550,20 @@ class theApp(Qt.QObject):
                 try:
                     adu_val, adu_delta = lcurves.getInstMagnitudeADU(st, r)
                 except Exception as exc:
-                    utils.showErrorMsgBox(str(exc), caller=self)
-                    self.unlock()
-                    return False
+                    exc_msg = str(exc) + "\n"
+                    exc_msg += "Image: " + img.name + "\n"
+                    exc_msg += "Star: " + st_name
+                    utils.showErrorMsgBox(exc_msg, caller=self)
+
+                    # removing curve points form this image
+                    for plt_st_name in adu_plots.keys():
+                        for plt_comp_name in adu_plots[st_name].keys():
+                            adu_plots[plt_st_name][plt_comp_name][img_idx]
+
+                    break
+                    # skipping image
+                    # self.unlock()
+                    # return False
 
                 for cn in range(len(adu_val)):
                     val = (frm_time, adu_val[cn], 0, np.float(adu_delta[cn]))

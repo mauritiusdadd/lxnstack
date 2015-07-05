@@ -189,10 +189,10 @@ class VideSaveDialog(DialogWindow):
         if cidx == 0:
             fcc_str = 'DIVX'
             # max_res = (4920, 4920)
-        elif cidx == 0:
+        elif cidx == 1:
             fcc_str = 'MJPG'
             # max_res = (9840, 9840)
-        elif cidx == 0:
+        elif cidx == 1:
             fcc_str = 'U263'
             # max_res = (2048, 1024)
         return fcc_str
