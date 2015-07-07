@@ -360,7 +360,7 @@ def _getCTime(v, sep=' '):
 
     yy = int(dt[0])
 
-    if dt[0] < 100:
+    if yy < 100:
         # WARNING: this is valid untill 2099! :)
         tm_struct[0] = 1990+yy
     else:
@@ -1481,7 +1481,6 @@ class Frame(Qt.QObject):
                                           **args)
                     except:
                         image = None
-
                     if (image is None or
                             cr2file.size[0] != self.width or
                             cr2file.size[1] != self.height):

@@ -567,6 +567,18 @@ class QCR2Image(QtCore.QObject):
     def cancel(self):
         self._canceled = True
 
+    def getImageBorders(self):
+
+        # Here we have a sensor with a Bayer matrix, so border sizes
+        # *must* be multiple of 2 and cropped image *must* be within
+        # the makernote borders
+
+        bbord = self.Sensor.bottom_border - (self.Sensor.bottom_border % 2)
+        tbord = self.Sensor.top_border + (self.Sensor.top_border % 2)
+        lbord = self.Sensor.left_border + (self.Sensor.left_border % 2)
+        rbord = self.Sensor.right_border - (self.Sensor.right_border % 2)
+        return (lbord, bbord, rbord, tbord)
+
     def load(self, fname=None, ifd=3):
         if (not self.isOpened):
             if fname is None:
@@ -577,10 +589,12 @@ class QCR2Image(QtCore.QObject):
         if ifd == 3:
             uncropped = self.decodeRawImage()
 
-            bbord = self.Sensor.bottom_border + (self.Sensor.bottom_border % 2)
-            tbord = self.Sensor.top_border - (self.Sensor.top_border % 2)
-            lbord = self.Sensor.left_border - (self.Sensor.left_border % 2)
-            rbord = self.Sensor.right_border + (self.Sensor.right_border % 2)
+            border = self.getImageBorders()
+
+            bbord = border[1]
+            tbord = border[3]
+            lbord = border[0]
+            rbord = border[2]
 
             #  +---------------------------------------------+ \
             #  |                 TOP BORDER                  | |
@@ -666,10 +680,12 @@ class QCR2Image(QtCore.QObject):
 
         self.Sensor = Sensor(self.MAKERNOTES[SensorInfo])
 
-        bbord = self.Sensor.bottom_border + (self.Sensor.bottom_border % 2)
-        tbord = self.Sensor.top_border - (self.Sensor.top_border % 2)
-        lbord = self.Sensor.left_border - (self.Sensor.left_border % 2)
-        rbord = self.Sensor.right_border + (self.Sensor.right_border % 2)
+        border = self.getImageBorders()
+
+        bbord = border[1]
+        tbord = border[3]
+        lbord = border[0]
+        rbord = border[2]
 
         self.size = (rbord - lbord, bbord - tbord)
 
