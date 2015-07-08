@@ -841,16 +841,14 @@ class theApp(Qt.QObject):
         imh = img.shape[0]
 
         if len(img.shape) == 2:
-            dep = 'L'
-        elif len(img.shape) == 3 and img.shape[-1] == 3:
-            dep = 'RGB'
+            dep = 1 
         else:
-            dep = 'RGBA'
+            dep = img.shape[2]
 
         if self.framelist:
             if((imw != self.currentWidth) or
                (imh != self.currentHeight) or
-               (dep != self.currentDepht[0:3])):
+               (dep != self.currentDepht)):
                 utils.showErrorMsgBox(
                     tr.tr("Frame size or number of channels does not match."),
                     tr.tr('current size=') +
@@ -1102,7 +1100,7 @@ class theApp(Qt.QObject):
                     return False
                 imw = i.width
                 imh = i.height
-                dep = i.mode
+                dep = i.getNumberOfComponents()
                 if ((self.currentWidth == imw) and
                         (self.currentHeight == imh) and
                         (self.currentDepht == dep)):
@@ -1116,7 +1114,7 @@ class theApp(Qt.QObject):
                         str(self.currentWidth) + 'x' +
                         str(self.currentHeight) + '\n' +
                         tr.tr('image size=') +
-                        str(imw)+'x'+str(imh) + '\n' +
+                        str(imw) + 'x' + str(imh) + '\n' +
                         tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
                         tr.tr('image channels=') + str(dep),
@@ -1166,7 +1164,7 @@ class theApp(Qt.QObject):
                     return False
                 imw = i.width
                 imh = i.height
-                dep = i.mode
+                dep = i.getNumberOfComponents()
                 if ((self.currentWidth == imw) and
                         (self.currentHeight == imh) and
                         (self.currentDepht == dep)):
@@ -1183,7 +1181,7 @@ class theApp(Qt.QObject):
                         str(imw) + 'x' + str(imh) + '\n' +
                         tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
-                        tr.tr('image channels=')+str(dep),
+                        tr.tr('image channels=') + str(dep),
                         parent=self.wnd,
                         caller=self)
                 del i
@@ -1229,7 +1227,7 @@ class theApp(Qt.QObject):
                     return False
                 imw = i.width
                 imh = i.height
-                dep = i.mode
+                dep = i.getNumberOfComponents()
                 if ((self.currentWidth == imw) and
                         (self.currentHeight == imh) and
                         (self.currentDepht == dep)):
@@ -1243,7 +1241,7 @@ class theApp(Qt.QObject):
                         str(self.currentWidth) + 'x' +
                         str(self.currentHeight) + '\n' +
                         tr.tr('image size=') +
-                        str(imw)+'x'+str(imh) + '\n' +
+                        str(imw) + 'x' + str(imh) + '\n' +
                         tr.tr('current channels=') +
                         str(self.currentDepht) + '\n' +
                         tr.tr('image channels=') + str(dep),
@@ -2085,7 +2083,7 @@ class theApp(Qt.QObject):
         if self.framelist:
             imw = self.currentWidth
             imh = self.currentHeight
-            dep = self.currentDepht[0:3]
+            dep = self.currentDepht
         else:
             ref = utils.Frame(str(newlist[0]), **self.frame_open_args)
             if not ref.is_good:
@@ -2097,7 +2095,7 @@ class theApp(Qt.QObject):
                 return False
             imw = ref.width
             imh = ref.height
-            dep = ref.mode
+            dep = ref.getNumberOfComponents()
 
             del ref
 
@@ -2146,14 +2144,14 @@ class theApp(Qt.QObject):
                         rejected += str(self.currentHeight)+' '
                         rejected += tr.tr('image size')+'='
                         rejected += str(img.width)+'x'+str(img.height)+'\n'
-                    elif not(dep in img.mode):
+                    elif dep != img.getNumberOfComponents():
                         warnings = True
                         rejected += img.url+' --> '
                         rejected += tr.tr('number of channels does not match')
                         rejected += ':\n'+tr.tr('current channels')+'='
                         rejected += str(self.currentDepht)+' '
                         rejected += tr.tr('image channels')+'='
-                        rejected += str(img.mode)+'\n'
+                        rejected += str(img.getNumberOfComponents())+'\n'
                     else:
                         q = Qt.QListWidgetItem(img.tool_name)
                         q.setCheckState(2)
@@ -2333,7 +2331,7 @@ class theApp(Qt.QObject):
                 while i.is_good:
                     if ((self.currentWidth == i.width) and
                             (self.currentHeight == i.height) and
-                            (self.currentDepht == i.mode)):
+                            (self.currentDepht == i.getNumberOfComponents())):
                         framelist.append(i)
                         q = Qt.QListWidgetItem(i.tool_name, framelistwidget)
                         q.setToolTip(i.long_tool_name)
@@ -2434,7 +2432,7 @@ class theApp(Qt.QObject):
             self.wnd.lightListWidget.item(i).setCheckState(state)
 
     def isBayerUsed(self):
-        if ((self.currentDepht in '1LPIF') and
+        if ((self.currentDepht == 1) and
                 self.action_enable_rawmode.isChecked()):
             # the image is RAW monocromathic with bayer matrix
             return True
@@ -3280,7 +3278,7 @@ class theApp(Qt.QObject):
         # <information> section
         information_node.setAttribute('width', str(int(self.currentWidth)))
         information_node.setAttribute('height', str(int(self.currentHeight)))
-        information_node.setAttribute('mode', str(self.currentDepht))
+        information_node.setAttribute('mode', str(int(self.currentDepht)))
         information_node.setAttribute('bayer-mode', str(int(bayer_mode)))
 
         current_dir_node = doc.createElement('current-dir')
@@ -3602,7 +3600,7 @@ class theApp(Qt.QObject):
 
             imw = int(information_node.getAttribute('width'))
             imh = int(information_node.getAttribute('height'))
-            dep = information_node.getAttribute('mode').split(';')[0]
+            dep = int(information_node.getAttribute('mode'))
 
             try:
                 bayer_mode = int(information_node.getAttribute('bayer-mode'))
@@ -3840,12 +3838,12 @@ class theApp(Qt.QObject):
                     im_page = im_url_node.getAttribute('page')
                     frm = utils.Frame(im_url,
                                       int(im_page),
-                                      skip_loading=False,
+                                      skip_loading=True,
                                       **self.frame_open_args)
                 else:
                     frm = utils.Frame(im_url,
                                       0,
-                                      skip_loading=False,
+                                      skip_loading=True,
                                       **self.frame_open_args)
 
                 for point in node.getElementsByTagName('align-point'):
@@ -4040,8 +4038,8 @@ class theApp(Qt.QObject):
         i = self.framelist[self.image_idx].getData(asarray=True)
         i = i.astype(np.float32)
 
-        if 'RGB' in self.currentDepht:
-            i = i.sum(2)/3.0
+        if self.currentDepht > 1:
+            i = i.sum(2)/self.currentDepht
 
         rw = self.aap_rectangle[0]
         rh = self.aap_rectangle[1]
@@ -4566,17 +4564,17 @@ class theApp(Qt.QObject):
             self.stack_dlg.section_light,
             skip_light)
 
-        self.stack_dlg.setSectionDisabled(
-            self.stack_dlg.section_bias,
-            self.wnd.masterBiasCheckBox.checkState())
+        # self.stack_dlg.setSectionDisabled(
+        #     self.stack_dlg.section_bias,
+        #     self.wnd.masterBiasCheckBox.checkState())
 
-        self.stack_dlg.setSectionDisabled(
-            self.stack_dlg.section_dark,
-            self.wnd.masterDarkCheckBox.checkState())
+        # self.stack_dlg.setSectionDisabled(
+        #     self.stack_dlg.section_dark,
+        #     self.wnd.masterDarkCheckBox.checkState())
 
-        self.stack_dlg.setSectionDisabled(
-            self.stack_dlg.section_flat,
-            self.wnd.masterFlatCheckBox.checkState())
+        # self.stack_dlg.setSectionDisabled(
+        #     self.stack_dlg.section_flat,
+        #     self.wnd.masterFlatCheckBox.checkState())
 
         if method is not None:
             bias_method = method
@@ -5439,7 +5437,7 @@ class theApp(Qt.QObject):
         if self.isBayerUsed():
             return 3
         else:
-            return utils.getNumberOfComponents(self.currentDepht)
+            return self.currentDepht
 
     def doGenerateLightCurves(self):
         return self.generateLightCurves()
@@ -5457,7 +5455,7 @@ class theApp(Qt.QObject):
                 'generating light curves, please wait...',
                 level=logging.INFO)
 
-        self.stack(skip_light=True, method=method)
+        args = self.stack(skip_light=True, method=method)
 
         QtGui.QApplication.instance().processEvents()
 
@@ -5466,7 +5464,7 @@ class theApp(Qt.QObject):
         if 'hotpixel_options' in args:
             hotp_args = args['hotpixel_options']
         else:
-            hotp_args = None
+            hotp_args = args[4]
 
         masters = self.generateMasters(self._bas,
                                        self._drk,
@@ -5834,7 +5832,7 @@ class theApp(Qt.QObject):
             self.progress.setMaximum(len(self.framelist))
             count = 0
 
-            self.stack(skip_light=True)
+            args = self.stack(skip_light=True)
 
             QtGui.QApplication.instance().processEvents()
 
@@ -5843,7 +5841,7 @@ class theApp(Qt.QObject):
             masters = self.generateMasters(self._bas,
                                            self._drk,
                                            self._flt,
-                                           None)
+                                           args[4])
             master_bias = masters[0]
             master_dark = masters[1]
             master_flat = masters[2]

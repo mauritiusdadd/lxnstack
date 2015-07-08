@@ -421,32 +421,33 @@ def getQIcon(name="", verbose=False):
 
 
 def getNumberOfComponents(mode):
-    if '1' in mode:
-        return 1
-    elif 'L' in mode:
-        return 1
-    elif 'P' in mode:
-        return 1
-    elif 'RGBA' in mode:
-        return 4
-    elif 'RGB' in mode:
-        return 3
-    elif 'CMYK' in mode:
-        return 4
-    elif 'YCbCr' in mode:
-        return 3
-    elif 'LAB' in mode:
-        return 3
-    elif 'HSV' in mode:
-        return 3
-    elif 'I' in mode:
-        return 1
-    elif 'F' in mode:
-        return 1
-    elif 'M' in mode:
-        return len(mode)
-    else:
-        return 0
+    try:
+        return int(mode)
+    except:
+        if 'L' in mode:
+            return 1
+        elif 'P' in mode:
+            return 1
+        elif 'RGBA' in mode:
+            return 4
+        elif 'RGB' in mode:
+            return 3
+        elif 'CMYK' in mode:
+            return 4
+        elif 'YCbCr' in mode:
+            return 3
+        elif 'LAB' in mode:
+            return 3
+        elif 'HSV' in mode:
+            return 3
+        elif 'I' in mode:
+            return 1
+        elif 'F' in mode:
+            return 1
+        elif 'M' in mode:
+            return len(mode)
+        else:
+            return 0
 
 
 def getProjectAbsURL(project_dir, url):

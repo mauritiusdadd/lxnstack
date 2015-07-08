@@ -1664,6 +1664,8 @@ class PlotPropertyDialogWidget(PlotSubWidget):
         self._lne_wdt_dsp.setSingleStep(0.1)
         self._mrk_sze_dsp.setSingleStep(0.5)
 
+        self._int_ord_dsp.setMaximum(1000)
+
         gboxlayout.addWidget(self._cur_plt_qcb, 1, 0, 1, 2)
 
         gboxlayout.addWidget(QtGui.QLabel(tr.tr("line color")), 2, 0)
