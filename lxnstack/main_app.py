@@ -5496,7 +5496,7 @@ class theApp(Qt.QObject):
                 # adu_plt = lcurves.LightCurvePlot() may be used in conjunction
                 # to adu_plt.append(...) in order to fill the plot. However,
                 # we know that there will be one point per eache frame and this
-                # makes a totla of len(self.framelist) points
+                # makes a total of len(self.framelist) points
                 adu_plt = lcurves.LightCurvePlot(len(self.framelist))
                 adu_plt.setName(st_name + "C"+str(cn))
                 adu_plots[st_name][cn] = adu_plt

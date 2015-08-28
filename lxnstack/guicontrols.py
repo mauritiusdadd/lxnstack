@@ -845,6 +845,7 @@ class ImageViewer(QtGui.QWidget):
         elif self.feature_moveing:
             self.selected_feature.move(x, y)
             self.update()
+            self.imageLabel.repaint()
         else:
             for feature in self.image_features:
                 if ((x-feature.x)**2 + (y-feature.y)**2) < feature.r**2:
@@ -858,6 +859,7 @@ class ImageViewer(QtGui.QWidget):
                     feature.mouse_over = False
                     self.selected_feature = None
             self.update()
+            self.imageLabel.repaint()
         return QtGui.QLabel.mouseMoveEvent(self.imageLabel, event)
 
     def scrollAreaWheelEvent(self, event):
@@ -2051,7 +2053,7 @@ class PlotViewer(QtGui.QWidget):
         file_name = str(Qt.QFileDialog.getSaveFileName(
             None,
             tr.tr("Save image"),
-            os.path.join('lightcurves.csv'),
+            os.path.join('lightcurves.jpg'),
             "JPG *.jpg (*.jpg);;"
             "PNG *.png (*.png)",
             None,

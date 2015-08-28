@@ -823,7 +823,7 @@ class Frame(Qt.QObject):
         self.long_tool_name = self.url+'-frame'+str(self.page)
 
     def isRGB(self):
-        return ('RGB' in self.mode)
+        return (self.mode == 3)
 
     def getNumberOfComponents(self):
         return getNumberOfComponents(self.mode)
@@ -1426,8 +1426,14 @@ class Frame(Qt.QObject):
                                           ' '+self.name + ', ' +
                                           tr.tr('please wait...'))
 
-                if (notUpdated(self.url, data_file_name) or
-                        force_update is True):
+                not_updated = notUpdated(self.url, data_file_name) 
+                if (not_updated or force_update):
+
+                    log.log(repr(self),
+                            'decoding raw data: force={0} outdate={1}'.format(
+                                force_update, not_updated),
+                            level=logging.DEBUG)
+
                     log.log(repr(self),
                             'decoding raw data to file '+data_file_name,
                             level=logging.INFO)
