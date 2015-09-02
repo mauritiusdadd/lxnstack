@@ -5616,10 +5616,6 @@ class theApp(Qt.QObject):
         # NOTE: for now we assume the reference star is near the
         #       variable star so there is a null airmass correction
 
-        pv_mag = guicontrols.LightCurveViewer(inverted_y=True)
-        pv_mag.setAxisName('time', 'Mag')
-        self.showInMdiWindow(pv_mag, guicontrols.PLOTVIEWER, "Mag Lightcurves")
-
         LOGE10 = utils.LOGE10
         mag_plots = []
         for st_name in var_stars:
@@ -5760,22 +5756,29 @@ class theApp(Qt.QObject):
                     abs_mag_data[3].append(abs_mag_err)
 
             # Finally we compute the mean value for the absolute magnitude...
-            mean_abs_tme = np.mean(abs_mag_data[0], 0)
-            mean_abs_mag = np.mean(abs_mag_data[1], 0)
-            mean_tme_err = np.mean(abs_mag_data[2], 0)
-            mean_mag_err = np.mean(abs_mag_data[3], 0)
-            del abs_mag_data
+            if ref_stars:
+                mean_abs_tme = np.mean(abs_mag_data[0], 0)
+                mean_abs_mag = np.mean(abs_mag_data[1], 0)
+                mean_tme_err = np.mean(abs_mag_data[2], 0)
+                mean_mag_err = np.mean(abs_mag_data[3], 0)
+                del abs_mag_data
 
-            # ...and build a LightCurvePlot
-            plt = lcurves.LightCurvePlot()
-            plt.setName(st_name)
-            plt.setData(
-                mean_abs_tme, mean_abs_mag,
-                mean_tme_err, mean_mag_err)
-            mag_plots.append(plt)
+                # ...and build a LightCurvePlot
+                plt = lcurves.LightCurvePlot()
+                plt.setName(st_name)
+                plt.setData(
+                    mean_abs_tme, mean_abs_mag,
+                    mean_tme_err, mean_mag_err)
+                mag_plots.append(plt)
 
-        pv_mag.addPlots(mag_plots)
-        pv_mag.repaint()
+        # Show the mag plot only if there is nomething to plot!
+        if ref_stars:
+            pv_mag = guicontrols.LightCurveViewer(inverted_y=True)
+            pv_mag.setAxisName('time', 'Mag')
+            self.showInMdiWindow(pv_mag, guicontrols.PLOTVIEWER, "Mag Lightcurves")
+            pv_mag.addPlots(mag_plots)
+            pv_mag.repaint()
+
         self.unlock()
         self.progress.hide()
         self.progress.reset()

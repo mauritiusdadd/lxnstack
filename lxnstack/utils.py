@@ -96,7 +96,7 @@ def showMsgBox(text, informative_text="", parent=None,
         logname = repr(caller)+" called <lxnstack.utils module>"
 
     log.log(logname,
-            str(text)+": "+informative_text,
+            str(text)+": "+str(informative_text),
             level=loglevel)
 
     answer = msgBox.exec_()
@@ -2669,9 +2669,12 @@ def getDateStr(val):
 
 def getSciVal(val):
     if val != 0.0:
-        exp = int(np.floor(math.log10(abs(val))))
-        sv = val/(10.0**exp)
-        return (sv, exp)
+        try:
+            exp = int(np.floor(math.log10(abs(val))))
+            sv = val/(10.0**exp)
+            return (sv, exp)
+        except:
+            return (np.nan, 0)
     else:
         return (0.0, 0)
 
