@@ -117,7 +117,7 @@ class ImageFeature(QtCore.QObject):
 
     def setPosition(self, x, y):
         """
-        getPosition()
+        setPosition()
 
         This funciton sets the position of the ImageFeature.
         If the object has no parent Frame, this function is

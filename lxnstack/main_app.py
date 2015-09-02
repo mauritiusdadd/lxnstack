@@ -1693,6 +1693,18 @@ class theApp(Qt.QObject):
         sw.show()
         return sw
 
+    def repaintAllMdiImageViewers(self, *arg, **args):
+        for mdisw in self.mdi_windows.keys():
+            sw_prop = self.mdi_windows[mdisw]
+            sw_type = sw_prop['type']
+            if sw_type == guicontrols.IMAGEVIEWER:
+                log.log(repr(self),
+                        ("Repainting mdi subwindow " +
+                         str(mdisw) + " type="+str(sw_type)),
+                        level=logging.DEBUG)
+                iv = self.mdi_windows[mdisw]['widget']
+                iv.imageLabel.repaint()
+
     def clearGenericMdiWindow(self, swnd):
         self.mdi_windows.pop(swnd)
 
@@ -3023,6 +3035,7 @@ class theApp(Qt.QObject):
                     st = frm.stars[self.star_idx]
                     if st is not pnt:
                         st.setPosition(x, y)
+            self.repaintAllMdiImageViewers()
 
     def shiftStarY(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3035,6 +3048,7 @@ class theApp(Qt.QObject):
                     st = frm.stars[self.star_idx]
                     if st is not pnt:
                         st.setPosition(x, y)
+            self.repaintAllMdiImageViewers()
 
     def setStarName(self, name):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3043,6 +3057,7 @@ class theApp(Qt.QObject):
             if pnt.isFixed():
                 for frm in self.framelist:
                     frm.stars[self.star_idx].name = name
+            self.repaintAllMdiImageViewers()
 
     def setInnerRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3053,6 +3068,7 @@ class theApp(Qt.QObject):
                     frm.stars[self.star_idx].r1 = val
             if pnt.r2-pnt.r1 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r1+2)
+            self.repaintAllMdiImageViewers()
 
     def setMiddleRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3065,6 +3081,7 @@ class theApp(Qt.QObject):
                 self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r2-2)
             if pnt.r3-pnt.r2 < 2:
                 self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r2+2)
+            self.repaintAllMdiImageViewers()
 
     def setOuterRadius(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3075,6 +3092,7 @@ class theApp(Qt.QObject):
                     frm.stars[self.star_idx].r3 = val
             if pnt.r3-pnt.r2 < 2:
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r3-2)
+            self.repaintAllMdiImageViewers()
 
     def setMagnitude(self, val):
         if self.star_idx >= 0 and not self._updating_feature:
@@ -3084,6 +3102,7 @@ class theApp(Qt.QObject):
             if pnt.isFixed():
                 for frm in self.framelist:
                     frm.stars[self.star_idx].magnitude = val
+            self.repaintAllMdiImageViewers()
 
     def shiftOffsetX(self, val):
         if self.dif_image_idx >= 0:
