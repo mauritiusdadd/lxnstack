@@ -22,6 +22,7 @@ import math
 import tempfile
 import cPickle
 import logging
+import calendar
 
 from PyQt4 import Qt, QtCore, QtGui, uic
 
@@ -331,7 +332,7 @@ def notUpdated(url1, url2):
         return True
 
 
-def _getCTime(v, sep=' '):
+def _getCTime(v, sep=' ', localtime=False):
     tm_struct = [0]*9
     stm = v.strip('\x00\n\r').split(sep)
     dt = stm[0].split(':')  # the date is yyyy:mm:dd
@@ -369,7 +370,11 @@ def _getCTime(v, sep=' '):
     tm_struct[1] = int(dt[1])
     tm_struct[2] = int(dt[2])
     tm_struct[8] = -1
-    return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
+
+    if localtime:
+        return time.mktime(time.struct_time(tm_struct))+math.modf(ff)[0]
+    else:
+        return calendar.timegm(time.struct_time(tm_struct))+math.modf(ff)[0]
 
 
 def getCurrentTimeMsec():
@@ -1134,6 +1139,11 @@ class Frame(Qt.QObject):
         else:
             self.RGB_mode = False
 
+        if 'assume_localtime' in args:
+            is_localtime = args['assume_localtime']
+        else:
+            is_localtime = False
+
         if np.dtype(ftype).kind != 'f':
             raise Exception("Error: float type neede for \'ftype\' argument")
 
@@ -1180,7 +1190,7 @@ class Frame(Qt.QObject):
                                        ('DATE', 'TIME')):
                 if date_tag in header:
                     try:
-                        ctime = _getCTime(header[date_tag], 'T')
+                        ctime = _getCTime(header[date_tag], 'T', is_localtime)
                     except:
                         log.log(repr(self),
                                 "FITS: corrupted or invaild time format",
@@ -1378,7 +1388,7 @@ class Frame(Qt.QObject):
 
             for k, v in cr2file.EXIF.items():  # READING EXIF
                 if (k == 306) or (k == 36867) or (k == 36868):
-                    ctime = _getCTime(v)
+                    ctime = _getCTime(v, localtime=is_localtime)
                     self.addProperty('UTCEPOCH', ctime)
                 if k in ExifTags.TAGS:
                     self.addProperty(ExifTags.TAGS[k], v)

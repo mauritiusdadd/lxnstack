@@ -201,6 +201,7 @@ class theApp(Qt.QObject):
 
         self.frame_open_args = {'rgb_fits_mode': True,
                                 'convert_cr2': False,
+                                'assume_localtime': False,
                                 'progress_bar': self.progress_dialog}
 
         self.current_cap_device = None
@@ -5514,7 +5515,7 @@ class theApp(Qt.QObject):
                 # NOTE:
                 # adu_plt = lcurves.LightCurvePlot() may be used in conjunction
                 # to adu_plt.append(...) in order to fill the plot. However,
-                # we know that there will be one point per eache frame and this
+                # we know that there will be one point for each frame and this
                 # makes a total of len(self.framelist) points
                 adu_plt = lcurves.LightCurvePlot(len(self.framelist))
                 adu_plt.setName(st_name + "C"+str(cn))
@@ -5562,6 +5563,9 @@ class theApp(Qt.QObject):
                 allstars[st_name] = (bool(st.reference), st.magnitude)
 
                 if self.progressWasCanceled():
+                    self.unlock()
+                    self.progress.hide()
+                    self.progress.reset()
                     return False
 
                 try:
@@ -5575,9 +5579,10 @@ class theApp(Qt.QObject):
                     # removing curve points form this image
                     for plt_st_name in adu_plots.keys():
                         for plt_comp_name in adu_plots[st_name].keys():
-                            adu_plots[plt_st_name][plt_comp_name][img_idx]
+                            pass
+                            # adu_plots[plt_st_name][plt_comp_name][img_idx]
 
-                    break
+                    # break
                     # skipping image
                     # self.unlock()
                     # return False
