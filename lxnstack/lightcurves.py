@@ -15,15 +15,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Some useful resources I found on the web:
-# - http://www.aavso.org/differential-vs-absolute-photometry
-# - http://brucegary.net/DifferentialPhotometry/dp.htm#1._
-# - http://www.britastro.org/vss/ccd_photometry.htm
-# - http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
+#   http://www.aavso.org/differential-vs-absolute-photometry
+#   http://brucegary.net/DifferentialPhotometry/dp.htm#1._
+#   http://www.britastro.org/vss/ccd_photometry.htm
+#   http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
 
 import plotting
 import numpy as np
-import scipy as sp
-import scipy.stats
+import astropy.stats as stats
 
 
 class LightCurvePlot(plotting.Plot):
@@ -61,12 +60,16 @@ def getInstMagnitudeADU(star, ndimg=None):
 
     stx, sty = star.getAbsolutePosition()
 
+    # Get pixels inside the cirle centered on the star
+    # with radius r1
     for x in range(-int(star.r1)-1, int(star.r1)+1):
         for y in range(-int(star.r1)-1, int(star.r1)+1):
             p = (x**2 + y**2)
             if p <= ir2:
                 val_adu.append(ndimg[sty+y, stx+x])
 
+    # Get pixels inside the circular area centered on the star
+    # with inner radius r2 and outer radius r3
     for x in range(-int(star.r2)-1, int(star.r2)+1):
         for y in range(-int(star.r2)-1, int(star.r2)+1):
             p = (x**2 + y**2)
@@ -83,9 +86,11 @@ def getInstMagnitudeADU(star, ndimg=None):
     total_star_pixels = len(val_adu)
 
     # NOTE(1):
-    #     we use sigmaclip here to remove evetual cosmic rays
+    #     we use sigmaclip here to remove cosmic rays
     #     or hot-pixels present in the sky background
-    bkg_adu = sp.stats.sigmaclip(np.array(bkg_adu), 4, 4)[0]
+    #     (Yeah... not everyone uses calibrated images).
+
+    bkg_adu = stats.sigma_clip(np.array(bkg_adu), 4, axis=0)
 
     # val_adu_sigma = np.sqrt(val_adu)
     # bkg_adu_sigma = np.sqrt(bkg_adu)
@@ -93,7 +98,10 @@ def getInstMagnitudeADU(star, ndimg=None):
 
     # These are the total counts of ADUs (directly poportional
     # to the number of photons hitting the photodiode, unless
-    # we are near the saturation)
+    # we are near the saturation). We sum the ADU for the star because
+    # we want to know the total photons emitted by the star which reach
+    # the sensor, and we average the ADU from the background because
+    # we want to know the mean background noise.
     total_val_adu = val_adu.sum(0)
     mean_bkg_adu = bkg_adu.mean(0)
 
