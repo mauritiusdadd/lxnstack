@@ -34,7 +34,7 @@ import utils
 import styles
 import videocapture
 import imgfeatures
-import mappedimage
+# import mappedimage
 import guicontrols
 import colormaps as cmaps
 import translation as tr
@@ -378,18 +378,18 @@ class theApp(Qt.QObject):
     def fullyLoaded(self):
         return self._fully_loaded
 
-    def __reload_modules__(self):
-        # debug purpose only
-        reload(paths)
-        reload(utils)
-        reload(styles)
-        reload(videocapture)
-        reload(imgfeatures)
-        reload(mappedimage)
-        reload(guicontrols)
-        reload(colormaps)
-        reload(translation)
-        reload(lightcurves)
+    # def __reload_modules__(self):
+    #     # debug purpose only
+    #     reload(paths)
+    #     reload(utils)
+    #     reload(styles)
+    #     reload(videocapture)
+    #     reload(imgfeatures)
+    #     reload(mappedimage)
+    #     reload(guicontrols)
+    #     reload(colormaps)
+    #     reload(translation)
+    #     reload(lightcurves)
 
     def checkArguments(self, args):
 
@@ -593,7 +593,9 @@ class theApp(Qt.QObject):
         idx = self.dlg._dialog.langComboBox.findData(self.__current_lang)
         self.dlg._dialog.langComboBox.setCurrentIndex(idx)
 
-        self.dlg._dialog.useCustomLangCheckBox.setCheckState(self.custom_chkstate)
+        self.dlg._dialog.useCustomLangCheckBox.setCheckState(
+            self.custom_chkstate)
+
         self.dlg._dialog.fTypeComboBox.setCurrentIndex(self.ftype_idx)
 
         self.dlg._dialog.rgbFitsCheckBox.setCheckState(
@@ -601,7 +603,8 @@ class theApp(Qt.QObject):
         self.dlg._dialog.decodeCR2CheckBox.setCheckState(
             int(self.frame_open_args['convert_cr2'])*2)
 
-        self.dlg._dialog.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
+        self.dlg._dialog.devComboBox.setCurrentIndex(
+            self.current_cap_combo_idx)
 
         self.dlg._dialog.rWSpinBox.setValue(self.aap_rectangle[0])
         self.dlg._dialog.rHSpinBox.setValue(self.aap_rectangle[1])
@@ -688,9 +691,11 @@ class theApp(Qt.QObject):
                 self.current_cap_device.getControlUI().setParent(None)
                 self.current_cap_device.getControlUI().hide()
 
+        ccap_title = self.dlg._dialog.devComboBox.currentText()
+
         self.current_cap_combo_idx = index
         self.current_cap_device = self.devices[index]['device']
-        self.current_cap_device_title = self.dlg._dialog.devComboBox.currentText()
+        self.current_cap_device_title = ccap_title
         self.current_cap_device.lockStateChanged.connect(
             self.dlg._dialog.refreshPushButton.setDisabled)
 
@@ -763,7 +768,8 @@ class theApp(Qt.QObject):
         if self.current_cap_combo_idx < 0:
             self.current_cap_combo_idx = 0
 
-        self.dlg._dialog.devComboBox.setCurrentIndex(self.current_cap_combo_idx)
+        self.dlg._dialog.devComboBox.setCurrentIndex(
+            self.current_cap_combo_idx)
 
         if self.isPreviewing:
             self.dlg._dialog.tabWidget.setCurrentIndex(2)
@@ -842,7 +848,7 @@ class theApp(Qt.QObject):
         imh = img.shape[0]
 
         if len(img.shape) == 2:
-            dep = 1 
+            dep = 1
         else:
             dep = img.shape[2]
 
@@ -891,7 +897,7 @@ class theApp(Qt.QObject):
             self.action_stack.setEnabled(True)
             self.action_save_video.setEnabled(True)
 
-            for i in xrange(self.wnd.toolBox.count()):
+            for i in range(self.wnd.toolBox.count()):
                 self.wnd.toolBox.setItemEnabled(i, True)
 
             if self.framelist[0].isRGB():
@@ -927,7 +933,7 @@ class theApp(Qt.QObject):
         self.action_enable_rawmode.setEnabled(False)
 
         self.wnd.toolBox.setItemEnabled(0, True)
-        for i in xrange(self.wnd.toolBox.count()-1):
+        for i in range(self.wnd.toolBox.count()-1):
             self.wnd.toolBox.setItemEnabled(i+1, False)
 
     def lockRecording(self):
@@ -1292,36 +1298,66 @@ class theApp(Qt.QObject):
         settings.setValue("autoalign_rectangle",
                           Qt.QPoint(self.aap_rectangle[0],
                                     self.aap_rectangle[1]))
-        settings.setValue("autodetect_rectangle",
-                          int(self.dlg._dialog.autoSizeCheckBox.checkState()))
-        settings.setValue("autodetect_quality",
-                          int(self.dlg._dialog.minQualitycheckBox.checkState()))
-        settings.setValue("max_align_points",
-                          int(self.max_points))
-        settings.setValue("min_point_quality",
-                          float(self.min_quality))
-        settings.setValue("use_whole_image",
-                          int(self.dlg._dialog.wholeImageCheckBox.checkState()))
-        settings.setValue("current_colormap",
-                          int(self.current_colormap))
-        settings.setValue("toolbar_locked",
-                          bool(self.action_lock_toolbars.isChecked()))
-        settings.setValue("auto_rgb_fits",
-                          int(self.dlg._dialog.rgbFitsCheckBox.checkState()))
-        settings.setValue("auto_convert_cr2",
-                          int(self.dlg._dialog.decodeCR2CheckBox.checkState()))
-        settings.setValue("auto_search_dark_flat",
-                          int(self.dlg._dialog.autoFolderscheckBox.checkState()))
-        settings.setValue("sharp1",
-                          float(self.wnd.sharp1DoubleSpinBox.value()))
-        settings.setValue("sharp2",
-                          float(self.wnd.sharp2DoubleSpinBox.value()))
-        settings.setValue("phase_image",
-                          int(self.dlg._dialog.showPhaseImgCheckBox.checkState()))
-        settings.setValue("phase_order",
-                          int(self.dlg._dialog.phaseIntOrderSlider.value()))
-        settings.setValue("interpolation_order",
-                          int(self.dlg._dialog.intOrderSlider.value()))
+        settings.setValue(
+            "autodetect_rectangle",
+            int(self.dlg._dialog.autoSizeCheckBox.checkState()))
+
+        settings.setValue(
+            "autodetect_quality",
+            int(self.dlg._dialog.minQualitycheckBox.checkState()))
+
+        settings.setValue(
+            "max_align_points",
+            int(self.max_points))
+
+        settings.setValue(
+            "min_point_quality",
+            float(self.min_quality))
+
+        settings.setValue(
+            "use_whole_image",
+            int(self.dlg._dialog.wholeImageCheckBox.checkState()))
+
+        settings.setValue(
+            "current_colormap",
+            int(self.current_colormap))
+
+        settings.setValue(
+            "toolbar_locked",
+            bool(self.action_lock_toolbars.isChecked()))
+
+        settings.setValue(
+            "auto_rgb_fits",
+            int(self.dlg._dialog.rgbFitsCheckBox.checkState()))
+
+        settings.setValue(
+            "auto_convert_cr2",
+            int(self.dlg._dialog.decodeCR2CheckBox.checkState()))
+
+        settings.setValue(
+            "auto_search_dark_flat",
+            int(self.dlg._dialog.autoFolderscheckBox.checkState()))
+
+        settings.setValue(
+            "sharp1",
+            float(self.wnd.sharp1DoubleSpinBox.value()))
+
+        settings.setValue(
+            "sharp2",
+            float(self.wnd.sharp2DoubleSpinBox.value()))
+
+        settings.setValue(
+            "phase_image",
+            int(self.dlg._dialog.showPhaseImgCheckBox.checkState()))
+
+        settings.setValue(
+            "phase_order",
+            int(self.dlg._dialog.phaseIntOrderSlider.value()))
+
+        settings.setValue(
+            "interpolation_order",
+            int(self.dlg._dialog.intOrderSlider.value()))
+
         settings.endGroup()
 
         settings.beginGroup("settings")
@@ -2290,9 +2326,8 @@ class theApp(Qt.QObject):
 
     def doClearFrameList(self, listwidget, framelist, clearbutton):
         while listwidget.count() > 0:
-            q = listwidget.takeItem(0)
+            listwidget.takeItem(0)
             self.closeAllMdiWindows(framelist.pop(listwidget.currentRow()))
-            del q
         framelist = []
         listwidget.clear()
         clearbutton.setEnabled(False)
@@ -5793,7 +5828,9 @@ class theApp(Qt.QObject):
         if ref_stars:
             pv_mag = guicontrols.LightCurveViewer(inverted_y=True)
             pv_mag.setAxisName('time', 'Mag')
-            self.showInMdiWindow(pv_mag, guicontrols.PLOTVIEWER, "Mag Lightcurves")
+            self.showInMdiWindow(pv_mag,
+                                 guicontrols.PLOTVIEWER,
+                                 "Mag Lightcurves")
             pv_mag.addPlots(mag_plots)
             pv_mag.repaint()
 
@@ -5886,7 +5923,6 @@ class theApp(Qt.QObject):
             master_dark = masters[1]
             master_flat = masters[2]
             hot_pixels = masters[3]
-
 
             self.statusBar.showMessage(tr.tr('Writing video, please wait...'))
 

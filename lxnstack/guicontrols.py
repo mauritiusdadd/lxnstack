@@ -401,8 +401,8 @@ class ComboCheckBox(QtGui.QComboBox):
         model = self.model()
         total = model.rowCount()*model.columnCount()
         count = 0
-        for row in xrange(model.rowCount()):
-            for col in xrange(model.columnCount()):
+        for row in range(model.rowCount()):
+            for col in range(model.columnCount()):
                 item = model.item(row, col)
                 if item.checkState():
                     count += 1
@@ -781,7 +781,7 @@ class ImageViewer(QtGui.QWidget):
             hh = len(data2)
             data3 = np.zeros((ncomponents*hh, len(data1), ncomponents))
 
-            for i in xrange(ncomponents):
+            for i in range(ncomponents):
                 data3[i*hh:(i+1)*hh, 0:, i] = data2
 
         if isinstance(self.colorbarmap, mappedimage.MappedImage):
@@ -971,7 +971,7 @@ class ImageViewer(QtGui.QWidget):
 
             painter.setCompositionMode(22)
 
-            for i in xrange(ncomp):
+            for i in range(ncomp):
                 try:
                     v1 = float(cb.current_val[i]-cb.min_val)
                     v2 = float(cb.max_val-cb.min_val)

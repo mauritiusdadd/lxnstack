@@ -161,7 +161,8 @@ except ImportError:
 
 try:
     import scipy as sp
-    from scipy import signal, ndimage
+    import scipy.signal
+    import scipy.ndimage
 except ImportError:
     log.log("<lxnstack.utils module>",
             '\'scipy\' python module not found! exiting program.',
@@ -1436,7 +1437,7 @@ class Frame(Qt.QObject):
                                           ' '+self.name + ', ' +
                                           tr.tr('please wait...'))
 
-                not_updated = notUpdated(self.url, data_file_name) 
+                not_updated = notUpdated(self.url, data_file_name)
                 if (not_updated or force_update):
 
                     log.log(repr(self),
@@ -1716,8 +1717,7 @@ class Frame(Qt.QObject):
                     except AttributeError:
                         pass
                     # Testing decoder
-                    pix = img.getpixel((0, 0))
-                    del pix
+                    img.getpixel((0, 0))
                 except EOFError:
                     return None
                 except Exception as err:
@@ -2523,7 +2523,7 @@ def _derotate_mono(im1, im2, sharpening=2):
     del r
 
     if sharpening > 0:
-        c = ndimage.gaussian_filter(c, sharpening)
+        c = sp.ndimage.gaussian_filter(c, sharpening)
 
     rmax = (np.unravel_index(c.argmax(), c.shape)[1]*180.0/c.shape[1]) - 90
 
@@ -2594,7 +2594,7 @@ def _correlate_mono(im1, im2, sharpening=1):
     center = (r.shape[0]/2.0, r.shape[1]/2.0)
 
     if sharpening > 0:
-        r = ndimage.gaussian_filter(r, sharpening)
+        r = sp.ndimage.gaussian_filter(r, sharpening)
 
     rmax = np.unravel_index(r.argmax(), r.shape)
 
@@ -2772,7 +2772,7 @@ def interpolate(data_x, data_y, upsample_factor=4.0,
     N = len(data_y)
     mask = np.zeros_like(data_y)
 
-    for i in xrange(N):
+    for i in range(N):
         mask[i] = ((1+np.cos(i*2.0*sp.pi/N))/2.0)**(mask_factor)
 
     ry = sp.signal.resample(data_y, N*upsample_factor, window=mask)
@@ -2787,12 +2787,12 @@ def interpolate(data_x, data_y, upsample_factor=4.0,
     # NOTE: it seems that sp.signal.resample does not offer
     #       a valid way to correcly resample the data_x values!
     rx = []
-    for i in xrange(ON-1):
+    for i in range(ON-1):
         dd = (data_x[i+1]-data_x[i])/downsample_factor
-        for n in xrange(downsample_factor):
+        for n in range(downsample_factor):
             rx.append(data_x[i] + n*dd)
 
-    for n in xrange(downsample_factor):
+    for n in range(downsample_factor):
             rx.append(data_x[-1] + n*dd)
 
     newN = len(ry)
@@ -3028,7 +3028,7 @@ def convolve(img, fltr, transformed=False):
                        f1.shape[2]),
                       dtype=np.complex)
 
-        for i in xrange(f1.shape[2]):
+        for i in range(f1.shape[2]):
             f2[..., i] = f2m
 
     elif (len(img.shape) == 2) and (len(i2.shape) == 3):
@@ -3042,7 +3042,7 @@ def convolve(img, fltr, transformed=False):
                        f2.shape[2]),
                       dtype=np.complex)
 
-        for i in xrange(f2.shape[2]):
+        for i in range(f2.shape[2]):
             f1[..., i] = f1m
 
     elif (len(img.shape) == 3) and (i2.shape == img.shape):
@@ -3078,7 +3078,7 @@ def deconvolve(img, fltr, transformed=False):
                        f1.shape[2]),
                       dtype=np.complex)
 
-        for i in xrange(f1.shape[2]):
+        for i in range(f1.shape[2]):
             f2[..., i] = f2m
 
     elif (len(img.shape) == 2) and (len(i2.shape) == 3):
@@ -3092,7 +3092,7 @@ def deconvolve(img, fltr, transformed=False):
                        f2.shape[2]),
                       dtype=np.complex)
 
-        for i in xrange(f2.shape[2]):
+        for i in range(f2.shape[2]):
             f1[..., i] = f1m
 
     elif (len(img.shape) == 3) and (i2.shape == img.shape):
@@ -3120,8 +3120,8 @@ def waveletKernel(w, h, function, size, radial=False):
         r = (w**2+h**2)**0.5
         f = function(r+1, size[0])
         wav = np.empty((h, w), dtype=np.float32)
-        for x in xrange(w):
-            for y in xrange(h):
+        for x in range(w):
+            for y in range(h):
                 wav[y, x] = f[int(r/2 + ((x-w/2)**2 + (y-h/2)**2)**0.5)]
     else:
         x, y = np.meshgrid(function(w, size[0]),

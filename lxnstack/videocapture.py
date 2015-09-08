@@ -1179,8 +1179,8 @@ class V4l2VideoDevice(GenericVideoDevice):
                             v4l2.V4L2_CID_PRIVATE_BASE: []}
             queryctrl.id = 0
 
-            for queryctrl.id in xrange(v4l2.V4L2_CID_BASE,
-                                       v4l2.V4L2_CID_LASTP1+1):
+            for queryctrl.id in range(v4l2.V4L2_CID_BASE,
+                                      v4l2.V4L2_CID_LASTP1+1):
                 r, err = self._xioctl(v4l2.VIDIOC_QUERYCTRL, queryctrl)
                 if r == -1:
                     if err == errno.EINVAL:
@@ -1277,8 +1277,8 @@ class V4l2VideoDevice(GenericVideoDevice):
                 "this is a menu: "+str(queryctrl.id),
                 level=logging.DEBUG)
         if use_name:
-            for querymenu.index in xrange(queryctrl.minimum,
-                                          queryctrl.maximum+1):
+            for querymenu.index in range(queryctrl.minimum,
+                                         queryctrl.maximum+1):
                 r, err = self._xioctl(v4l2.VIDIOC_QUERYMENU, querymenu)
                 if (r == -1):
                     log.log(repr(self),
@@ -1290,8 +1290,8 @@ class V4l2VideoDevice(GenericVideoDevice):
                         str(querymenu.index)+":"+str(querymenu._u54.name),
                         level=logging.DEBUG)
         else:
-            for querymenu.index in xrange(queryctrl.minimum,
-                                          queryctrl.maximum+1):
+            for querymenu.index in range(queryctrl.minimum,
+                                         queryctrl.maximum+1):
                 r, err = self._xioctl(v4l2.VIDIOC_QUERYMENU, querymenu)
                 if (r == -1):
                     log.log(repr(self),
@@ -1689,8 +1689,7 @@ class V4l2VideoDevice(GenericVideoDevice):
     def _uninit_device(self):
         # deallocating/unmapping memory
         if self._io == self.MEMORY_READ:
-            buf = self._buffers.pop(0)
-            del buf
+            self._buffers.pop(0)
         else:
             if not self._streamoff():
                 return False
@@ -1712,8 +1711,7 @@ class V4l2VideoDevice(GenericVideoDevice):
 
             elif self._io == self.MEMORY_USERPTR:
                 for i in self._buffers.keys():
-                    buf = self._buffers.pop(i)
-                    del buf
+                    self._buffers.pop(i)
 
         self._buffers = {}
         return True
@@ -2988,7 +2986,7 @@ class CaptureScheduler(Qt.QObject):
 
         _date = Qt.QDateTime()
 
-        for x0 in xrange(-xoff, wmax+int(bigstep), step):
+        for x0 in range(-xoff, wmax+int(bigstep), step):
 
             time = (x0/self._timescale) + _ctime_int
 
@@ -3350,7 +3348,7 @@ class CaptureScheduler(Qt.QObject):
         self._controlgui.deleteAllJobsPushButton.setEnabled(
             (len(self.jobs) > 0) and not self._global_status)
 
-        for row in xrange(self._controlgui.jobListWidget.count()):
+        for row in range(self._controlgui.jobListWidget.count()):
             joblistwidgetitem = self._controlgui.jobListWidget.item(row)
             joblistwidgetitem_prev = self._controlgui.jobListWidget.item(row-1)
             if joblistwidgetitem is not None:

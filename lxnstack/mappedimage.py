@@ -38,10 +38,10 @@ def getComponentTable(ncomps, named=True):
             component_table[0] = COMPONENTS_NAME[0]
             component_table[1] = COMPONENTS_NAME[4]
         elif ncomps >= 3:
-            for c in xrange(ncomps):
+            for c in range(ncomps):
                 component_table[c] = COMPONENTS_NAME[c+1]
     else:
-        for c in xrange(ncomps):
+        for c in range(ncomps):
             component_table[c] = 'C'+str(c)
     return component_table
 
