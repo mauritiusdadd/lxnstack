@@ -151,11 +151,11 @@ class StackingDialog(DialogWindow):
     def getHPCorrectionParameters(self):
         hp_use_smrt = bool(self._dialog.hotSmartGroupBox.isChecked())
         hp_use_glbl = bool(self._dialog.hotGlobalRadioButton.isChecked())
-        hp_trashold = self._dialog.hotTrasholdDoubleSpinBox.value()
+        hp_threshold = self._dialog.hotTrasholdDoubleSpinBox.value()
 
         hotp_args = {'hp_smart': hp_use_smrt,
                      'hp_global': hp_use_glbl,
-                     'hp_trashold': hp_trashold}
+                     'hp_threshold': hp_threshold}
 
         return hotp_args
 

@@ -4772,16 +4772,27 @@ class theApp(Qt.QObject):
 
             if hot_pixels_options is not None:
                 try:
-                    trashold = hot_pixels_options['hp_trashold']
+                    threshold = hot_pixels_options['hp_threshold']
+                    use_smart = hot_pixels_options['hp_smart']
                 except KeyError:
                     hot_pixels = None
                 else:
-                    if (len(master_dark.shape) == 2 or
+                    if use_smart is False:
+                        hot_pixels = None
+                    elif (len(master_dark.shape) == 2 or
                             hot_pixels_options['hp_global']):
                         mean_dark = master_dark.mean()
                         ddev_dark = master_dark.std()
                         diff_dark = abs(master_dark-mean_dark)
-                        clip_datk = trashold*ddev_dark
+                        clip_datk = threshold*ddev_dark
+
+                        log.log(repr(self),
+                                (
+                                    "hot pixel threshold: {}\n"
+                                    "master dark std.dev: {}\n"
+                                    "hot pixel clipping : {}\n"
+                                ).format(threshold, ddev_dark, clip_datk),
+                                level=logging.DEBUG)
 
                         hp_list = np.argwhere(diff_dark >= clip_datk)
                         hot_pixels = {'global': True,
@@ -4801,7 +4812,7 @@ class theApp(Qt.QObject):
                             mean_dark = master_dark[..., c].mean()
                             ddev_dark = master_dark[..., c].std()
                             diff_dark = abs(master_dark[..., c]-mean_dark)
-                            clip_datk = trashold*ddev_dark
+                            clip_datk = threshold*ddev_dark
 
                             hp_list = np.argwhere(diff_dark >= clip_datk)
                             hp_count += len(hp_list)
@@ -4900,10 +4911,11 @@ class theApp(Qt.QObject):
                 cnt = 0
                 if hot_pixels['global']:
                     msg = tr.tr("Correcting for hotpixels...")
-                    self.progress_dialog.setLabelText(msg)
-                    self.progress_dialog.setValue(0)
-                    self.progress_dialog.setMaximum(len(hot_pixels['data']))
-                    self.progress_dialog.show()
+                    self.statusBar.showMessage(msg)
+                    # self.progress_dialog.setLabelText(msg)
+                    # self.progress_dialog.setValue(0)
+                    # self.progress_dialog.setMaximum(len(hot_pixels['data']))
+                    # self.progress_dialog.show()
                     for hotp in hot_pixels['data']:
                         cnt += 1
                         if cnt % 100 == 0:  # do not overload main application
@@ -4921,13 +4933,14 @@ class theApp(Qt.QObject):
                     total_progress = 0
                     for c in range(len(hot_pixels['data'])):
                         total_progress += len(hot_pixels['data'][c])
-                    self.progress_dialog.setValue(0)
-                    self.progress_dialog.setMaximum(total_progress)
-                    self.progress_dialog.show()
+                    # self.progress_dialog.setValue(0)
+                    # self.progress_dialog.setMaximum(total_progress)
+                    # self.progress_dialog.show()
                     for c in range(len(hot_pixels['data'])):
                         msg = tr.tr("Correcting for hotpixels in component")
                         msg += " "+str(c)+"..."
-                        self.progress_dialog.setLabelText(msg)
+                        # self.progress_dialog.setLabelText(msg)
+                        self.statusBar.showMessage(msg)
                         for hotp in hot_pixels['data'][c]:
                             cnt += 1
                             if cnt % 100 == 0:
