@@ -5525,6 +5525,9 @@ class theApp(Qt.QObject):
 
         args = self.stack(skip_light=True, method=method)
 
+        if not args:
+            return False
+
         QtGui.QApplication.instance().processEvents()
 
         self.lock()
@@ -5662,12 +5665,12 @@ class theApp(Qt.QObject):
                 # compute the magnitude lightcurve
                 var_stars.append(stname)
 
-        instr_clr_corr = 0.1
-        airmas_corr = 0.0  # TODO: improve airmass correction
-        airmas_err = 0.0
-
         # NOTE: for now we assume the reference star is near the
         #       variable star so there is a null airmass correction
+
+        transf_coeff = 0.1
+        # airmas_coeff = 0.0  # TODO: improve airmass correction
+        # airmas_err = 0.0
 
         LOGE10 = utils.LOGE10
         mag_plots = []
@@ -5687,11 +5690,11 @@ class theApp(Qt.QObject):
 
                 # A simple error propagation (see below)
 
-                bb_rer = (bb.getYError()/(bb.getYData()*LOGE10))**2
-                vv_rer = (vv.getYError()/(vv.getYData()*LOGE10))**2
+                bb_rer2 = (bb.getYError()/(bb.getYData()*LOGE10))**2
+                vv_rer2 = (vv.getYError()/(vv.getYData()*LOGE10))**2
 
-                star_bv_error2 = 6.25 * (bb_rer+vv_rer)
-                star_bv_error2 = np.array(star_bv_error2)
+                star_bv_error = 2.5 * np.sqrt(bb_rer2+vv_rer2)
+                star_bv_error = np.array(star_bv_error)
 
             abs_mag_data = ([], [], [], [])
             for rf_name in ref_stars:
@@ -5711,13 +5714,9 @@ class theApp(Qt.QObject):
 
                     # A simple error propagation (see below)
 
-                    rbb_rer = (rbb.getYError()/(rbb.getYData()*LOGE10))**2
-                    rvv_rer = (rvv.getYError()/(rvv.getYData()*LOGE10))**2
-                    ref_bv_error2 = 6.25 * (rbb_rer+rvv_rer)
-
-                    color_dif = instr_clr_corr * (star_bv_index-ref_bv_index)
-                    color_err = instr_clr_corr
-                    color_err *= np.sqrt(star_bv_error2 + ref_bv_error2)
+                    rbb_rer2 = (rbb.getYError()/(rbb.getYData()*LOGE10))**2
+                    rvv_rer2 = (rvv.getYError()/(rvv.getYData()*LOGE10))**2
+                    ref_bv_error = 2.5 * np.sqrt(rbb_rer2+rvv_rer2)
 
                     # We shall use the total flux of the star, but we only
                     # have measures of the flux (measured as ADU) in different
@@ -5742,36 +5741,17 @@ class theApp(Qt.QObject):
                                            refplots.values()))
                     bol_ref_yerr = sum(map(lcurves.LightCurvePlot.getYError,
                                            refplots.values()))
-                    #
-                    # A simple error propagation:
-                    #
-                    #  if V = f(A,B) then the error for V is
-                    #
-                    #  DV = sqrt(|DA*df(A,B)/dA|**2 + |DB*df(A,B)/dB|**2)
-                    #
-                    #  for this reason the, since bol_mag is
 
-                    bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
-
-                    #   A = bol_str_ydat DA = bol_str_yerr
-                    #   B = bol_ref_ydat DB = bol_ref_yerr
-                    #   f = log10
-                    #
-                    # the error on bol_mag is:
-                    #
-                    #  bol_err=2.5*sqrt(|DA*df(A,B)/dA|^2 + |DB*df(A,B)/dB|^2)
-                    #  = 2.5*sqrt(|DA*1/[A*ln(10)]|^2 + |DB * -1/[B*ln(10)|^2)
-                    #  = 2.5*sqrt(|DA/[A*ln(10)]|^2 + |DB/[B*ln(10)]|^2)
-
-                    bol_erra = (bol_str_yerr/(bol_str_ydat*LOGE10))**2
-                    bol_errb = (bol_ref_yerr/(bol_ref_ydat*LOGE10))**2
-                    bol_err = 2.5 * np.sqrt(bol_erra + bol_errb)
-
-                    # Transformation Equation
-                    abs_mag = ref_mag - bol_mag - color_dif + airmas_corr
-                    abs_mag_err = bol_err + color_err + airmas_err
                     abs_tme = bol_str_xdat
                     abs_tme_err = bol_str_xerr
+
+                    # Transformation Equation
+                    abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied(
+                        bol_str_ydat, bol_ref_ydat, ref_mag,
+                        star_bv_index, ref_bv_index, 0.1,
+                        bol_str_yerr, bol_ref_yerr, 0,
+                        star_bv_error, ref_bv_error,
+                        transf_coeff)
 
                     abs_mag_data[0].append(abs_tme)
                     abs_mag_data[1].append(abs_mag)
@@ -5787,21 +5767,15 @@ class theApp(Qt.QObject):
                     bol_ref_ydat = refplots[0].getYData()
                     bol_ref_yerr = refplots[0].getYError()
 
-                    bol_mag = 2.5 * np.log10(bol_str_ydat/bol_ref_ydat)
-
-                    # A simple error propagation (see above)
-
-                    bol_erra = (bol_str_yerr/(bol_str_ydat*LOGE10))**2
-                    bol_errb = (bol_ref_yerr/(bol_ref_ydat*LOGE10))**2
-                    bol_err = 2.5 * np.sqrt(bol_erra + bol_errb)
-
                     # NOTE: We have no color correction here because we have
                     #       only one spectral band
 
-                    abs_mag = ref_mag - bol_mag + airmas_corr
-                    abs_mag_err = bol_err + airmas_err
                     abs_tme = bol_str_xdat
                     abs_tme_err = bol_str_xerr
+
+                    abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied2(
+                        bol_str_ydat, bol_ref_ydat, ref_mag,
+                        bol_str_yerr, bol_ref_yerr, 0)
 
                     abs_mag_data[0].append(abs_tme)
                     abs_mag_data[1].append(abs_mag)
