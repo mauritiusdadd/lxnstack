@@ -456,14 +456,6 @@ def getNumberOfComponents(mode):
             return 0
 
 
-def getProjectAbsURL(project_dir, url):
-    if os.path.isabs(url):
-        return url
-    else:
-        abs_url = os.path.join(project_dir, url)
-        return os.path.realpath(abs_url)
-
-
 class SaveImageDialog(object):
 
     def __init__(self, url=""):
@@ -718,6 +710,7 @@ class Frame(Qt.QObject):
         self.properties = {}
         self.is_good = False
         self._open_args = args
+        self._is_used=True
 
         if (('progress_bar' in args) and args['progress_bar'] is not None):
             pb = args['progress_bar']
@@ -834,11 +827,11 @@ class Frame(Qt.QObject):
     def getNumberOfComponents(self):
         return getNumberOfComponents(self.mode)
 
+    def setUsed(self, val):
+        self._is_used = val
+
     def isUsed(self):
-        check = self.getProperty('listItem')
-        if (check is None):
-            return True
-        elif check.checkState() == 2:
+        if self._is_used > 0:
             return True
         else:
             return False

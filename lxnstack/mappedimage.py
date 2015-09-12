@@ -25,25 +25,7 @@ import translation as tr
 import log
 import utils
 import colormaps
-
-COMPONENTS_NAME = ['L', 'R', 'G', 'B', 'A']
-
-
-def getComponentTable(ncomps, named=True):
-    component_table = {}
-    if named and (ncomps+1 < len(COMPONENTS_NAME)):
-        if ncomps == 1:
-            component_table[0] = COMPONENTS_NAME[0]
-        elif ncomps == 2:
-            component_table[0] = COMPONENTS_NAME[0]
-            component_table[1] = COMPONENTS_NAME[4]
-        elif ncomps >= 3:
-            for c in range(ncomps):
-                component_table[c] = COMPONENTS_NAME[c+1]
-    else:
-        for c in range(ncomps):
-            component_table[c] = 'C'+str(c)
-    return component_table
+import lightcurves as lcurves
 
 
 class MappedImage(QtCore.QObject):
@@ -140,7 +122,6 @@ class MappedImage(QtCore.QObject):
             return 0
         else:
             if len(self._original_data.shape) == 2:
-                self.component_table[0] = 'L'
                 return 1
             elif len(self._original_data.shape) < 2:
                 return -1
@@ -178,7 +159,7 @@ class MappedImage(QtCore.QObject):
                 level=logging.DEBUG)
 
         if len(self.component_table) != self.componentsCount():
-            self.component_table = getComponentTable(
+            self.component_table = lcurves.getComponentTable(
                 self.componentsCount(), named=True)
 
             self.MWB_CORRECTION_FACTORS = {}

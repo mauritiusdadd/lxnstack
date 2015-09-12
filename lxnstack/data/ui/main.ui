@@ -72,8 +72,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>215</width>
-         <height>199</height>
+         <width>225</width>
+         <height>194</height>
         </rect>
        </property>
        <attribute name="label">
@@ -290,8 +290,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>183</width>
-         <height>377</height>
+         <width>191</width>
+         <height>378</height>
         </rect>
        </property>
        <attribute name="label">
@@ -634,8 +634,8 @@ on all used images.</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>139</width>
-         <height>204</height>
+         <width>146</width>
+         <height>201</height>
         </rect>
        </property>
        <attribute name="label">
@@ -805,8 +805,8 @@ on all used images.</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>151</width>
-         <height>301</height>
+         <width>156</width>
+         <height>290</height>
         </rect>
        </property>
        <attribute name="label">
@@ -969,8 +969,8 @@ to compute master-dark file</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>198</width>
-         <height>305</height>
+         <width>156</width>
+         <height>296</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1149,8 +1149,8 @@ to compute master-dark file</string>
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>154</width>
-         <height>305</height>
+         <width>158</width>
+         <height>296</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1295,9 +1295,9 @@ to compute master-flat file</string>
        <property name="geometry">
         <rect>
          <x>0</x>
-         <y>0</y>
-         <width>202</width>
-         <height>283</height>
+         <y>-114</y>
+         <width>210</width>
+         <height>308</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1524,13 +1524,6 @@ The checked stars will be used
                </property>
               </widget>
              </item>
-             <item row="6" column="1">
-              <widget class="QLabel" name="label_29">
-               <property name="text">
-                <string>Magnitude</string>
-               </property>
-              </widget>
-             </item>
              <item row="5" column="1">
               <widget class="QLabel" name="label_30">
                <property name="text">
@@ -1579,34 +1572,6 @@ The checked stars will be used
                </property>
                <property name="maximum">
                 <number>9999999</number>
-               </property>
-              </widget>
-             </item>
-             <item row="6" column="0">
-              <widget class="QDoubleSpinBox" name="magDoubleSpinBox">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="alignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-               </property>
-               <property name="decimals">
-                <number>4</number>
-               </property>
-               <property name="minimum">
-                <double>-99999.000000000000000</double>
-               </property>
-               <property name="maximum">
-                <double>99999.000000000000000</double>
-               </property>
-               <property name="singleStep">
-                <double>0.100000000000000</double>
                </property>
               </widget>
              </item>
@@ -1675,6 +1640,14 @@ The checked stars will be used
             </layout>
            </item>
            <item>
+            <widget class="QPushButton" name="photoPropPushButton">
+             <property name="text">
+              <string>photometric
+properties</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QCheckBox" name="imageDateCheckBox">
              <property name="text">
               <string>Use image time</string>
@@ -1694,8 +1667,8 @@ The checked stars will be used
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>94</width>
-         <height>24</height>
+         <width>100</width>
+         <height>30</height>
         </rect>
        </property>
        <attribute name="label">
@@ -1716,7 +1689,7 @@ The checked stars will be used
      <x>0</x>
      <y>0</y>
      <width>640</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <property name="autoFillBackground">

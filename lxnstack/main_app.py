@@ -32,9 +32,9 @@ import paths
 import log
 import utils
 import styles
+import projects
 import videocapture
 import imgfeatures
-# import mappedimage
 import guicontrols
 import colormaps as cmaps
 import translation as tr
@@ -143,6 +143,8 @@ class theApp(Qt.QObject):
         self.stack_dlg = guicontrols.StackingDialog()
         self.align_dlg = guicontrols.AlignmentDialog()
         self.video_dlg = guicontrols.VideSaveDialog()
+        self.mag_dlg = guicontrols.PhotometricPropertiesDialog()
+        self.chmap_dlg = guicontrols.ComponentMappingDialog()
 
         self.statusBar = self.wnd.statusBar()
         self.statusLabelMousePos = Qt.QLabel()
@@ -230,7 +232,7 @@ class theApp(Qt.QObject):
         self.wnd.masterBiasGroupBox.hide()
         self.wnd.masterDarkGroupBox.hide()
         self.wnd.masterFlatGroupBox.hide()
-        self.wnd.magDoubleSpinBox.setEnabled(False)
+        self.wnd.photoPropPushButton.setEnabled(False)
         self.changeAlignMethod(self.current_align_method)
 
         self.wnd.addPushButton.clicked.connect(
@@ -239,28 +241,33 @@ class theApp(Qt.QObject):
             self.removeImage)
         self.wnd.clrPushButton.clicked.connect(
             self.clearLightList)
-        self.wnd.biasAddPushButton.clicked.connect(
-            self.doAddBiasFiles)
-        self.wnd.biasClearPushButton.clicked.connect(
-            self.doClearBiasList)
-        self.wnd.darkAddPushButton.clicked.connect(
-            self.doAddDarkFiles)
-        self.wnd.darkClearPushButton.clicked.connect(
-            self.doClearDarkList)
-        self.wnd.flatAddPushButton.clicked.connect(
-            self.doAddFlatFiles)
-        self.wnd.flatClearPushButton.clicked.connect(
-            self.doClearFlatList)
         self.wnd.listCheckAllBtn.clicked.connect(
             self.checkAllListItems)
         self.wnd.listUncheckAllBtn.clicked.connect(
             self.uncheckAllListItems)
+
+        self.wnd.biasAddPushButton.clicked.connect(
+            self.doAddBiasFiles)
+        self.wnd.biasClearPushButton.clicked.connect(
+            self.doClearBiasList)
+
+        self.wnd.darkAddPushButton.clicked.connect(
+            self.doAddDarkFiles)
+        self.wnd.darkClearPushButton.clicked.connect(
+            self.doClearDarkList)
+
+        self.wnd.flatAddPushButton.clicked.connect(
+            self.doAddFlatFiles)
+        self.wnd.flatClearPushButton.clicked.connect(
+            self.doClearFlatList)
+
         self.wnd.alignDeleteAllPushButton.clicked.connect(
             self.clearAlignPoinList)
         self.wnd.starsDeleteAllPushButton.clicked.connect(
             self.clearStarsList)
         self.wnd.lightListWidget.currentRowChanged.connect(
             self.listItemChanged)
+
         self.wnd.lightListWidget.currentItemChanged.connect(
             self.showFrameItemInCurrentTab)
         self.wnd.darkListWidget.currentItemChanged.connect(
@@ -269,6 +276,7 @@ class theApp(Qt.QObject):
             self.showFlatFrameItemInCurrentTab)
         self.wnd.biasListWidget.currentItemChanged.connect(
             self.showBiasFrameItemInCurrentTab)
+
         self.wnd.lightListWidget.itemDoubleClicked.connect(
             self.showFrameItemInNewTab)
         self.wnd.darkListWidget.itemDoubleClicked.connect(
@@ -277,18 +285,31 @@ class theApp(Qt.QObject):
             self.showFlatFrameItemInNewTab)
         self.wnd.biasListWidget.itemDoubleClicked.connect(
             self.showBiasFrameItemInNewTab)
+
+        self.wnd.lightListWidget.itemChanged.connect(
+            self.setFrameUsed)
+        self.wnd.biasListWidget.itemChanged.connect(
+            self.setFrameUsed)
+        self.wnd.darkListWidget.itemChanged.connect(
+            self.setFrameUsed)
+        self.wnd.flatListWidget.itemChanged.connect(
+            self.setFrameUsed)
+
         self.wnd.listWidgetManualAlign.currentRowChanged.connect(
             self.manualAlignListItemChanged)
         self.wnd.listWidgetManualAlign.itemChanged.connect(
             self.currentManualAlignListItemChanged)
+
         self.wnd.starsListWidget.itemChanged.connect(
             self.starsListItemChanged)
         self.wnd.alignPointsListWidget.currentRowChanged.connect(
             self.alignListItemChanged)
         self.wnd.starsListWidget.currentRowChanged.connect(
             self.currentStarsListItemChanged)
+
         self.wnd.toolBox.currentChanged.connect(
             self.updateToolBox)
+
         self.wnd.spinBoxXAlign.valueChanged.connect(
             self.shiftX)
         self.wnd.spinBoxYAlign.valueChanged.connect(
@@ -303,14 +324,16 @@ class theApp(Qt.QObject):
             self.setMiddleRadius)
         self.wnd.outerRadiusDoubleSpinBox.valueChanged.connect(
             self.setOuterRadius)
-        self.wnd.magDoubleSpinBox.valueChanged.connect(
+        self.wnd.photoPropPushButton.clicked.connect(
             self.setMagnitude)
+
         self.wnd.doubleSpinBoxOffsetX.valueChanged.connect(
             self.shiftOffsetX)
         self.wnd.doubleSpinBoxOffsetY.valueChanged.connect(
             self.shiftOffsetY)
         self.wnd.spinBoxOffsetT.valueChanged.connect(
             self.rotateOffsetT)
+
         self.wnd.addPointPushButton.clicked.connect(
             self.addAlignPoint)
         self.wnd.removePointPushButton.clicked.connect(
@@ -323,24 +346,28 @@ class theApp(Qt.QObject):
             self.autoSetAlignPoint)
         self.wnd.autoDetectPushButton.clicked.connect(
             self.autoDetectAlignPoints)
+
         self.wnd.masterBiasCheckBox.stateChanged.connect(
             self.useMasterBias)
         self.wnd.masterDarkCheckBox.stateChanged.connect(
             self.useMasterDark)
         self.wnd.masterFlatCheckBox.stateChanged.connect(
             self.useMasterFlat)
+
         self.wnd.masterBiasPushButton.clicked.connect(
             self.loadMasterBias)
         self.wnd.masterDarkPushButton.clicked.connect(
             self.loadMasterDark)
         self.wnd.masterFlatPushButton.clicked.connect(
             self.loadMasterFlat)
+
         self.wnd.biasMulDoubleSpinBox.valueChanged.connect(
             self.setBiasMul)
         self.wnd.darkMulDoubleSpinBox.valueChanged.connect(
             self.setDarkMul)
         self.wnd.flatMulDoubleSpinBox.valueChanged.connect(
             self.setFlatMul)
+
         self.wnd.alignMethodComboBox.currentIndexChanged.connect(
             self.changeAlignMethod)
 
@@ -385,7 +412,6 @@ class theApp(Qt.QObject):
     #     reload(styles)
     #     reload(videocapture)
     #     reload(imgfeatures)
-    #     reload(mappedimage)
     #     reload(guicontrols)
     #     reload(colormaps)
     #     reload(translation)
@@ -1875,6 +1901,12 @@ class theApp(Qt.QObject):
             self.updateBayerMatrix)
         self.action_enable_rawmode.setCheckable(True)
 
+        self.action_edit_channel_mapping = QtGui.QAction(
+            utils.getQIcon("channel-mapping"),
+            tr.tr('Edit photometric bands mapping'), self)
+        self.action_edit_channel_mapping.triggered.connect(
+            self.updateChannelMapping)
+
         self.action_enable_video = QtGui.QAction(
             utils.getQIcon(""),
             tr.tr('Enable preview'), self)
@@ -1945,6 +1977,7 @@ class theApp(Qt.QObject):
         menu_stacking.addAction(self.action_save_video)
 
         # Ligthcurves menu
+        menu_lightcurves.addAction(self.action_edit_channel_mapping)
         menu_lightcurves.addAction(self.action_gen_lightcurves)
 
         # Settings menu
@@ -1987,6 +2020,7 @@ class theApp(Qt.QObject):
 
         # TODO: complete this seciton
 
+        toolbar.addAction(self.action_edit_channel_mapping)
         toolbar.addAction(self.action_gen_lightcurves)
 
         return toolbar
@@ -2108,6 +2142,22 @@ class theApp(Qt.QObject):
     def canceled(self):
         self.wasCanceled = True
 
+    def setFrameUsed(self, item):
+        try:
+            img = item.target_image
+            val = item.checkState()
+            img.setUsed(val)
+            log.log(repr(self),
+                    "Marking image '{}' as '{}'".format(img.url, val),
+                    level=logging.DEBUG)
+        except Exception as exc:
+            msg = tr.tr("An unexpected error has occurred while " +
+                        "marking an image!\n{}").format(exc)
+            utils.showErrorMsgBox(msg, caller=self)
+            log.log(repr(self),
+                    msg,
+                    level=logging.ERROR)
+
     def loadFiles(self, newlist=None):
 
         oldlist = self.framelist[:]
@@ -2151,6 +2201,7 @@ class theApp(Qt.QObject):
             self.currentWidth = imw
             self.currentHeight = imh
             self.currentDepht = dep
+            self.channel_mapping = lcurves.getComponentTable(dep)
 
             if self.dlg._dialog.autoSizeCheckBox.checkState() == 2:
                 r_w = int(self.currentWidth/10)
@@ -2202,12 +2253,7 @@ class theApp(Qt.QObject):
                         rejected += tr.tr('image channels')+'='
                         rejected += str(img.getNumberOfComponents())+'\n'
                     else:
-                        q = Qt.QListWidgetItem(img.tool_name)
-                        q.setCheckState(2)
-                        q.exif_properties = img.properties
-                        q.setToolTip(img.long_tool_name)
-                        listitemslist.append(q)
-                        img.addProperty('listItem', q)
+                        self.addFrameListWidgetItem(img, listitemslist)
                         img.addProperty('frametype', utils.LIGHT_FRAME_TYPE)
                         self.framelist.append(img)
                     page += 1
@@ -2332,6 +2378,19 @@ class theApp(Qt.QObject):
         listwidget.clear()
         clearbutton.setEnabled(False)
 
+    def addFrameListWidgetItem(self, frame, framelistwidget):
+        q = Qt.QListWidgetItem(frame.tool_name)
+        q.setCheckState(frame.isUsed()*2)
+        q.exif_properties = frame.properties
+        q.setToolTip(frame.long_tool_name)
+        # TODO: Check for circular dependencies!
+        q.target_image = frame
+        frame.addProperty('listItem', q)
+        if type(framelistwidget) is QtGui.QListWidget:
+            framelistwidget.addItem(q)
+        else:
+            framelistwidget.append(q)
+
     def addFrameFiles(self, frametype, framelistwidget, framelist, clearbutton,
                       directory=None, ignoreErrors=False):
         if directory is None:
@@ -2381,10 +2440,7 @@ class theApp(Qt.QObject):
                             (self.currentHeight == i.height) and
                             (self.currentDepht == i.getNumberOfComponents())):
                         framelist.append(i)
-                        q = Qt.QListWidgetItem(i.tool_name, framelistwidget)
-                        q.setToolTip(i.long_tool_name)
-                        q.setCheckState(2)
-                        i.addProperty('listItem', q)
+                        self.addFrameListWidgetItem(i, framelistwidget)
                         i.addProperty('frametype', str(frametype))
                     else:
                         warnings = True
@@ -2554,6 +2610,9 @@ class theApp(Qt.QObject):
             log.log(repr(self),
                     "RAW-bayer mode disabled",
                     level=logging.DEBUG)
+
+        self.channel_mapping = lcurves.getComponentTable(
+            self.getNumberOfComponents())
 
         log.log(repr(self),
                 "Forcing update of displayed images",
@@ -2849,10 +2908,10 @@ class theApp(Qt.QObject):
         pnt.rename(str(q.text()))
         if q.checkState() == 0:
             pnt.reference = False
-            self.wnd.magDoubleSpinBox.setEnabled(False)
+            self.wnd.photoPropPushButton.setEnabled(False)
         else:
             pnt.reference = True
-            self.wnd.magDoubleSpinBox.setEnabled(True)
+            self.wnd.photoPropPushButton.setEnabled(True)
 
         for frm in self.framelist:
             if frm is not cfrm:
@@ -2875,12 +2934,11 @@ class theApp(Qt.QObject):
             self.wnd.innerRadiusDoubleSpinBox.setValue(pnt.r1)
             self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r2)
             self.wnd.outerRadiusDoubleSpinBox.setValue(pnt.r3)
-            self.wnd.magDoubleSpinBox.setValue(pnt.magnitude)
 
             if pnt.reference:
-                self.wnd.magDoubleSpinBox.setEnabled(True)
+                self.wnd.photoPropPushButton.setEnabled(True)
             else:
-                self.wnd.magDoubleSpinBox.setEnabled(False)
+                self.wnd.photoPropPushButton.setEnabled(False)
 
             self.wnd.spinBoxXStar.setEnabled(True)
             self.wnd.spinBoxYStar.setEnabled(True)
@@ -2894,7 +2952,6 @@ class theApp(Qt.QObject):
             self.wnd.innerRadiusDoubleSpinBox.setValue(0)
             self.wnd.middleRadiusDoubleSpinBox.setValue(0)
             self.wnd.outerRadiusDoubleSpinBox.setValue(0)
-            self.wnd.magDoubleSpinBox.setValue(0)
 
             self.wnd.spinBoxXStar.setEnabled(False)
             self.wnd.spinBoxYStar.setEnabled(False)
@@ -2902,7 +2959,7 @@ class theApp(Qt.QObject):
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.removeStarPushButton.setEnabled(False)
-            self.wnd.magDoubleSpinBox.setEnabled(False)
+            self.wnd.photoPropPushButton.setEnabled(False)
         QtGui.QApplication.instance().processEvents()
         self._updating_feature = False
 
@@ -3130,14 +3187,15 @@ class theApp(Qt.QObject):
                 self.wnd.middleRadiusDoubleSpinBox.setValue(pnt.r3-2)
             self.repaintAllMdiImageViewers()
 
-    def setMagnitude(self, val):
+    def setMagnitude(self):
         if self.star_idx >= 0 and not self._updating_feature:
             cfrm = self.framelist[self.image_idx]
             pnt = cfrm.stars[self.star_idx]
-            pnt.magnitude = val
+            mag_dic = self.mag_dlg.exec_(pnt, self.channel_mapping)
+            pnt.magnitude = mag_dic
             if pnt.isFixed():
                 for frm in self.framelist:
-                    frm.stars[self.star_idx].magnitude = val
+                    frm.stars[self.star_idx].magnitude = mag_dic
             self.repaintAllMdiImageViewers()
 
     def shiftOffsetX(self, val):
@@ -3297,7 +3355,7 @@ class theApp(Qt.QObject):
                               caller=self)
         return False
 
-    def _save_project(self):
+    def _save_project_old(self):
         self.lock(False)
         self.progress.reset()
         log.log(repr(self),
@@ -3539,11 +3597,78 @@ class theApp(Qt.QObject):
 
         self.unlock()
 
+    def _save_project(self):
+        self.lock(False)
+        self.progress.reset()
+        log.log(repr(self),
+                "Saving project to " + str(self.current_project_fname),
+                level=logging.INFO)
+
+        self.statusBar.showMessage(tr.tr('saving project') + ', ' +
+                                   tr.tr('please wait...'))
+
+        if self.action_enable_rawmode.isChecked():
+            bayer_mode = self.bayer_tcb.currentIndex()
+        else:
+            bayer_mode = -1
+
+        proj = projects.Project(self.frame_open_args)
+
+        proj.imw = self.currentWidth
+        proj.imh = self.currentHeight
+        proj.dep = self.currentDepht
+
+        proj.light_frames = self.framelist
+        proj.bias_frames = self.biasframelist
+        proj.dark_frames = self.darkframelist
+        proj.flat_frames = self.flatframelist
+
+        proj.current_image_idx = self.image_idx
+        proj.bayer_mode = bayer_mode
+
+        master_bias_url = str(self.wnd.masterBiasLineEdit.text())
+        master_dark_url = str(self.wnd.masterDarkLineEdit.text())
+        master_flat_url = str(self.wnd.masterFlatLineEdit.text())
+
+        proj.master_bias_url = master_bias_url
+        proj.master_dark_url = master_dark_url
+        proj.master_flat_url = master_flat_url
+
+        mb_cck_state = bool(self.wnd.masterBiasCheckBox.checkState())
+        md_cck_state = bool(self.wnd.masterDarkCheckBox.checkState())
+        mf_cck_state = bool(self.wnd.masterFlatCheckBox.checkState())
+
+        proj.use_master_bias = mb_cck_state
+        proj.use_master_dark = md_cck_state
+        proj.use_master_flat = mf_cck_state
+
+        proj.master_bias_mul = self.master_bias_mul_factor
+        proj.master_dark_mul = self.master_dark_mul_factor
+        proj.master_flat_mul = self.master_flat_mul_factor
+
+        proj.aap_rectangle = self.aap_rectangle
+        proj.max_points = self.max_points
+        proj.min_quality = self.min_quality
+        proj.use_whole_image = self.aap_wholeimage
+        proj.use_image_time = bool(self.wnd.imageDateCheckBox.checkState())
+        proj.project_directory = self.current_dir
+
+        proj.channel_mapping = self.channel_mapping
+
+        try:
+            proj.saveProject(self.current_project_fname)
+        except Exception as exc:
+            return self.corruptedMsgBox(str(exc))
+
+        wnd_title = str(paths.PROGRAM_NAME)
+        wnd_title += ' ['+self.current_project_fname+']'
+        self.wnd.setWindowTitle(wnd_title)
+        self.unlock()
+
     def loadProject(self, pname=None):
         log.log(repr(self),
                 'loading project, please wait...',
                 level=logging.INFO)
-        old_fname = self.current_project_fname
 
         if pname is None:
             project_fname = str(Qt.QFileDialog.getOpenFileName(
@@ -3555,462 +3680,11 @@ class theApp(Qt.QObject):
         else:
             project_fname = pname
 
-        if not project_fname.strip():
-            log.log(repr(self),
-                    ' no project selected, retvert to previous state',
-                    level=logging.INFO)
-            return False
-        else:
-            log.log(repr(self),
-                    ' project name: \''+str(project_fname)+'\'',
-                    level=logging.DEBUG)
-
-        proj_path = os.path.dirname(project_fname)
+        proj = projects.Project(self.frame_open_args)
 
         try:
-            dom = minidom.parse(project_fname)
-        except Exception as err:
-            log.log(repr(self),
-                    'failed to parse project, xml formatting error',
-                    level=logging.ERROR)
-            return self.corruptedMsgBox(err)
-
-        self.statusBar.showMessage(tr.tr('loading project, please wait...'))
-        self.lock(False)
-
-        try:
-            root = dom.getElementsByTagName('project')[0]
-            information_node = root.getElementsByTagName('information')[0]
-            dark_frames_node = root.getElementsByTagName('dark-frames')[0]
-            flat_frames_node = root.getElementsByTagName('flat-frames')[0]
-            pict_frames_node = root.getElementsByTagName('frames')[0]
-
-            try:  # backward compatibility
-                bs_node_list = root.getElementsByTagName('bias-frames')
-                bias_frames_node = bs_node_list[0]
-
-                bs_frame_list = bias_frames_node.getElementsByTagName('image')
-                total_bias = len(bs_frame_list)
-
-                mbs_list = information_node.getElementsByTagName('master-bias')
-                master_bias_node = mbs_list[0]
-
-                mbs_ckd = master_bias_node.getAttribute('checked')
-                master_bias_checked = int(mbs_ckd)
-
-                mbs_mul = master_bias_node.getAttribute('mul')
-                master_bias_mul = float(mbs_mul)
-                has_bias_section = True
-            except Exception as exc:
-                log.log(repr(self),
-                        'No bias section',
-                        level=logging.DEBUG)
-                total_bias = 0
-                master_bias_node = None
-                has_bias_section = False
-
-            try:  # backward compatibility
-                photometry_list = root.getElementsByTagName('photometry')
-                photometry_node = photometry_list[0]
-                has_photometry_section = True
-            except Exception as exc:
-                log.log(repr(self),
-                        'no fotometric section, skipping star loading',
-                        level=logging.DEBUG)
-                has_photometry_section = False
-
-            total_dark = len(dark_frames_node.getElementsByTagName('image'))
-            total_flat = len(flat_frames_node.getElementsByTagName('image'))
-            total_imgs = len(pict_frames_node.getElementsByTagName('image'))
-
-            self.progress.reset()
-
-            progress_max = total_bias
-            progress_max += total_dark
-            progress_max += total_flat
-            progress_max += total_imgs - 1
-            self.progress.setMaximum(progress_max)
-
-            count = 0
-
-            log.log(repr(self),
-                    'loading project information',
-                    level=logging.DEBUG)
-
-            cdir_lst = information_node.getElementsByTagName('current-dir')
-            crow_lst = information_node.getElementsByTagName('current-row')
-            mdrk_lst = information_node.getElementsByTagName('master-dark')
-            mflt_lst = information_node.getElementsByTagName('master-flat')
-            arct_lst = information_node.getElementsByTagName('align-rect')
-            mp_lst = information_node.getElementsByTagName('max-align-points')
-            mq_lst = information_node.getElementsByTagName('min-point-quality')
-
-            current_dir_node = cdir_lst[0]
-            current_row_node = crow_lst[0]
-            master_dark_node = mdrk_lst[0]
-            master_flat_node = mflt_lst[0]
-            align_rect_node = arct_lst[0]
-            max_points_node = mp_lst[0]
-            min_quality_node = mq_lst[0]
-
-            imw = int(information_node.getAttribute('width'))
-            imh = int(information_node.getAttribute('height'))
-            dep = int(information_node.getAttribute('mode'))
-
-            try:
-                bayer_mode = int(information_node.getAttribute('bayer-mode'))
-            except:
-                bayer_mode = -1
-
-            ar_w = int(align_rect_node.getAttribute('width'))
-            ar_h = int(align_rect_node.getAttribute('height'))
-            use_whole_image = int(align_rect_node.getAttribute('whole-image'))
-            max_points = int(max_points_node.getAttribute('value'))
-            min_quality = float(min_quality_node.getAttribute('value'))
-
-            current_dir = current_dir_node.getAttribute('url')
-            current_row = int(current_row_node.getAttribute('index'))
-            master_dark_checked = int(master_dark_node.getAttribute('checked'))
-            master_flat_checked = int(master_flat_node.getAttribute('checked'))
-            master_dark_mul = float(master_dark_node.getAttribute('mul'))
-            master_flat_mul = float(master_flat_node.getAttribute('mul'))
-
-            try:
-                url_node = master_bias_node.getElementsByTagName('url')[0]
-                node_url = url_node.childNodes[0].data
-                master_bias_url = utils.getProjectAbsURL(proj_path, node_url)
-            except:
-                master_bias_url = ''
-
-            try:
-                url_node = master_dark_node.getElementsByTagName('url')[0]
-                node_url = url_node.childNodes[0].data
-                master_dark_url = utils.getProjectAbsURL(proj_path, node_url)
-            except:
-                master_dark_url = ''
-
-            try:
-                url_node = master_flat_node.getElementsByTagName('url')[0]
-                node_url = url_node.childNodes[0].data
-                master_flat_url = utils.getProjectAbsURL(proj_path, node_url)
-            except:
-                master_flat_url = ''
-
-            biasframelist = []
-            biasListWidgetElements = []
-            if has_bias_section:
-                log.log(repr(self),
-                        'reading bias-frames section',
-                        level=logging.DEBUG)
-                for node in bias_frames_node.getElementsByTagName('image'):
-                    if self.progressWasCanceled():
-                        return False
-                    self.progress.setValue(count)
-                    count += 1
-                    im_bias_name = node.getAttribute('name')
-                    try:
-                        im_bias_used = int(node.getAttribute('used'))
-                    except Exception as exc:
-                        try:
-                            st_im_used = str(node.getAttribute('used')).lower()
-                            if st_im_used.lower() == 'false':
-                                im_bias_used = 0
-                            elif st_im_used.lower() == 'true':
-                                im_bias_used = 2
-                            else:
-                                raise exc
-                        except:
-                            im_bias_used = 2
-
-                    url_bias_node = node.getElementsByTagName('url')[0]
-                    _bias_url = url_bias_node.childNodes[0].data
-                    im_bias_url = utils.getProjectAbsURL(proj_path, _bias_url)
-
-                    if 'page' in url_bias_node.attributes.keys():
-                        im_bias_page = url_bias_node.getAttribute('page')
-                        biasfrm = utils.Frame(im_bias_url,
-                                              int(im_bias_page),
-                                              skip_loading=False,
-                                              **self.frame_open_args)
-                    else:
-                        biasfrm = utils.Frame(im_bias_url,
-                                              0,
-                                              skip_loading=False,
-                                              **self.frame_open_args)
-
-                    biasfrm.tool_name = im_bias_name
-                    biasfrm.width = imw
-                    biasfrm.height = imh
-                    biasfrm.mode = dep
-                    biasframelist.append(biasfrm)
-
-                    q = Qt.QListWidgetItem(biasfrm.tool_name, None)
-                    q.setToolTip(biasfrm.long_tool_name)
-                    q.setCheckState(im_bias_used)
-
-                    biasfrm.addProperty('listItem', q)
-                    biasfrm.addProperty('frametype', utils.BIAS_FRAME_TYPE)
-                    biasListWidgetElements.append(q)
-
-            log.log(repr(self),
-                    'reading dark-frames section',
-                    level=logging.DEBUG)
-
-            darkframelist = []
-            darkListWidgetElements = []
-            for node in dark_frames_node.getElementsByTagName('image'):
-                if self.progressWasCanceled():
-                    return False
-                self.progress.setValue(count)
-                count += 1
-                im_dark_name = node.getAttribute('name')
-                try:
-                    im_dark_used = int(node.getAttribute('used'))
-                except Exception as exc:
-                    try:
-                        st_im_used = str(node.getAttribute('used')).lower()
-                        if st_im_used.lower() == 'false':
-                            im_dark_used = 0
-                        elif st_im_used.lower() == 'true':
-                            im_dark_used = 2
-                        else:
-                            raise exc
-                    except:
-                        im_dark_used = 2
-
-                url_dark_node = node.getElementsByTagName('url')[0]
-                _dark_url = url_dark_node.childNodes[0].data
-                im_dark_url = utils.getProjectAbsURL(proj_path, _dark_url)
-
-                if 'page' in url_dark_node.attributes.keys():
-                    im_dark_page = url_dark_node.getAttribute('page')
-                    darkfrm = utils.Frame(im_dark_url,
-                                          int(im_dark_page),
-                                          skip_loading=False,
-                                          **self.frame_open_args)
-                else:
-                    darkfrm = utils.Frame(im_dark_url,
-                                          0,
-                                          skip_loading=False,
-                                          **self.frame_open_args)
-                darkfrm.tool_name = im_dark_name
-                darkfrm.width = imw
-                darkfrm.height = imh
-                darkfrm.mode = dep
-                darkframelist.append(darkfrm)
-
-                q = Qt.QListWidgetItem(darkfrm.tool_name, None)
-                q.setToolTip(darkfrm.long_tool_name)
-                q.setCheckState(im_dark_used)
-
-                darkfrm.addProperty('listItem', q)
-                darkfrm.addProperty('frametype', utils.DARK_FRAME_TYPE)
-                darkListWidgetElements.append(q)
-
-            log.log(repr(self),
-                    'reading flatfield-frames section',
-                    level=logging.DEBUG)
-
-            flatframelist = []
-            flatListWidgetElements = []
-            for node in flat_frames_node.getElementsByTagName('image'):
-                if self.progressWasCanceled():
-                    return False
-                self.progress.setValue(count)
-                count += 1
-                im_flat_name = node.getAttribute('name')
-                try:
-                    im_flat_used = int(node.getAttribute('used'))
-                except Exception as exc:
-                    try:
-                        st_im_used = str(node.getAttribute('used')).lower()
-                        if st_im_used.lower() == 'false':
-                            im_flat_name = 0
-                        elif st_im_used.lower() == 'true':
-                            im_flat_name = 2
-                        else:
-                            raise exc
-                    except:
-                        im_flat_name = 2
-
-                url_flat_node = node.getElementsByTagName('url')[0]
-                _flat_url = url_flat_node.childNodes[0].data
-                im_flat_url = utils.getProjectAbsURL(proj_path, _flat_url)
-
-                if 'page' in url_flat_node.attributes.keys():
-                    im_flat_page = url_flat_node.getAttribute('page')
-                    flatfrm = utils.Frame(im_flat_url,
-                                          int(im_flat_page),
-                                          skip_loading=False,
-                                          **self.frame_open_args)
-                else:
-                    flatfrm = utils.Frame(im_flat_url,
-                                          0,
-                                          skip_loading=False,
-                                          **self.frame_open_args)
-                flatfrm.tool_name = im_flat_name
-                flatfrm.width = imw
-                flatfrm.height = imh
-                flatfrm.mode = dep
-                flatframelist.append(flatfrm)
-
-                q = Qt.QListWidgetItem(flatfrm.tool_name, None)
-                q.setToolTip(flatfrm.long_tool_name)
-                q.setCheckState(im_flat_used)
-
-                flatfrm.addProperty('listItem', q)
-                flatfrm.addProperty('frametype', utils.FLAT_FRAME_TYPE)
-                flatListWidgetElements.append(q)
-
-            log.log(repr(self),
-                    'reading light-frames section',
-                    level=logging.DEBUG)
-
-            framelist = []
-            listWidgetElements = []
-            for node in pict_frames_node.getElementsByTagName('image'):
-                if self.progressWasCanceled():
-                        return False
-                self.progress.setValue(count)
-                count += 1
-                im_name = node.getAttribute('name')
-                try:
-                    im_used = int(node.getAttribute('used'))
-                except Exception as exc:
-                    st_im_used = str(node.getAttribute('used')).lower()
-                    if st_im_used.lower() == 'false':
-                        im_used = 0
-                    elif st_im_used.lower() == 'true':
-                        im_used = 2
-                    else:
-                        raise exc
-
-                im_url_node = node.getElementsByTagName('url')[0]
-                _url = im_url_node.childNodes[0].data
-                im_url = utils.getProjectAbsURL(proj_path, _url)
-
-                if 'page' in im_url_node.attributes.keys():
-                    im_page = im_url_node.getAttribute('page')
-                    frm = utils.Frame(im_url,
-                                      int(im_page),
-                                      skip_loading=True,
-                                      **self.frame_open_args)
-                else:
-                    frm = utils.Frame(im_url,
-                                      0,
-                                      skip_loading=True,
-                                      **self.frame_open_args)
-
-                for point in node.getElementsByTagName('align-point'):
-                    point_id = point.getAttribute('id')
-                    point_al = point.getAttribute('aligned').lower()
-                    point_al = bool(point_al == 'True')
-                    point_x = int(point.getAttribute('x'))
-                    point_y = int(point.getAttribute('y'))
-                    pnt = imgfeatures.AlignmentPoint(point_x, point_y,
-                                                     point_id, point_id)
-                    pnt.aligned = point_al
-                    pnt.moved.connect(self.updateAlignPointPosition)
-                    frm.addAlignPoint(pnt)
-
-                for s in node.getElementsByTagName('star'):
-                    st_x = int(s.getAttribute('x'))
-                    st_y = int(s.getAttribute('y'))
-                    st_name = s.getAttribute('name')
-                    st_id = s.getAttribute('id')
-                    st_r1 = float(s.getAttribute('inner_radius'))
-                    st_r2 = float(s.getAttribute('middle_radius'))
-                    st_r3 = float(s.getAttribute('outer_radius'))
-                    st_ref = bool(int(s.getAttribute('reference')))
-                    st_mag = float(s.getAttribute('magnitude'))
-                    st = imgfeatures.Star(st_x, st_y,
-                                          st_name, st_id)
-                    st.r1 = st_r1
-                    st.r2 = st_r2
-                    st.r3 = st_r3
-                    st.reference = st_ref
-                    st.magnitude = st_mag
-                    st.moved_rt.connect(self.updateStarPosition)
-                    frm.addStar(st)
-
-                for star in node.getElementsByTagName('align-point'):
-                    point_id = point.getAttribute('id')
-                    point_al = point.getAttribute('aligned').lower()
-                    point_al = bool(point_al == 'True')
-                    point_x = int(point.getAttribute('x'))
-                    point_y = int(point.getAttribute('y'))
-                    pnt = imgfeatures.AlignmentPoint(point_x, point_y,
-                                                     point_id, point_id)
-                    pnt.aligned = point_al
-                    frm.alignpoints.append(pnt)
-
-                offset_node = node.getElementsByTagName('offset')[0]
-                offset_x = float(offset_node.getAttribute('x'))
-                offset_y = float(offset_node.getAttribute('y'))
-
-                if 'theta' in offset_node.attributes.keys():
-                    offset_t = float(offset_node.getAttribute('theta'))
-                else:
-                    offset_t = 0
-
-                frm.tool_name = im_name
-                frm.width = imw
-                frm.height = imh
-                frm.mode = dep
-                frm.setOffset([offset_x, offset_y])
-                frm.setAngle(offset_t)
-
-                q = Qt.QListWidgetItem(frm.tool_name, None)
-                q.setToolTip(frm.long_tool_name)
-                q.setCheckState(im_used)
-                q.exif_properties = frm.properties
-                listWidgetElements.append(q)
-
-                frm.addProperty('listItem', q)
-                frm.addProperty('frametype', utils.LIGHT_FRAME_TYPE)
-                framelist.append(frm)
-
-            if has_photometry_section:
-                log.log(repr(self),
-                        'reading stars section',
-                        level=logging.DEBUG)
-                time_attr = int(photometry_node.getAttribute('time_type'))
-                use_image_time = bool(time_attr)
-
-                # photometry section
-
-                # NOTE: stars now are stored in each image, this
-                #       is only for backward compatibility
-
-                sels = photometry_node.getElementsByTagName('star')
-                if len(sels) > 0 and len(framelist[0].stars) == 0:
-                    for frm in framelist:
-                        for snd in sels:
-                            if self.progressWasCanceled():
-                                return False
-                            is_reference = int(snd.getAttribute('reference'))
-                            s = imgfeatures.Star()
-                            sx = int(snd.getAttribute('x'))
-                            sy = int(snd.getAttribute('y'))
-                            s.name = str(snd.getAttribute('name'))
-                            s.r1 = float(snd.getAttribute('inner_radius'))
-                            s.r2 = float(snd.getAttribute('middle_radius'))
-                            s.r3 = float(snd.getAttribute('outer_radius'))
-                            s.reference = bool(is_reference)
-                            s.magnitude = float(snd.getAttribute('magnitude'))
-                            frm.addStar(s)
-                            s.setPosition(sx, sy)
-                            s.moved_rt.connect(self.updateStarPosition)
-            else:
-                use_image_time = self.use_image_time
-
+            proj.loadProject(project_fname)
         except Exception as exc:
-            self.current_project_fname = old_fname
-            self.unlock()
-            log.log(repr(self),
-                    'An error has occurred while reading the project:' +
-                    '\"' + str(exc) + '\"',
-                    level=logging.ERROR)
             return self.corruptedMsgBox(str(exc))
 
         self.newProject()
@@ -4021,64 +3695,73 @@ class theApp(Qt.QObject):
                 'setting up project environment',
                 level=logging.DEBUG)
 
-        for item in biasListWidgetElements:
-            self.wnd.biasListWidget.addItem(item)
+        self.currentWidth = proj.imw
+        self.currentHeight = proj.imh
+        self.currentDepht = proj.dep
+        self.framelist = proj.light_frames
+        self.biasframelist = proj.bias_frames
+        self.darkframelist = proj.dark_frames
+        self.flatframelist = proj.flat_frames
+        self.image_idx = proj.current_image_idx
+        self.master_bias_file = proj.master_bias_url
+        self.master_dark_file = proj.master_dark_url
+        self.master_flat_file = proj.master_flat_url
+        self.wnd.lightListWidget.setCurrentRow(self.image_idx)
+        self.aap_rectangle = proj.aap_rectangle
+        self.max_points = proj.max_points
+        self.min_quality = proj.min_quality
+        self.aap_wholeimage = proj.use_whole_image
+        self.wnd.imageDateCheckBox.setCheckState(2*proj.use_image_time)
+        self.current_dir = proj.project_directory
 
-        for item in flatListWidgetElements:
-            self.wnd.flatListWidget.addItem(item)
+        for i in self.framelist:
+            self.addFrameListWidgetItem(i, self.wnd.lightListWidget)
 
-        for item in darkListWidgetElements:
-            self.wnd.darkListWidget.addItem(item)
+            for f in i.getAllFeatures():
+                if type(f) is imgfeatures.AlignmentPoint:
+                    f.moved.connect(self.updateAlignPointPosition)
+                elif type(f) is imgfeatures.Star:
+                    f.moved_rt.connect(self.updateStarPosition)
+                else:
+                    pass
 
-        for item in listWidgetElements:
-            self.wnd.lightListWidget.addItem(item)
+        for i in self.biasframelist:
+            self.addFrameListWidgetItem(i, self.wnd.biasListWidget)
 
-        self.currentWidth = imw
-        self.currentHeight = imh
-        self.currentDepht = dep
-        self.framelist = framelist
-        self.biasframelist = biasframelist
-        self.darkframelist = darkframelist
-        self.flatframelist = flatframelist
-        self.image_idx = current_row
-        self.master_bias_file = master_bias_url
-        self.master_dark_file = master_dark_url
-        self.master_flat_file = master_flat_url
-        self.wnd.lightListWidget.setCurrentRow(current_row)
-        self.aap_rectangle = (ar_w, ar_h)
-        self.max_points = max_points
-        self.min_quality = min_quality
-        self.aap_wholeimage = use_whole_image
-        self.wnd.imageDateCheckBox.setCheckState(2*use_image_time)
-        self.current_dir = current_dir
+        for i in self.darkframelist:
+            self.addFrameListWidgetItem(i, self.wnd.darkListWidget)
+
+        for i in self.flatframelist:
+            self.addFrameListWidgetItem(i, self.wnd.flatListWidget)
 
         if self.framelist:
             self.unlockSidebar()
             self.wnd.manualAlignGroupBox.setEnabled(True)
-            if bayer_mode >= 0:
+            if proj.bayer_mode >= 0:
                 self.action_enable_rawmode.setChecked(True)
-                self.bayer_tcb.setCurrentIndex(bayer_mode)
+                self.bayer_tcb.setCurrentIndex(proj.bayer_mode)
             else:
                 self.action_enable_rawmode.setChecked(False)
 
-        if has_bias_section:
-            self.wnd.masterBiasCheckBox.setCheckState(master_bias_checked)
-            self.wnd.masterBiasLineEdit.setText(master_bias_url)
-            self.wnd.biasMulDoubleSpinBox.setValue(master_bias_mul)
-            if self.biasframelist:
-                self.wnd.biasClearPushButton.setEnabled(True)
+        self.wnd.masterBiasCheckBox.setCheckState(proj.use_master_bias*2)
+        self.wnd.masterBiasLineEdit.setText(proj.master_bias_url)
+        self.wnd.biasMulDoubleSpinBox.setValue(proj.master_bias_mul)
+        if self.biasframelist:
+            self.wnd.biasClearPushButton.setEnabled(True)
 
-        self.wnd.masterDarkCheckBox.setCheckState(master_dark_checked)
-        self.wnd.masterDarkLineEdit.setText(master_dark_url)
-        self.wnd.darkMulDoubleSpinBox.setValue(master_dark_mul)
+        self.wnd.masterDarkCheckBox.setCheckState(proj.use_master_dark*2)
+        self.wnd.masterDarkLineEdit.setText(proj.master_dark_url)
+        self.wnd.darkMulDoubleSpinBox.setValue(proj.master_dark_mul)
         if self.darkframelist:
             self.wnd.darkClearPushButton.setEnabled(True)
 
-        self.wnd.masterFlatCheckBox.setCheckState(master_flat_checked)
-        self.wnd.masterFlatLineEdit.setText(master_flat_url)
-        self.wnd.flatMulDoubleSpinBox.setValue(master_flat_mul)
+        self.wnd.masterFlatCheckBox.setCheckState(proj.use_master_flat*2)
+        self.wnd.masterFlatLineEdit.setText(proj.master_flat_url)
+        self.wnd.flatMulDoubleSpinBox.setValue(proj.master_flat_mul)
         if self.flatframelist:
             self.wnd.flatClearPushButton.setEnabled(True)
+
+        self.channel_mapping = proj.channel_mapping
 
         log.log(repr(self),
                 'project fully loaded',
@@ -5509,6 +5192,9 @@ class theApp(Qt.QObject):
 
     def doGenerateLightCurves(self):
         return self.generateLightCurves()
+
+    def updateChannelMapping(self):
+        self.channel_mapping = self.chmap_dlg.exec_(self.channel_mapping)
 
     def generateLightCurves(self, method=None, **args):
         del self._bas

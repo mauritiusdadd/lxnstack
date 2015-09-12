@@ -25,6 +25,7 @@ import translation as tr
 import plotting
 import utils
 import styles
+import lightcurves as lcurves
 import colormaps as cmaps
 import mappedimage
 import numpy as np
@@ -485,6 +486,178 @@ class ToolComboCheckBox(ToolComboBox):
         self._selector.setMinimumWidth(200)
 
         self.itemChanged = self._selector.itemChanged
+
+
+class MagDoubleValidator(QtGui.QDoubleValidator):
+
+    def validate(self, inp, pos):
+        try:
+            float(inp)
+            return QtGui.QDoubleValidator.validate(self, inp, pos)
+        except:
+            ss = str(inp).strip()
+            if ss == '':
+                state = self.Acceptable
+            else:
+                state = self.Invalid
+        else:
+            state = self.Acceptable
+        return (state, pos)
+
+
+class MagItemDelegate(QtGui.QStyledItemDelegate):
+
+    def createEditor(self, parent, option, index):
+        lineEdit = QtGui.QLineEdit(parent)
+        validator = MagDoubleValidator(-99, 99, 4, lineEdit)
+        validator.setNotation(0)
+        lineEdit.setValidator(validator)
+        return lineEdit
+
+
+class BandItemDelegate(QtGui.QStyledItemDelegate):
+
+    def createEditor(self, parent, option, index):
+        comboBox = QtGui.QComboBox(parent)
+        comboBox.setEditable(False)
+        for band in lcurves.COMPONENTS_NAME:
+            comboBox.addItem(band)
+        return comboBox
+
+    def setEditorData(self, editor, index):
+
+        value = str(index.model().data(index).toString())
+        index = editor.findText(value)
+        editor.setCurrentIndex(index)
+
+
+class DialogBox(QtGui.QDialog):
+
+    def __init__(self, title="Dialog", buttons=QtGui.QDialogButtonBox.Ok):
+        QtGui.QDialog.__init__(self)
+
+        bbox = QtGui.QDialogButtonBox(self)
+        bbox.addButton(buttons)
+        bbox.accepted.connect(self.accept)
+
+        mainlayout = QtGui.QVBoxLayout()
+        self.central_layout = QtGui.QVBoxLayout()
+
+        mainlayout.addLayout(self.central_layout)
+        mainlayout.addWidget(bbox)
+        self.setLayout(mainlayout)
+
+    def addWidget(self, wid):
+        self.central_layout.addWidget(wid)
+
+
+class ComponentMappingDialog(DialogBox):
+
+    def __init__(self):
+        DialogBox.__init__(self, tr.tr("Channel mapping dialog"))
+        self._table = QtGui.QTableWidget(0, 2)
+        self._table.setItemDelegateForColumn(1, BandItemDelegate())
+
+        self.addWidget(self._table)
+
+    def exec_(self, channel_mapping):
+        self._table.clear()
+        self._table.setSortingEnabled(False)
+        self._table.setHorizontalHeaderLabels(
+            (tr.tr("Color Channel"), tr.tr("Assigned Band")))
+        self._table.horizontalHeader().setResizeMode(
+                1,
+                QtGui.QHeaderView.Stretch)
+        self._table.verticalHeader().hide()
+        self._table.setRowCount(0)
+        print("((", channel_mapping)
+        for com in channel_mapping:
+            channel_name = tr.tr("channel {0:03d}").format(com)
+            band_name = str(channel_mapping[com])
+            key_item = QtGui.QTableWidgetItem(channel_name)
+            val_item = QtGui.QTableWidgetItem(band_name)
+
+            key_item.setFlags(
+                QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+
+            self._table.insertRow(0)
+            self._table.setItem(0, 0, key_item)
+            self._table.setItem(0, 1, val_item)
+
+        self._table.setSortingEnabled(True)
+        QtGui.QDialog.exec_(self)
+
+        for i in range(self._table.rowCount()):
+            key_item = self._table.item(i, 0)
+            val_item = self._table.item(i, 1)
+
+            ch = int(str(key_item.text())[-3:])
+            band = str(val_item.text())
+            channel_mapping[ch] = band
+        print("[[", channel_mapping)
+        return channel_mapping
+
+    def show(self, channel_mapping):
+        self.exec_(channel_mapping)
+
+
+class PhotometricPropertiesDialog(DialogBox):
+
+    def __init__(self):
+        DialogBox.__init__(self, tr.tr("Unknown star"))
+        self._table = QtGui.QTableWidget(0, 2)
+        self._table.setItemDelegateForColumn(1, MagItemDelegate())
+
+        self.addWidget(self._table)
+
+    def exec_(self, star, channel_mapping):
+        self._table.clear()
+        self._table.setSortingEnabled(False)
+        self._table.setHorizontalHeaderLabels(
+            (tr.tr("Asigned Band"), tr.tr("Magnitude")))
+        self._table.horizontalHeader().setResizeMode(
+                1,
+                QtGui.QHeaderView.Stretch)
+        self._table.verticalHeader().hide()
+        self._table.setRowCount(0)
+
+        mag_dict = star.magnitude.copy()
+        print(mag_dict)
+        for com in channel_mapping:
+            band = str(channel_mapping[com])
+
+            try:
+                mag = str(star.magnitude[band])
+            except KeyError:
+                mag = ""
+
+            key_item = QtGui.QTableWidgetItem(band)
+            key_item.setFlags(
+                QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+            val_item = QtGui.QTableWidgetItem(mag)
+
+            self._table.insertRow(0)
+            self._table.setItem(0, 0, key_item)
+            self._table.setItem(0, 1, val_item)
+
+        QtGui.QDialog.exec_(self)
+
+        for i in range(self._table.rowCount()):
+            key_item = self._table.item(i, 0)
+            val_item = self._table.item(i, 1)
+            band = str(key_item.text())
+            try:
+                mag_dict[band] = float(val_item.text())
+            except ValueError:
+                try:
+                    mag_dict.pop(band)
+                except KeyError:
+                    continue
+
+        return mag_dict
+
+    def show(self, star, channel_mapping):
+        return self.exec_(star, channel_mapping)
 
 
 class ExifViewer(QtGui.QDialog):

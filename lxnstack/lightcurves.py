@@ -24,6 +24,33 @@ import plotting
 import numpy as np
 import astropy.stats as stats
 
+COMPONENTS_NAME = [
+    'U', 'B', 'V', 'R', 'I',
+    'Z', 'Y', 'J', 'H', 'K',
+    'L', 'M', 'N', 'Q'
+]
+
+
+def getComponentTable(ncomps, named=True):
+    component_table = {}
+    if named and (ncomps+1 < len(COMPONENTS_NAME)):
+        if ncomps == 1:
+            component_table[0] = COMPONENTS_NAME[0]
+        elif ncomps == 2:
+            component_table[0] = COMPONENTS_NAME[1]
+            component_table[1] = COMPONENTS_NAME[2]
+        elif ncomps == 3:
+            component_table[0] = COMPONENTS_NAME[3]
+            component_table[1] = COMPONENTS_NAME[2]
+            component_table[2] = COMPONENTS_NAME[1]
+        elif ncomps > 3:
+            for c in range(ncomps):
+                component_table[c] = COMPONENTS_NAME[c+1]
+    else:
+        for c in range(ncomps):
+            component_table[c] = 'C'+str(c)
+    return component_table
+
 
 class LightCurvePlot(plotting.Plot):
 

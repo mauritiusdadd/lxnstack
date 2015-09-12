@@ -232,7 +232,7 @@ class Star(ImageFeature):
         self.r1 = 10
         self.r2 = 20
         self.r3 = 30
-        self.magnitude = 0
+        self.magnitude = {}
         self.color1 = QtCore.Qt.green
         self.color2 = QtCore.Qt.white
         self.name = name
