@@ -21,7 +21,6 @@ import time
 import shutil
 import webbrowser
 import logging
-from xml.dom import minidom
 
 from PyQt4 import uic, Qt, QtCore, QtGui
 import numpy as np
@@ -3355,248 +3354,6 @@ class theApp(Qt.QObject):
                               caller=self)
         return False
 
-    def _save_project_old(self):
-        self.lock(False)
-        self.progress.reset()
-        log.log(repr(self),
-                "Saving project to " + str(self.current_project_fname),
-                level=logging.INFO)
-        self.statusBar.showMessage(tr.tr('saving project') + ', ' +
-                                   tr.tr('please wait...'))
-
-        if self.action_enable_rawmode.isChecked():
-            bayer_mode = self.bayer_tcb.currentIndex()
-        else:
-            bayer_mode = -1
-
-        doc = minidom.Document()
-
-        root = doc.createElement('project')
-        doc.appendChild(root)
-
-        information_node = doc.createElement('information')
-        bias_frames_node = doc.createElement('bias-frames')
-        dark_frames_node = doc.createElement('dark-frames')
-        flat_frames_node = doc.createElement('flat-frames')
-        pict_frames_node = doc.createElement('frames')
-        photometry_node = doc.createElement('photometry')
-
-        root.appendChild(information_node)
-        root.appendChild(bias_frames_node)
-        root.appendChild(dark_frames_node)
-        root.appendChild(flat_frames_node)
-        root.appendChild(pict_frames_node)
-        root.appendChild(photometry_node)
-
-        # <information> section
-        information_node.setAttribute('width', str(int(self.currentWidth)))
-        information_node.setAttribute('height', str(int(self.currentHeight)))
-        information_node.setAttribute('mode', str(int(self.currentDepht)))
-        information_node.setAttribute('bayer-mode', str(int(bayer_mode)))
-
-        current_dir_node = doc.createElement('current-dir')
-        current_row_node = doc.createElement('current-row')
-        master_bias_node = doc.createElement('master-bias')
-        master_dark_node = doc.createElement('master-dark')
-        master_flat_node = doc.createElement('master-flat')
-        min_quality_node = doc.createElement('min-point-quality')
-        max_points_node = doc.createElement('max-align-points')
-        align_rect_node = doc.createElement('align-rect')
-
-        information_node.appendChild(current_dir_node)
-        information_node.appendChild(current_row_node)
-        information_node.appendChild(master_bias_node)
-        information_node.appendChild(master_dark_node)
-        information_node.appendChild(master_flat_node)
-        information_node.appendChild(align_rect_node)
-        information_node.appendChild(max_points_node)
-        information_node.appendChild(min_quality_node)
-
-        mb_cck_state = self.wnd.masterBiasCheckBox.checkState()
-        md_cck_state = self.wnd.masterDarkCheckBox.checkState()
-        mf_cck_state = self.wnd.masterFlatCheckBox.checkState()
-
-        current_dir_node.setAttribute('url', str(self.current_dir))
-        current_row_node.setAttribute('index', str(self.image_idx))
-        master_bias_node.setAttribute('checked', str(mb_cck_state))
-        master_bias_node.setAttribute('mul', str(self.master_bias_mul_factor))
-        master_dark_node.setAttribute('checked', str(md_cck_state))
-        master_dark_node.setAttribute('mul', str(self.master_dark_mul_factor))
-        master_flat_node.setAttribute('checked', str(mf_cck_state))
-        master_flat_node.setAttribute('mul', str(self.master_flat_mul_factor))
-        align_rect_node.setAttribute('width', str(self.aap_rectangle[0]))
-        align_rect_node.setAttribute('height', str(self.aap_rectangle[1]))
-        align_rect_node.setAttribute('whole-image', str(self.aap_wholeimage))
-        max_points_node.setAttribute('value', str(self.max_points))
-        min_quality_node.setAttribute('value', str(self.min_quality))
-
-        url = doc.createElement('url')
-        url_txt = doc.createTextNode(str(self.wnd.masterBiasLineEdit.text()))
-        url.appendChild(url_txt)
-        master_bias_node.appendChild(url)
-
-        url = doc.createElement('url')
-        url_txt = doc.createTextNode(str(self.wnd.masterDarkLineEdit.text()))
-        url.appendChild(url_txt)
-        master_dark_node.appendChild(url)
-
-        url = doc.createElement('url')
-        url_txt = doc.createTextNode(str(self.wnd.masterFlatLineEdit.text()))
-        url.appendChild(url_txt)
-        master_flat_node.appendChild(url)
-
-        total_bias = len(self.biasframelist)
-        total_dark = len(self.darkframelist)
-        total_flat = len(self.flatframelist)
-        total_imgs = len(self.framelist)
-
-        progress_max = total_bias
-        progress_max += total_dark
-        progress_max += total_flat
-        progress_max += total_imgs
-        self.progress.setMaximum(progress_max)
-
-        count = 0
-
-        # <bias-frams> section
-        for i in self.biasframelist:
-            self.progress.setValue(count)
-            count += 1
-
-            im_bias_used = str(i.isUsed())
-            im_bias_name = str(i.tool_name)
-            im_bias_page = i.page
-            im_bias_url = i.url
-
-            image_node = doc.createElement('image')
-            image_node.setAttribute('name', im_bias_name)
-            image_node.setAttribute('used', im_bias_used)
-            bias_frames_node.appendChild(image_node)
-
-            url = doc.createElement('url')
-            url_txt = doc.createTextNode(im_bias_url)
-            url.appendChild(url_txt)
-            url.setAttribute('page', str(im_bias_page))
-            image_node.appendChild(url)
-
-        # <dark-frams> section
-        for i in self.darkframelist:
-            self.progress.setValue(count)
-            count += 1
-
-            im_dark_used = str(i.isUsed())
-            im_dark_name = str(i.tool_name)
-            im_dark_page = i.page
-            im_dark_url = i.url
-            image_node = doc.createElement('image')
-            image_node.setAttribute('name', im_dark_name)
-            image_node.setAttribute('used', im_dark_used)
-            dark_frames_node.appendChild(image_node)
-
-            url = doc.createElement('url')
-            url_txt = doc.createTextNode(im_dark_url)
-            url.appendChild(url_txt)
-            url.setAttribute('page', str(im_dark_page))
-            image_node.appendChild(url)
-
-        # <flat-frames> section
-        for i in self.flatframelist:
-            self.progress.setValue(count)
-            count += 1
-
-            im_flat_used = str(i.isUsed())
-            im_flat_name = str(i.tool_name)
-            im_flat_page = i.page
-            im_flat_url = i.url
-            image_node = doc.createElement('image')
-            image_node.setAttribute('name', im_flat_name)
-            image_node.setAttribute('used', im_flat_used)
-            flat_frames_node.appendChild(image_node)
-
-            url = doc.createElement('url')
-            url_txt = doc.createTextNode(im_flat_url)
-            url.appendChild(url_txt)
-            url.setAttribute('page', str(im_flat_page))
-            image_node.appendChild(url)
-
-        # <frames> section
-        for img in self.framelist:
-            self.progress.setValue(count)
-            count += 1
-
-            im_used = str(img.isUsed())
-            im_name = str(img.tool_name)
-            im_page = img.page
-            im_url = img.url
-            image_node = doc.createElement('image')
-            image_node.setAttribute('name', im_name)
-            image_node.setAttribute('used', im_used)
-
-            pict_frames_node.appendChild(image_node)
-
-            for point in img.alignpoints:
-                point_node = doc.createElement('align-point')
-                point_node.setAttribute('x', str(int(point.x)))
-                point_node.setAttribute('y', str(int(point.y)))
-                point_node.setAttribute('id', str(point.id))
-                point_node.setAttribute('name', str(point.name))
-                point_node.setAttribute('aligned', str(point.aligned))
-                image_node.appendChild(point_node)
-
-            for s in img.stars:
-                star_node = doc.createElement('star')
-                star_node.setAttribute('x', str(int(s.x)))
-                star_node.setAttribute('y', str(int(s.y)))
-                star_node.setAttribute('name', str(s.name))
-                star_node.setAttribute('id', str(s.id))
-                star_node.setAttribute('inner_radius', str(float(s.r1)))
-                star_node.setAttribute('middle_radius', str(float(s.r2)))
-                star_node.setAttribute('outer_radius', str(float(s.r3)))
-                star_node.setAttribute('reference', str(int(s.reference)))
-                star_node.setAttribute('magnitude', str(float(s.magnitude)))
-                image_node.appendChild(star_node)
-
-            offset_node = doc.createElement('offset')
-            offset_node.setAttribute('x', str(float(img.offset[0])))
-            offset_node.setAttribute('y', str(float(img.offset[1])))
-            offset_node.setAttribute('theta', str(float(img.angle)))
-            image_node.appendChild(offset_node)
-
-            url = doc.createElement('url')
-            url_txt = doc.createTextNode(im_url)
-            url.appendChild(url_txt)
-            url.setAttribute('page', str(im_page))
-            image_node.appendChild(url)
-
-        # photometry section
-        img_tm = int(self.use_image_time)
-        photometry_node.setAttribute('time_type', str(img_tm))
-
-        try:
-            f = open(self.current_project_fname, 'w')
-            f.write(doc.toprettyxml(' ', '\n'))
-            f.close()
-        except IOError as err:
-            log.log(repr(self),
-                    "Cannot save the project: " + str(err),
-                    level=logging.ERROR)
-            msgBox = Qt.QMessageBox(self.wnd)
-            msgBox.setText(tr.tr("Cannot save the project: ")+str(err))
-            msgBox.setInformativeText(
-                tr.tr("Assure you have the permissions to write the file."))
-            msgBox.setIcon(Qt.QMessageBox.Critical)
-            msgBox.exec_()
-            del msgBox
-
-            self.unlock()
-            return
-
-        wnd_title = str(paths.PROGRAM_NAME)
-        wnd_title += ' ['+self.current_project_fname+']'
-        self.wnd.setWindowTitle(wnd_title)
-
-        self.unlock()
-
     def _save_project(self):
         self.lock(False)
         self.progress.reset()
@@ -5358,51 +5115,137 @@ class theApp(Qt.QObject):
         # airmas_coeff = 0.0  # TODO: improve airmass correction
         # airmas_err = 0.0
 
+        transf_coef_table = {
+            ('B', 'V'): 0.1,
+            ('B', 'R'): 0.1,
+            ('R', 'V'): 0.1,
+        }
+
+        # Convenience shortcuts
+        inv_channe_mapping = {v: k for k, v in self.channel_mapping.items()}
         LOGE10 = utils.LOGE10
+
         mag_plots = []
-        for st_name in var_stars:
-            subplots = adu_plots[st_name]
-            pltncomp = len(subplots)
-            if pltncomp > 1:
-                # computing star color
-
-                b_comp = 2
-                v_comp = 1
-
-                bb = subplots[b_comp]
-                vv = subplots[v_comp]
-
-                star_bv_index = -2.5 * np.log10(bb.getYData()/vv.getYData())
-
-                # A simple error propagation (see below)
-
-                bb_rer2 = (bb.getYError()/(bb.getYData()*LOGE10))**2
-                vv_rer2 = (vv.getYError()/(vv.getYData()*LOGE10))**2
-
-                star_bv_error = 2.5 * np.sqrt(bb_rer2+vv_rer2)
-                star_bv_error = np.array(star_bv_error)
+        for target_star in var_stars:
+            subplots = adu_plots[target_star]
+            nchannels = len(subplots)
 
             abs_mag_data = ([], [], [], [])
-            for rf_name in ref_stars:
-                # Here we compute absolute magnitude using each reference star
-                refplots = adu_plots[rf_name]
-                refncomp = len(refplots)
-                ref_mag = allstars[rf_name][1]
-                if refncomp > 1 and pltncomp > 1:
-                    # Just an extra check as refplots subplots should have
-                    # always the same size
+            band_mag_data = {}
 
-                    rbb = refplots[b_comp]
-                    rvv = refplots[v_comp]
+            # Setting up dictionary to hold band specific
+            # photomentric data
+            for channel in self.channel_mapping:
+                band = self.channel_mapping[channel]
+                band_mag_data[band] = ([], [], [], [])
 
-                    rbv_frac = rbb.getYData()/rvv.getYData()
-                    ref_bv_index = -2.5 * np.log10(rbv_frac)
+            for ref_star in ref_stars:
+                refplots = adu_plots[ref_star]
+                ref_mag = allstars[ref_star][1]
 
-                    # A simple error propagation (see below)
+                color_index = lcurves.getBestColorIndex(
+                    ref_mag, self.channel_mapping)
 
-                    rbb_rer2 = (rbb.getYError()/(rbb.getYData()*LOGE10))**2
-                    rvv_rer2 = (rvv.getYError()/(rvv.getYData()*LOGE10))**2
-                    ref_bv_error = 2.5 * np.sqrt(rbb_rer2+rvv_rer2)
+                if not color_index:
+                    log.log(repr(self),
+                            ("Cannot assign a color to the reference star {}."
+                             "Make sure to have set the magnitude at least to"
+                             "two photometric bands.").format(ref_star),
+                            level=logging.WARNING)
+                    continue
+
+                log.log(repr(self),
+                        'using color index {}-{}: {} mag'.format(
+                            color_index[0][0],
+                            color_index[0][1],
+                            color_index[1]),
+                        level=logging.INFO)
+
+                ref_color_index = color_index[1]
+                ref_color_error = 0
+                band_1 = inv_channe_mapping[color_index[0][0]]
+                band_2 = inv_channe_mapping[color_index[0][1]]
+                transf_coeff = transf_coef_table[color_index[0]]
+
+                if nchannels > 1:
+                    # We have more than one channels so
+                    # we can use color corrections if the
+                    # magnitudes of the reference stars
+                    # in at least two bands are provided!
+
+                    b1 = subplots[band_1]
+                    b2 = subplots[band_2]
+
+                    b1_counts = b1.getYData()
+                    b2_counts = b2.getYData()
+
+                    b1_error = b1.getYError()
+                    b2_error = b2.getYError()
+
+                    star_color_index = -2.5*np.log10(b1_counts/b2_counts)
+
+                    ###########################################################
+                    #                STANDARD ERROR PROPAGATION               #
+                    ###########################################################
+                    #
+                    # if V = f(A,B) then the error for V is
+                    #
+                    #   DV = sqrt(|DA*df(A,B)/dA|**2 + |DB*df(A,B)/dB|**2)
+                    #
+                    # since the color index is
+                    #
+                    #   star_bv_index = -2.5*np.log10(b1_counts/b2_counts)
+                    #
+                    # then, if we define
+                    #
+                    #   A = b1_counts     DA = b1_error
+                    #   B = b1_counts     DB = b2_error
+                    #   f = log10
+                    #
+                    # the error on inst_term is:
+                    #
+                    #   inst_err^2=6.25*(|DA*df(A,B)/dA|^2 + |DB*df(A,B)/dB|^2)
+                    #   = 6.25*(|DA*1/[A*ln(10)]|^2 + |DB * -1/[B*ln(10)|^2)
+                    #   = 6.25*(|DA/[A*ln(10)]|^2 + |DB/[B*ln(10)]|^2)
+
+                    b1_rerr2 = (b1_error/(b1_counts*LOGE10))**2
+                    b2_rerr2 = (b2_error/(b2_counts*LOGE10))**2
+
+                    star_color_error = np.array(2.5*np.sqrt(b1_rerr2+b2_rerr2))
+
+                    for channel in self.channel_mapping:
+                        band = self.channel_mapping[channel]
+                        try:
+                            magnitude = ref_mag[band]
+                        except:
+                            log.log(repr(self), (
+                                    "Skipping lightcurve for band '{}' "
+                                    " for the star '{}': no reference "
+                                    "magnitude found."
+                                    ).format(band, ref_star),
+                                    level=logging.WARNING)
+                            continue
+
+                        star_xdat = subplots[channel].getXData().copy()
+                        star_xerr = subplots[channel].getXError().copy()
+
+                        star_ydat = subplots[channel].getYData()
+                        star_yerr = subplots[channel].getYError()
+
+                        ref_ydat = refplots[channel].getYData()
+                        ref_yerr = refplots[channel].getYError()
+
+                        abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied(
+                            star_ydat, ref_ydat, magnitude,
+                            star_color_index, ref_color_index, 0.1,
+                            star_yerr, ref_yerr, 0,
+                            star_color_error, ref_color_error,
+                            transf_coeff)
+
+                        band_mag_data[band][0].append(star_xdat)
+                        band_mag_data[band][1].append(abs_mag)
+                        band_mag_data[band][2].append(star_xerr)
+                        band_mag_data[band][3].append(abs_mag_err)
 
                     # We shall use the total flux of the star, but we only
                     # have measures of the flux (measured as ADU) in different
@@ -5417,11 +5260,11 @@ class theApp(Qt.QObject):
                     bol_str_ydat = sum(map(lcurves.LightCurvePlot.getYData,
                                            subplots.values()))
                     bol_str_xdat = sum(map(lcurves.LightCurvePlot.getXData,
-                                           subplots.values()))/pltncomp
+                                           subplots.values()))/nchannels
                     bol_str_yerr = sum(map(lcurves.LightCurvePlot.getYError,
                                            subplots.values()))
                     bol_str_xerr = sum(map(lcurves.LightCurvePlot.getXError,
-                                           subplots.values()))/pltncomp
+                                           subplots.values()))/nchannels
 
                     bol_ref_ydat = sum(map(lcurves.LightCurvePlot.getYData,
                                            refplots.values()))
@@ -5433,10 +5276,10 @@ class theApp(Qt.QObject):
 
                     # Transformation Equation
                     abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied(
-                        bol_str_ydat, bol_ref_ydat, ref_mag,
-                        star_bv_index, ref_bv_index, 0.1,
+                        bol_str_ydat, bol_ref_ydat, ref_mag['V'],
+                        star_color_index, ref_color_index, 0.1,
                         bol_str_yerr, bol_ref_yerr, 0,
-                        star_bv_error, ref_bv_error,
+                        star_color_error, ref_color_error,
                         transf_coeff)
 
                     abs_mag_data[0].append(abs_tme)
@@ -5444,7 +5287,6 @@ class theApp(Qt.QObject):
                     abs_mag_data[2].append(abs_tme_err)
                     abs_mag_data[3].append(abs_mag_err)
                 else:
-
                     bol_str_ydat = subplots[0].getYData()
                     bol_str_xdat = subplots[0].getXData()
                     bol_str_yerr = subplots[0].getYError()
@@ -5476,13 +5318,43 @@ class theApp(Qt.QObject):
                 mean_mag_err = np.mean(abs_mag_data[3], 0)
                 del abs_mag_data
 
-                # ...and build a LightCurvePlot
+                # ...and build a LightCurvePlot...
                 plt = lcurves.LightCurvePlot()
-                plt.setName(st_name)
+                plt.setName(st_name + "(Bol)")
                 plt.setData(
                     mean_abs_tme, mean_abs_mag,
                     mean_tme_err, mean_mag_err)
                 mag_plots.append(plt)
+
+                # ...and do it for multiband lightcurve too
+                for band in band_mag_data.keys():
+                    if not band_mag_data[band][0]:
+                        log.log(repr(self), (
+                                "No data for band '{}'. Make sure you have "
+                                "set the reference magnitude for this band "
+                                "for at least one reference star!"
+                                ).format(band),
+                                level=logging.WARNING)
+                        continue
+                    else:
+                        log.log(repr(self), (
+                                "Star '{}' band '{}': "
+                                "averaging '{}' lightcurves."
+                                ).format(target_star, band,
+                                         len(band_mag_data[band][0])),
+                                level=logging.DEBUG)
+                    mean_band_tme = np.mean(band_mag_data[band][0], 0)
+                    mean_band_mag = np.mean(band_mag_data[band][1], 0)
+                    mean_band_tme_err = np.mean(band_mag_data[band][2], 0)
+                    mean_band_mag_err = np.mean(band_mag_data[band][3], 0)
+
+                    plt = lcurves.LightCurvePlot()
+                    plt.setName(st_name + utils.brakets(band))
+                    plt.setData(
+                        mean_band_tme, mean_band_mag,
+                        mean_band_tme_err, mean_band_mag_err)
+                    mag_plots.append(plt)
+                del band_mag_data
 
         # Show the mag plot only if there is nomething to plot!
         if ref_stars:

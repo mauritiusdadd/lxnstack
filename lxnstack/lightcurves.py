@@ -20,15 +20,32 @@
 #   http://www.britastro.org/vss/ccd_photometry.htm
 #   http://www.physics.csbsju.edu/370/photometry/manuals/OU.edu_CCD_photometry_wrccd06.pdf
 
+from itertools import combinations
+
 import plotting
 import numpy as np
 import astropy.stats as stats
 
-COMPONENTS_NAME = [
-    'U', 'B', 'V', 'R', 'I',
-    'Z', 'Y', 'J', 'H', 'K',
-    'L', 'M', 'N', 'Q'
-]
+
+PHOTOMETRIC_BANDS = {
+    'U': 365,
+    'B': 445,
+    'V': 551,
+    'R': 658,
+    'I': 806,
+    'Z': 900,
+    'Y': 1020,
+    'J': 1220,
+    'H': 1630,
+    'K': 2190,
+    'L': 3450,
+    'M': 4750,
+    'N': 10500,
+    'Q': 21000,
+}
+
+
+COMPONENTS_NAME = tuple(PHOTOMETRIC_BANDS.keys())
 
 
 def getComponentTable(ncomps, named=True):
@@ -50,6 +67,42 @@ def getComponentTable(ncomps, named=True):
         for c in range(ncomps):
             component_table[c] = 'C'+str(c)
     return component_table
+
+
+def getColorIndexes(used_bands):
+    try:
+        sorted_bands = sorted(used_bands, key=PHOTOMETRIC_BANDS.get)
+    except KeyError:
+        return []
+    else:
+        return tuple(x for x in combinations(sorted_bands, 2))
+
+
+def getColors(mag_dict):
+    colors = getColorIndexes(mag_dict.keys())
+    color_index = []
+
+    for color in colors:
+        color_index.append((color, mag_dict[color[0]] - mag_dict[color[1]]))
+
+    return color_index
+
+
+def getBestColorIndex(mag_dict, channel_mapping):
+    available_mapped_bands = {}
+
+    for band in channel_mapping.values():
+        try:
+            mag = mag_dict[band]
+        except KeyError:
+            continue
+        else:
+            available_mapped_bands[band] = mag
+
+    if len(available_mapped_bands) >= 2:
+        return getColors(available_mapped_bands)[0]
+    else:
+        return []
 
 
 class LightCurvePlot(plotting.Plot):
