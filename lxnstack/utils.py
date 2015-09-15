@@ -163,6 +163,7 @@ try:
     import scipy as sp
     import scipy.signal
     import scipy.ndimage
+    import scipy.stats
 except ImportError:
     log.log("<lxnstack.utils module>",
             '\'scipy\' python module not found! exiting program.',
@@ -296,6 +297,35 @@ def Int(val):
 
 def dist(x1, y1, x2, y2):
     return (((x2-x1)**2) + ((y2-y1)**2))**0.5
+
+
+def weightedlinregress(x, y, yerr):
+    try:
+        if y.shape == yerr.shape:
+            w = 1 / (yerr**2)
+    except AttributeError:
+        reg = sp.stats.linregress(x, y)
+        print("!!!!!------------------------")
+        print(reg[0], reg[1], reg[4])
+        return (reg[0], reg[1], reg[4])
+        errs = np.ones_like(y)*yerr
+        w = 1 / (errs**2)
+
+    Sw = w.sum()
+    Swx = (w*x).sum()
+    Swy = (w*y).sum()
+    Swxy = (w*x*y).sum()
+    Swx2 = (w*(x**2)).sum()
+
+    delta = Sw*Swx2 - Swx**2
+    inter = (Swx2*Swy - Swx*Swxy)/delta
+    slope = (Sw*Swxy - Swx*Swy)/delta
+
+    inter_err = np.sqrt(Sw/delta)
+    slope_err = np.sqrt(Swx2/delta)
+    print("---------------------------------")
+    print(slope, inter, slope_err, inter_err)
+    return (slope, inter, slope_err, inter_err)
 
 
 def timeouted_loop(func, t_step=0.5, timeout=10, c_val=None, arg=(), args={}):
@@ -710,7 +740,7 @@ class Frame(Qt.QObject):
         self.properties = {}
         self.is_good = False
         self._open_args = args
-        self._is_used=True
+        self._is_used = True
 
         if (('progress_bar' in args) and args['progress_bar'] is not None):
             pb = args['progress_bar']

@@ -160,7 +160,8 @@ class theApp(Qt.QObject):
         self.currentHeight = 0
         self.currentDepht = 0
 
-        self.current_colormap = 0
+        self.transf_coeff_table = {}
+        self.channel_mapping = {}
 
         self.result_w = 0
         self.result_h = 0
@@ -1344,10 +1345,6 @@ class theApp(Qt.QObject):
             int(self.dlg._dialog.wholeImageCheckBox.checkState()))
 
         settings.setValue(
-            "current_colormap",
-            int(self.current_colormap))
-
-        settings.setValue(
             "toolbar_locked",
             bool(self.action_lock_toolbars.isChecked()))
 
@@ -1893,6 +1890,12 @@ class theApp(Qt.QObject):
         self.action_gen_lightcurves.triggered.connect(
             self.doGenerateLightCurves)
 
+        self.action_gen_transftable = QtGui.QAction(
+            utils.getQIcon("generate-transf-table"),
+            tr.tr('Generate color transformation coefficients'), self)
+        self.action_gen_transftable.triggered.connect(
+            self.doGenerateTransfTable)
+
         self.action_enable_rawmode = QtGui.QAction(
             utils.getQIcon("bayer-mode"),
             tr.tr('Enable raw-mode'), self)
@@ -1977,6 +1980,7 @@ class theApp(Qt.QObject):
 
         # Ligthcurves menu
         menu_lightcurves.addAction(self.action_edit_channel_mapping)
+        menu_lightcurves.addAction(self.action_gen_transftable)
         menu_lightcurves.addAction(self.action_gen_lightcurves)
 
         # Settings menu
@@ -3271,6 +3275,9 @@ class theApp(Qt.QObject):
         self.result_w = 0
         self.result_h = 0
         self.result_d = 3
+
+        self.transf_coeff_table = {}
+        self.channel_mapping = {}
 
         self.current_project_fname = None
 
@@ -4950,8 +4957,257 @@ class theApp(Qt.QObject):
     def doGenerateLightCurves(self):
         return self.generateLightCurves()
 
+    def doGenerateTransfTable(self):
+        return self.generateColorTransfTable()
+
     def updateChannelMapping(self):
         self.channel_mapping = self.chmap_dlg.exec_(self.channel_mapping)
+
+    def generateColorTransfTable(self, method=None, **args):
+        del self._bas
+        del self._drk
+        del self._flt
+
+        self._drk = None
+        self._flt = None
+        self._bas = None
+
+        log.log(repr(self),
+                'generating light curves, please wait...',
+                level=logging.INFO)
+
+        args = self.stack(skip_light=True, method=method)
+
+        if not args:
+            return False
+
+        QtGui.QApplication.instance().processEvents()
+
+        self.lock()
+
+        if 'hotpixel_options' in args:
+            hotp_args = args['hotpixel_options']
+        else:
+            hotp_args = args[4]
+
+        masters = self.generateMasters(self._bas,
+                                       self._drk,
+                                       self._flt,
+                                       hotp_args)
+        master_bias = masters[0]
+        master_dark = masters[1]
+        master_flat = masters[2]
+        hot_pixels = masters[3]
+
+        nframes = len(self.framelist)
+        nstars = len(self.framelist[0].stars)
+
+        self.progress.show()
+        self.progress.setMaximum(nframes*nstars - 1)
+
+        count = 0
+        img_idx = 0
+        self.progress.show()
+
+        # building a temporary dictionary to
+        # hold photometric data
+        adu_plots = {}
+        for star in self.framelist[0].stars:
+            st_name = str(star.getName())
+            adu_plots[st_name] = {}
+            for cn in range(self.getNumberOfComponents()):
+                # NOTE:
+                # adu_plt = lcurves.LightCurvePlot() may be used in conjunction
+                # to adu_plt.append(...) in order to fill the plot. However,
+                # we know that there will be one point for each frame and this
+                # makes a total of len(self.framelist) points
+                adu_plt = lcurves.LightCurvePlot(len(self.framelist))
+                adu_plt.setName(st_name + "C"+str(cn))
+                adu_plots[st_name][cn] = adu_plt
+
+        pv_adu = guicontrols.LightCurveViewer()
+        pv_adu.setAxisName('time', 'ADU')
+        for plots in adu_plots.values():
+            pv_adu.addPlots(tuple(plots.values()))
+        self.showInMdiWindow(pv_adu, guicontrols.PLOTVIEWER, "ADU Lightcurves")
+
+        allstars = {}
+
+        for img in self.framelist:
+            if not img.isUsed():
+                log.log(repr(self),
+                        'skipping image '+str(img.name),
+                        level=logging.INFO)
+                continue
+            else:
+                log.log(repr(self),
+                        'using image '+str(img.name),
+                        level=logging.INFO)
+
+            self.progress.setValue(count)
+            r = img.getData(asarray=True, ftype=self.ftype)
+            r = self.calibrate(r,
+                               master_bias,
+                               master_dark,
+                               master_flat,
+                               hot_pixels,
+                               debayerize_result=True)
+
+            if self.use_image_time:
+                frm_time = img.getProperty('UTCEPOCH')
+            else:
+                frm_time = img_idx
+
+            for st in img.stars:
+                count += 1
+                st_name = str(st.getName())
+                log.log(repr(self),
+                        'computing adu value for star '+st_name,
+                        level=logging.INFO)
+                allstars[st_name] = (bool(st.reference), st.magnitude)
+
+                if self.progressWasCanceled():
+                    self.unlock()
+                    self.progress.hide()
+                    self.progress.reset()
+                    return False
+
+                try:
+                    adu_val, adu_delta = lcurves.getInstMagnitudeADU(st, r)
+                except Exception as exc:
+                    exc_msg = str(exc) + "\n"
+                    exc_msg += "Image: " + img.name + "\n"
+                    exc_msg += "Star: " + st_name
+                    utils.showErrorMsgBox(exc_msg, caller=self)
+
+                    # removing curve points form this image
+                    for plt_st_name in adu_plots.keys():
+                        for plt_comp_name in adu_plots[st_name].keys():
+                            pass
+                            # adu_plots[plt_st_name][plt_comp_name][img_idx]
+
+                    # break
+                    # skipping image
+                    # self.unlock()
+                    # return False
+
+                for cn in range(len(adu_val)):
+                    val = (frm_time, adu_val[cn], 0, np.float(adu_delta[cn]))
+                    adu_plots[st_name][cn][img_idx] = val
+                    # NOTE:
+                    # if adu_plt = lcurves.LightCurvePlot() was used above then
+                    # you should replace the above line with:
+                    #
+                    # adu_plots[st_name][cn].append(*val)
+                    #
+                pv_adu.repaint()
+            img_idx += 1
+
+        # checking for reference stars:
+
+        ref_stars = []
+        var_stars = []
+
+        for stname in allstars.keys():
+            if allstars[stname][0]:
+                # this is a reference star and we assume
+                # ist brightness is fixed over the time
+                ref_stars.append(stname)
+            else:
+                # this is a star for which we want to
+                # compute the magnitude lightcurve
+                var_stars.append(stname)
+
+        # NOTE: for now we assume the reference star is near the
+        #       variable star so there is a null airmass correction
+
+        # airmas_coeff = 0.0  # TODO: improve airmass correction
+        # airmas_err = 0.0
+
+        tmp_table_dict = {}
+        transf_coeff_table = {}
+        # Convenience shortcuts
+        inv_channe_mapping = {v: k for k, v in self.channel_mapping.items()}
+
+        for ref_star in ref_stars:
+            refplots = adu_plots[ref_star]
+            ref_mag = allstars[ref_star][1]
+            nchannels = len(refplots)
+
+            if nchannels < 2:
+                continue
+
+            color_index_list = lcurves.getBestColorIndex(
+                ref_mag, self.channel_mapping)
+
+            if not color_index_list:
+                log.log(repr(self),
+                        ("Cannot assign a color to the reference star {}."
+                         "Make sure to have set the magnitude at least to"
+                         "two photometric bands.").format(ref_star),
+                        level=logging.WARNING)
+                continue
+
+            for color_index in color_index_list:
+
+                log.log(repr(self),
+                        'computing color index {}-{}: {} mag'.format(
+                            color_index[0][0],
+                            color_index[0][1],
+                            color_index[1]),
+                        level=logging.INFO)
+
+                color_index_ref = color_index[1]
+
+                band_1 = inv_channe_mapping[color_index[0][0]]
+                band_2 = inv_channe_mapping[color_index[0][1]]
+
+                b1 = refplots[band_1]
+                b2 = refplots[band_2]
+
+                b1_counts = b1.getYData()
+                b2_counts = b2.getYData()
+
+                b1_error = b1.getYError()
+                b2_error = b2.getYError()
+
+                index_inst, index_inst_err = lcurves.getInstColor(
+                        b1_counts, b2_counts,
+                        b1_error, b2_error)
+
+                indexes = (index_inst, color_index_ref, index_inst_err)
+
+                try:
+                    tmp_table_dict[color_index[0]].append(indexes)
+                except KeyError:
+                    tmp_table_dict[color_index[0]] = []
+                    tmp_table_dict[color_index[0]].append(indexes)
+
+        log.log(repr(self),
+                "Computing tranformation coefficients...",
+                level=logging.INFO)
+
+        for index_bands in tmp_table_dict:
+            data_array = np.array(tmp_table_dict[index_bands])
+
+            if data_array.shape[0] < 3:
+                continue
+
+            col_inst = data_array[:, 0]
+            col_knwn = data_array[:, 1]
+            col_errr = data_array[:, 2]
+
+            regress = utils.weightedlinregress(col_knwn, col_inst, col_errr)
+            transf_coeff_table[index_bands] = (regress[0], regress[2])
+
+        log.log(repr(self),
+                "Tranformation coefficients table: '{}'".format(
+                    transf_coeff_table),
+                level=logging.DEBUG)
+        self.transf_coeff_table = transf_coeff_table
+        self.unlock()
+        self.progress.hide()
+        self.progress.reset()
 
     def generateLightCurves(self, method=None, **args):
         del self._bas
@@ -5111,26 +5367,17 @@ class theApp(Qt.QObject):
         # NOTE: for now we assume the reference star is near the
         #       variable star so there is a null airmass correction
 
-        transf_coeff = 0.1
         # airmas_coeff = 0.0  # TODO: improve airmass correction
         # airmas_err = 0.0
 
-        transf_coef_table = {
-            ('B', 'V'): 0.1,
-            ('B', 'R'): 0.1,
-            ('R', 'V'): 0.1,
-        }
-
         # Convenience shortcuts
         inv_channe_mapping = {v: k for k, v in self.channel_mapping.items()}
-        LOGE10 = utils.LOGE10
 
         mag_plots = []
         for target_star in var_stars:
             subplots = adu_plots[target_star]
             nchannels = len(subplots)
 
-            abs_mag_data = ([], [], [], [])
             band_mag_data = {}
 
             # Setting up dictionary to hold band specific
@@ -5144,7 +5391,7 @@ class theApp(Qt.QObject):
                 ref_mag = allstars[ref_star][1]
 
                 color_index = lcurves.getBestColorIndex(
-                    ref_mag, self.channel_mapping)
+                    ref_mag, self.channel_mapping)[0]
 
                 if not color_index:
                     log.log(repr(self),
@@ -5165,7 +5412,17 @@ class theApp(Qt.QObject):
                 ref_color_error = 0
                 band_1 = inv_channe_mapping[color_index[0][0]]
                 band_2 = inv_channe_mapping[color_index[0][1]]
-                transf_coeff = transf_coef_table[color_index[0]]
+                try:
+                    transf_data = self.transf_coeff_table[color_index[0]]
+                    transf_coeff = transf_data[0]
+                    transf_coeff_err = transf_data[1]
+                except KeyError:
+                    transf_coeff = None
+                    transf_coeff_err = None
+                    log.log(repr(self),
+                            ("No trasformation coeffcient specified, "
+                             "using simplified trasformation equations!"),
+                            level=logging.WARNING)
 
                 if nchannels > 1:
                     # We have more than one channels so
@@ -5182,36 +5439,8 @@ class theApp(Qt.QObject):
                     b1_error = b1.getYError()
                     b2_error = b2.getYError()
 
-                    star_color_index = -2.5*np.log10(b1_counts/b2_counts)
-
-                    ###########################################################
-                    #                STANDARD ERROR PROPAGATION               #
-                    ###########################################################
-                    #
-                    # if V = f(A,B) then the error for V is
-                    #
-                    #   DV = sqrt(|DA*df(A,B)/dA|**2 + |DB*df(A,B)/dB|**2)
-                    #
-                    # since the color index is
-                    #
-                    #   star_bv_index = -2.5*np.log10(b1_counts/b2_counts)
-                    #
-                    # then, if we define
-                    #
-                    #   A = b1_counts     DA = b1_error
-                    #   B = b1_counts     DB = b2_error
-                    #   f = log10
-                    #
-                    # the error on inst_term is:
-                    #
-                    #   inst_err^2=6.25*(|DA*df(A,B)/dA|^2 + |DB*df(A,B)/dB|^2)
-                    #   = 6.25*(|DA*1/[A*ln(10)]|^2 + |DB * -1/[B*ln(10)|^2)
-                    #   = 6.25*(|DA/[A*ln(10)]|^2 + |DB/[B*ln(10)]|^2)
-
-                    b1_rerr2 = (b1_error/(b1_counts*LOGE10))**2
-                    b2_rerr2 = (b2_error/(b2_counts*LOGE10))**2
-
-                    star_color_error = np.array(2.5*np.sqrt(b1_rerr2+b2_rerr2))
+                    star_color_index, star_color_error = lcurves.getInstColor(
+                            b1_counts, b2_counts, b1_error, b2_error)
 
                     for channel in self.channel_mapping:
                         band = self.channel_mapping[channel]
@@ -5235,58 +5464,26 @@ class theApp(Qt.QObject):
                         ref_ydat = refplots[channel].getYData()
                         ref_yerr = refplots[channel].getYError()
 
-                        abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied(
-                            star_ydat, ref_ydat, magnitude,
-                            star_color_index, ref_color_index, 0.1,
-                            star_yerr, ref_yerr, 0,
-                            star_color_error, ref_color_error,
-                            transf_coeff)
+                        if transf_coeff:
+                            amag, amag_err = lcurves.ccdTransfSimpyfied(
+                                star_ydat, ref_ydat, magnitude,
+                                star_color_index, ref_color_index,
+                                transf_coeff, star_yerr, ref_yerr, 0,
+                                star_color_error, ref_color_error,
+                                transf_coeff_err)
+                        else:
+                            amag, amag_err = lcurves.ccdTransfSimpyfied2(
+                                star_ydat, ref_ydat, magnitude,
+                                star_yerr, ref_yerr, 0)
 
                         band_mag_data[band][0].append(star_xdat)
-                        band_mag_data[band][1].append(abs_mag)
+                        band_mag_data[band][1].append(amag)
                         band_mag_data[band][2].append(star_xerr)
-                        band_mag_data[band][3].append(abs_mag_err)
+                        band_mag_data[band][3].append(amag_err)
 
-                    # We shall use the total flux of the star, but we only
-                    # have measures of the flux (measured as ADU) in different
-                    # spectral bands, however we can approximate the tototal
-                    # flux to the sum of each measures flux in all the
-                    # available spectral bands.
-                    #
-                    # NOTE: We assume here that the corresponding values of
-                    #       the flux in different bands are measured about at
-                    #       the same time!
-
-                    bol_str_ydat = sum(map(lcurves.LightCurvePlot.getYData,
-                                           subplots.values()))
-                    bol_str_xdat = sum(map(lcurves.LightCurvePlot.getXData,
-                                           subplots.values()))/nchannels
-                    bol_str_yerr = sum(map(lcurves.LightCurvePlot.getYError,
-                                           subplots.values()))
-                    bol_str_xerr = sum(map(lcurves.LightCurvePlot.getXError,
-                                           subplots.values()))/nchannels
-
-                    bol_ref_ydat = sum(map(lcurves.LightCurvePlot.getYData,
-                                           refplots.values()))
-                    bol_ref_yerr = sum(map(lcurves.LightCurvePlot.getYError,
-                                           refplots.values()))
-
-                    abs_tme = bol_str_xdat
-                    abs_tme_err = bol_str_xerr
-
-                    # Transformation Equation
-                    abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied(
-                        bol_str_ydat, bol_ref_ydat, ref_mag['V'],
-                        star_color_index, ref_color_index, 0.1,
-                        bol_str_yerr, bol_ref_yerr, 0,
-                        star_color_error, ref_color_error,
-                        transf_coeff)
-
-                    abs_mag_data[0].append(abs_tme)
-                    abs_mag_data[1].append(abs_mag)
-                    abs_mag_data[2].append(abs_tme_err)
-                    abs_mag_data[3].append(abs_mag_err)
                 else:
+                    band = self.channel_mapping[0]
+
                     bol_str_ydat = subplots[0].getYData()
                     bol_str_xdat = subplots[0].getXData()
                     bol_str_yerr = subplots[0].getYError()
@@ -5305,27 +5502,13 @@ class theApp(Qt.QObject):
                         bol_str_ydat, bol_ref_ydat, ref_mag,
                         bol_str_yerr, bol_ref_yerr, 0)
 
-                    abs_mag_data[0].append(abs_tme)
-                    abs_mag_data[1].append(abs_mag)
-                    abs_mag_data[2].append(abs_tme_err)
-                    abs_mag_data[3].append(abs_mag_err)
+                    band_mag_data[band][0].append(abs_tme)
+                    band_mag_data[band][1].append(abs_mag)
+                    band_mag_data[band][2].append(abs_tme_err)
+                    band_mag_data[band][3].append(abs_mag_err)
 
             # Finally we compute the mean value for the absolute magnitude...
             if ref_stars:
-                mean_abs_tme = np.mean(abs_mag_data[0], 0)
-                mean_abs_mag = np.mean(abs_mag_data[1], 0)
-                mean_tme_err = np.mean(abs_mag_data[2], 0)
-                mean_mag_err = np.mean(abs_mag_data[3], 0)
-                del abs_mag_data
-
-                # ...and build a LightCurvePlot...
-                plt = lcurves.LightCurvePlot()
-                plt.setName(st_name + "(Bol)")
-                plt.setData(
-                    mean_abs_tme, mean_abs_mag,
-                    mean_tme_err, mean_mag_err)
-                mag_plots.append(plt)
-
                 # ...and do it for multiband lightcurve too
                 for band in band_mag_data.keys():
                     if not band_mag_data[band][0]:
@@ -5397,6 +5580,7 @@ class theApp(Qt.QObject):
                     level=logging.ERROR)
             return False
 
+        current_colormap = 0  # TODO: select a colormap
         self.video_dlg.exec_()
 
         fps = self.video_dlg.getFps()
@@ -5517,7 +5701,7 @@ class theApp(Qt.QObject):
                                 level=logging.DEBUG)
 
                         img = cmaps.getColormappedImage(img,
-                                                        self.current_colormap,
+                                                        current_colormap,
                                                         fitlvl)
 
                         cv2img = np.empty((size[1], size[0], 3),

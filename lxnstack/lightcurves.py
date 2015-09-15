@@ -81,10 +81,8 @@ def getColorIndexes(used_bands):
 def getColors(mag_dict):
     colors = getColorIndexes(mag_dict.keys())
     color_index = []
-
     for color in colors:
         color_index.append((color, mag_dict[color[0]] - mag_dict[color[1]]))
-
     return color_index
 
 
@@ -100,7 +98,7 @@ def getBestColorIndex(mag_dict, channel_mapping):
             available_mapped_bands[band] = mag
 
     if len(available_mapped_bands) >= 2:
-        return getColors(available_mapped_bands)[0]
+        return getColors(available_mapped_bands)
     else:
         return []
 
@@ -595,3 +593,118 @@ def ccdTransfSimpyfied2(instadu, instadu_ref, stdmag_ref,
     stdmagerr = np.sqrt(stdmagerr_ref**2 + inst_err2)
 
     return stdmag, stdmagerr
+
+
+def getInstColor(b1_counts, b2_counts, b1_error, b2_error):
+    """
+    This function is computes the transformation color
+    index of a star using two photometric bands.
+
+    Parameters
+    ----------
+    b1_counts: float or array-like
+        The instrumental flux of the target star
+        in the first band (ADU counts).
+    b2_counts: float or array-like
+        The instrumental flux of the target star
+        in the second band (ADU counts).
+    b1_error: float or array-like
+        The error on instrumental flux of the target
+        star in the first band.
+    b2_error: float or arrya-like
+        The error on instrumental flux of the target
+        star in the second band.
+
+    Returns
+    -------
+    color_index: float
+        The color index of the target star
+
+    color_error: float
+        The error for the color index of the target star
+
+    Notes
+    -----
+    The instrumental magnitude l is defined as
+
+        l = -2.5 * log10(f) = -2.5 * log10(ADU/g)
+
+    where
+
+        log10 is the base 10 logarithm.
+        f is the fulx of the star.
+        ADU is the measured ADU counts.
+        g is the exposure time.
+
+    The color index of a star is defined as the difference
+    of the magnitudes in two photometric bands B1 and B2
+    (which usually are B and V):
+
+        C(B1, B2) = L(B1) - L(B1) =
+            = -2.5*log10(Flux_B1) +2.5*log10(Flux_B2) =
+            = -2.5*log10(Flux_B1/Flux_B2)
+
+    Where Flux_B1 and Flux_B2 are the fluxes of the target
+    star in the two bands B1 and B2.
+
+    Ignowing the arimass correcions, and assuming that the
+    number of ADU counts is directly proportional to the
+    number of electrons wich comes from the sensor and thus
+    is directly proportional to the number of photon hitting
+    the sensor, then we can define
+
+        f1 = ADU1/g = k * Flux_B1
+        f2 = ADU2/g = k * Flux_B2
+
+    therefore
+
+        C(B1, B2) = -2.5*log10((f1/k)/(f2/k)) =
+                  = -2.5*log10(f1/f2) =
+                  = -2.5*log10(ADU1/ADU2)
+    """
+
+    LOGE10 = np.log(10)  # just for convenience
+
+    color_index_list = -2.5*np.log10(b1_counts/b2_counts)
+
+    ###########################################################
+    #                STANDARD ERROR PROPAGATION               #
+    ###########################################################
+    #
+    # NOTE: We cannot compute the average of each adu counts
+    #       because they are NOT repeated measueres of the
+    #       SAME quantity as the adu count can vary over the
+    #       time due to atmospheric extincion, etc.
+    #       The only quantity wich remains constants is the
+    #       b1_counts/b2_counts ratio.
+    #
+    # if V = f(A,B) then the error for V is
+    #
+    #   DV = sqrt(|DA*df(A,B)/dA|**2 + |DB*df(A,B)/dB|**2)
+    #
+    # since the color index is
+    #
+    #   star_bv_index = -2.5*np.log10(b1_counts/b2_counts)
+    #
+    # then, if we define
+    #
+    #   A = b1_counts     DA = b1_error
+    #   B = b1_counts     DB = b2_error
+    #   f = log10
+    #
+    # the error on inst_term is:
+    #
+    #   inst_err^2=6.25*(|DA*df(A,B)/dA|^2 + |DB*df(A,B)/dB|^2)
+    #   = 6.25*(|DA*1/[A*ln(10)]|^2 + |DB * -1/[B*ln(10)|^2)
+    #   = 6.25*(|DA/[A*ln(10)]|^2 + |DB/[B*ln(10)]|^2)
+
+    b1_rerr2 = (b1_error/(b1_counts*LOGE10))**2
+    b2_rerr2 = (b2_error/(b2_counts*LOGE10))**2
+
+    color_error2 = 6.25*(b1_rerr2+b2_rerr2)
+
+    wei = 1 / color_error2
+
+    color_index = np.average(color_index_list, weights=wei)
+    color_error = np.sqrt(color_error2.mean())
+    return (color_index, color_error)
