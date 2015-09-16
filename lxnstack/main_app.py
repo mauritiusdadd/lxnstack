@@ -1896,6 +1896,24 @@ class theApp(Qt.QObject):
         self.action_gen_transftable.triggered.connect(
             self.doGenerateTransfTable)
 
+        self.action_load_transftable = QtGui.QAction(
+            utils.getQIcon("load-transf-table"),
+            tr.tr('Load color transformation coefficients'), self)
+        self.action_load_transftable.triggered.connect(
+            self.doLoadTransfTable)
+
+        self.action_save_transftable = QtGui.QAction(
+            utils.getQIcon("save-transf-table"),
+            tr.tr('Save color transformation coefficients'), self)
+        self.action_save_transftable.triggered.connect(
+            self.doSaveTransfTable)
+
+        self.action_edit_transftable = QtGui.QAction(
+            utils.getQIcon("save-transf-table"),
+            tr.tr('Edit color transformation coefficients'), self)
+        self.action_edit_transftable.triggered.connect(
+            self.doEditTransfTable)
+
         self.action_enable_rawmode = QtGui.QAction(
             utils.getQIcon("bayer-mode"),
             tr.tr('Enable raw-mode'), self)
@@ -1981,6 +1999,9 @@ class theApp(Qt.QObject):
         # Ligthcurves menu
         menu_lightcurves.addAction(self.action_edit_channel_mapping)
         menu_lightcurves.addAction(self.action_gen_transftable)
+        menu_lightcurves.addAction(self.action_edit_transftable)
+        menu_lightcurves.addAction(self.action_save_transftable)
+        menu_lightcurves.addAction(self.action_load_transftable)
         menu_lightcurves.addAction(self.action_gen_lightcurves)
 
         # Settings menu
@@ -4959,6 +4980,74 @@ class theApp(Qt.QObject):
 
     def doGenerateTransfTable(self):
         return self.generateColorTransfTable()
+
+    def doLoadTransfTable(self):
+        self.loadTransfTable()
+
+    def doSaveTransfTable(self):
+        self.saveTransfTable()
+
+    def saveTransfTable(self, fname=None):
+
+        if fname is None:
+            file_name = str(Qt.QFileDialog.getSaveFileName(
+                self.wnd,
+                tr.tr("Save the tranformation coefficients table"),
+                os.path.join(self.current_dir, 'coefficients.lxn'),
+                "Coefficents table (*.xml);;All files (*.*)",
+                None,
+                utils.DIALOG_OPTIONS))
+        else:
+            file_name = fname
+
+        if not file_name.strip():
+            return False
+
+        try:
+            projects.saveTransfTableToFile(file_name, self.transf_coeff_table)
+        except Exception as exc:
+            msg = tr.tr(
+                "Cannot save color transformation table to file {}:\n'{}'")
+            exc_msg = str(msg.format(file_name, str(exc)))
+            utils.showErrorMsgBox(exc_msg, caller=self)
+            return False
+
+        return True
+
+    def loadTransfTable(self, fname=None):
+        log.log(repr(self),
+                'loading color tranformation table, please wait...',
+                level=logging.INFO)
+
+        if fname is None:
+            file_name = str(Qt.QFileDialog.getOpenFileName(
+                self.wnd,
+                tr.tr("Load the tranformation coefficients table"),
+                os.path.join(self.current_dir, ''),
+                "Coefficents table (*.xml);;All files (*.*)", None,
+                utils.DIALOG_OPTIONS))
+        else:
+            file_name = fname
+
+        if not file_name.strip():
+            print("---", file_name)
+            return False
+
+        try:
+            transf_table = projects.loadTransfTableFromFile(file_name)
+        except Exception as exc:
+            msg = tr.tr(
+                "Cannot load color transformation table from file {}:\n'{}'")
+            exc_msg = str(msg.format(file_name, str(exc)))
+            utils.showErrorMsgBox(exc_msg, caller=self)
+        else:
+            log.log(repr(self),
+                    'Color tranformation table: {}'.format(transf_table),
+                    level=logging.INFO)
+            self.transf_coeff_table = transf_table
+
+    def doEditTransfTable(self):
+        raise NotImplementedError("Not implemented yet")
 
     def updateChannelMapping(self):
         self.channel_mapping = self.chmap_dlg.exec_(self.channel_mapping)

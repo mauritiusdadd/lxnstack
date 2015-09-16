@@ -305,11 +305,10 @@ def weightedlinregress(x, y, yerr):
             w = 1 / (yerr**2)
     except AttributeError:
         reg = sp.stats.linregress(x, y)
-        print("!!!!!------------------------")
-        print(reg[0], reg[1], reg[4])
         return (reg[0], reg[1], reg[4])
-        errs = np.ones_like(y)*yerr
-        w = 1 / (errs**2)
+
+        # errs = np.ones_like(y)*yerr
+        # w = 1 / (errs**2)
 
     Sw = w.sum()
     Swx = (w*x).sum()
@@ -323,8 +322,6 @@ def weightedlinregress(x, y, yerr):
 
     inter_err = np.sqrt(Sw/delta)
     slope_err = np.sqrt(Swx2/delta)
-    print("---------------------------------")
-    print(slope, inter, slope_err, inter_err)
     return (slope, inter, slope_err, inter_err)
 
 

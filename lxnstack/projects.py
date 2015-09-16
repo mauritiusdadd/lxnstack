@@ -18,6 +18,8 @@ import os
 import logging
 from xml.dom import minidom
 
+import numpy as np
+
 import log
 import utils
 import imgfeatures
@@ -30,6 +32,67 @@ def getProjectAbsURL(project_dir, url):
     else:
         abs_url = os.path.join(project_dir, url)
         return os.path.realpath(abs_url)
+
+
+def saveTransfTableToFile(fname, dic):
+    doc = minidom.Document()
+
+    root = doc.createElement('color-transformation-table')
+    doc.appendChild(root)
+
+    for key in dic:
+        try:
+            band1 = key[0]
+            band2 = key[1]
+        except:
+            raise TypeError("Not a color tranfrmation coefficient table!")
+        else:
+            val = dic[key]
+            try:
+                coeff = val[0]
+                err = val[1]
+            except:
+                raise TypeError("Not a color tranfrmation coefficient table!")
+            else:
+                node = doc.createElement('transformation-coefficient')
+                node.setAttribute('band1', str(band1))
+                node.setAttribute('band2', str(band2))
+                node.setAttribute('value', str(coeff))
+                node.setAttribute('error', str(err))
+                root.appendChild(node)
+                del node
+    try:
+        f = open(fname, 'w')
+        f.write(doc.toprettyxml(' ', '\n'))
+        f.close()
+    except IOError as err:
+        log.log("<lxnstack.projects module>",
+                "Cannot save the color transformation table: " + str(err),
+                level=logging.ERROR)
+        raise err
+
+
+def loadTransfTableFromFile(fname):
+    try:
+        dom = minidom.parse(fname)
+    except Exception as err:
+        log.log("<lxnstack.projects module>",
+                "failed to parse project, xml formatting error: '{}'".format(
+                    str(err)),
+                level=logging.ERROR)
+        raise(err)
+
+    root = dom.getElementsByTagName('color-transformation-table')[0]
+
+    dic = {}
+    for node in root.getElementsByTagName('transformation-coefficient'):
+        b1 = node.getAttribute('band1')
+        b2 = node.getAttribute('band2')
+        val = np.float64(node.getAttribute('value'))
+        err = np.float64(node.getAttribute('error'))
+        dic[(b1, b2)] = (val, err)
+
+    return dic
 
 
 class Project(object):
@@ -89,8 +152,7 @@ class Project(object):
             log.log(repr(self),
                     'failed to parse project, xml formatting error',
                     level=logging.ERROR)
-            return self.corruptedMsgBox(err)
-
+            raise(err)
         try:
             root = dom.getElementsByTagName('project')[0]
             information_node = root.getElementsByTagName('information')[0]
@@ -444,6 +506,9 @@ class Project(object):
                     idx = int(comp.getAttribute('index'))
                     nme = comp.getAttribute('band')
                     channel_mapping[idx] = nme
+                if not channel_mapping:
+                    msg = "No channel mapping in photometry section."
+                    raise ValueError(msg)
             else:
                 use_image_time = self.use_image_time
                 channel_mapping = lcurves.getComponentTable(dep)
