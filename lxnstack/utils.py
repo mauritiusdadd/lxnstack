@@ -915,12 +915,15 @@ class Frame(Qt.QObject):
         cx = self.width/2.0
         cy = self.height/2.0
 
-        di = dist(cx, cy, x, y)
-        an = math.atan2(cy-y, cx-x)
-        an2 = self.angle*math.pi/180.0
+        xi = x + self.offset[0]
+        yi = y + self.offset[1]
 
-        rx = cx - di*math.cos(an2+an) + self.offset[0]
-        ry = cy - di*math.sin(an2+an) + self.offset[1]
+        di = dist(cx, cy, xi, yi)
+        an = math.atan2(yi-cy, xi-cx)
+        an2 = math.radians(self.angle)
+
+        rx = cx + di*math.cos(an2+an)
+        ry = cy + di*math.sin(an2+an)
 
         return rx, ry
 
@@ -966,8 +969,8 @@ class Frame(Qt.QObject):
         # We must invert the following equations that we used
         # in getReverseTPosition:
         #
-        #    rx = cx - di*math.cos(an2+an) + self.offset[0]
-        #    ry = cy - di*math.sin(an2+an) + self.offset[1]
+        #    rx = cx - di*math.cos(an2+an)
+        #    ry = cy - di*math.sin(an2+an)
         #
         # we can define
         #
@@ -977,8 +980,8 @@ class Frame(Qt.QObject):
         # obtaining
         #
 
-        dx = rx - cx - self.offset[0]
-        dy = ry - cy - self.offset[1]
+        dx = rx - cx
+        dy = ry - cy
 
         #
         # that can be simplified using the sinus and cosinus addition
@@ -1040,20 +1043,27 @@ class Frame(Qt.QObject):
         #                 det(A)
         #
         # finally we can compute the original value of x and y by
-        # inverting the relation an = math.atan2(cy-y, cx-x):
+        # inverting the relation an = math.atan2(cy-yi, cx-xi):
         #
-        #               (cy - y)/di      sin(an)
+        #               (cy - yi)/di      sin(an)
         #    tan(an) = -------------- = ---------
-        #               (cx - x)/di      cos(an)
+        #               (cx - xi)/di      cos(an)
         #
         # from wich we obtain
         #
-        #    x = cx - di*cos(an) = cy + cos(an2)*dx + sin(an2)*dy
-        #    y = cy - di*sin(an) = cy + cos(an2)*dy - sin(an2)*dx
+        #    xi = cx - di*cos(an) = cy + cos(an2)*dx + sin(an2)*dy
+        #    yi = cy - di*sin(an) = cy + cos(an2)*dy - sin(an2)*dx
+        #
+        # and noting that
+        #
+        #    xi = x + self.offset[0]
+        #    yi = y + self.offset[1]
+        #
+        # we obtain
         #
 
-        x = cx + cos_an2*dx + sin_an2*dy
-        y = cy + cos_an2*dy - sin_an2*dx
+        x = cx + cos_an2*dx + sin_an2*dy - self.offset[0]
+        y = cy + cos_an2*dy - sin_an2*dx - self.offset[1]
 
         return x, y
 
@@ -2454,7 +2464,8 @@ def polar(input_img, wmul=1, hmul=1, clip=False):
 
 
 def register_image(ref, img, sharp1=2, sharp2=2,
-                   align=True, derotate=True, int_order=0):
+                   align=True, derotate=True, int_order=0,
+                   override_angle=0):
     if derotate:
         log.log("<lxnstack.utils module>",
                 'computing image derotation...',
@@ -2465,12 +2476,23 @@ def register_image(ref, img, sharp1=2, sharp2=2,
                 'rotation angle = '+str(angle),
                 level=logging.INFO)
     else:
-        angle = 0
+        angle = None
 
-    if angle != 0:
+    if angle is not None:
         derotated = sp.ndimage.interpolation.rotate(
             img,
             angle,
+            order=int_order,
+            reshape=False,
+            mode='constant',
+            cval=0.0)
+    elif override_angle:
+        log.log("<lxnstack.utils module>",
+                'overriding image derotation...',
+                level=logging.INFO)
+        derotated = sp.ndimage.interpolation.rotate(
+            img,
+            override_angle,
             order=int_order,
             reshape=False,
             mode='constant',
@@ -2488,9 +2510,8 @@ def register_image(ref, img, sharp1=2, sharp2=2,
                 level=logging.INFO)
         shift = s[1]
         s0 = s[0]
-
     else:
-        shift = [0, 0]
+        shift = None
         s0 = None
 
     return (s0, shift, angle)

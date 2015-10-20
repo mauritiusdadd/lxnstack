@@ -2138,7 +2138,7 @@ class PlotViewer(QtGui.QWidget):
             tr.tr('Save the displayed plot to a file'),
             self)
 
-        export_cvs_action = QtGui.QAction(
+        export_csv_action = QtGui.QAction(
             utils.getQIcon("text-csv"),
             tr.tr('Export plot data to a cvs file'),
             self)
@@ -2181,7 +2181,7 @@ class PlotViewer(QtGui.QWidget):
         # zoom_fit_action.triggered.connect(self._pv.zoomFit)
 
         toolbar.addAction(save_plot_action)
-        toolbar.addAction(export_cvs_action)
+        toolbar.addAction(export_csv_action)
         toolbar.addAction(invert_y_action)
         toolbar.addAction(show_legend_action)
         toolbar.addWidget(self._plt_lst_qlw)
@@ -2197,7 +2197,7 @@ class PlotViewer(QtGui.QWidget):
 
         self.setLayout(mainlayout)
 
-        export_cvs_action.triggered.connect(self.exportNumericDataCSV)
+        export_csv_action.triggered.connect(self.exportNumericDataCSV)
         save_plot_action.triggered.connect(self.savePlotAsImage)
         show_legend_action.toggled.connect(self._pv.setLegendVisible)
         invert_y_action.toggled.connect(self._pv.setInvertedY)

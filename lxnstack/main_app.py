@@ -3990,7 +3990,8 @@ class theApp(Qt.QObject):
                         ref_data, img_data,
                         sharp1, sharp2,
                         align, derotate,
-                        self.phase_interpolation_order)
+                        self.phase_interpolation_order,
+                        override_angle=img.angle - ref.angle)
 
                     self._phase_align_data = (data[1], data[2], data[0])
                     self.statusBar.showMessage(tr.tr('shift: ') +
@@ -4001,8 +4002,11 @@ class theApp(Qt.QObject):
                     if (data[0] is not None and
                             self.checked_show_phase_img == 2):
                         iv.showImage(data[0])
-                    img.setOffset(data[1])
-                    img.setAngle(data[2])
+
+                    if data[1] is not None:
+                        img.setOffset(data[1])
+                    if data[2] is not None:
+                        img.setAngle(data[2])
         del mask
         self._phase_align_data = None
         sw.close()
@@ -4265,9 +4269,8 @@ class theApp(Qt.QObject):
                     level=logging.DEBUG)
             if master_bias is not None:
                 master_dark = dark_image - master_bias
-                master_dark *= self.master_dark_mul_factor
             else:
-                master_dark = dark_image * self.master_dark_mul_factor
+                master_dark = dark_image
 
             log.log(repr(self),
                     "generating hot-pixels map",
@@ -4326,6 +4329,8 @@ class theApp(Qt.QObject):
                                 level=logging.INFO)
             else:
                 hot_pixels = None
+
+            master_dark *= self.master_dark_mul_factor
         else:
             master_dark = None
             hot_pixels = None
@@ -4339,7 +4344,7 @@ class theApp(Qt.QObject):
             corrected = flat_image + zero_mask
             del zero_mask
 
-            normalizer = corrected.min()
+            normalizer = corrected.mean()  # TODO: Add ComboBox?
             master_flat = ((corrected/normalizer)*self.master_flat_mul_factor)
             del corrected
         else:
@@ -4426,7 +4431,6 @@ class theApp(Qt.QObject):
                             QtGui.QApplication.instance().processEvents()
                         hotp_x = hotp[1]
                         hotp_y = hotp[0]
-
                         navg = utils.getNeighboursAverage(image,
                                                           hotp_x,
                                                           hotp_y,
@@ -4464,6 +4468,14 @@ class theApp(Qt.QObject):
                         "calibrating image: dividing by master flat",
                         level=logging.DEBUG)
                 image /= master_flat
+
+        img_min = image.min()
+        if img_min < 0:
+            log.log(repr(self),
+                    "calibrating image: The image contains negative values." +
+                    "please, check your calibration frames!",
+                    level=logging.WARNING)
+            image -= img_min
 
         if debayerize_result:
             debay = self.debayerize(image)
@@ -5030,7 +5042,6 @@ class theApp(Qt.QObject):
             file_name = fname
 
         if not file_name.strip():
-            print("---", file_name)
             return False
 
         try:
@@ -5466,7 +5477,6 @@ class theApp(Qt.QObject):
         for target_star in var_stars:
             subplots = adu_plots[target_star]
             nchannels = len(subplots)
-
             band_mag_data = {}
 
             # Setting up dictionary to hold band specific
@@ -5479,41 +5489,41 @@ class theApp(Qt.QObject):
                 refplots = adu_plots[ref_star]
                 ref_mag = allstars[ref_star][1]
 
-                color_index = lcurves.getBestColorIndex(
-                    ref_mag, self.channel_mapping)[0]
+                if nchannels > 1:
+                    color_index = lcurves.getBestColorIndex(
+                        ref_mag, self.channel_mapping)[0]
 
-                if not color_index:
-                    log.log(repr(self),
+                    if not color_index:
+                        log.log(
+                            repr(self),
                             ("Cannot assign a color to the reference star {}."
                              "Make sure to have set the magnitude at least to"
                              "two photometric bands.").format(ref_star),
-                            level=logging.WARNING)
-                    continue
+                            level=logging.WARNING
+                        )
+                    else:
+                        log.log(repr(self),
+                                'using color index {}-{}: {} mag'.format(
+                                    color_index[0][0],
+                                    color_index[0][1],
+                                    color_index[1]),
+                                level=logging.INFO)
+                    ref_color_index = color_index[1]
+                    ref_color_error = 0
+                    band_1 = inv_channe_mapping[color_index[0][0]]
+                    band_2 = inv_channe_mapping[color_index[0][1]]
+                    try:
+                        transf_data = self.transf_coeff_table[color_index[0]]
+                        transf_coeff = transf_data[0]
+                        transf_coeff_err = transf_data[1]
+                    except KeyError:
+                        transf_coeff = None
+                        transf_coeff_err = None
+                        log.log(repr(self),
+                                ("No trasformation coeffcient specified, "
+                                 "using simplified trasformation equations!"),
+                                level=logging.WARNING)
 
-                log.log(repr(self),
-                        'using color index {}-{}: {} mag'.format(
-                            color_index[0][0],
-                            color_index[0][1],
-                            color_index[1]),
-                        level=logging.INFO)
-
-                ref_color_index = color_index[1]
-                ref_color_error = 0
-                band_1 = inv_channe_mapping[color_index[0][0]]
-                band_2 = inv_channe_mapping[color_index[0][1]]
-                try:
-                    transf_data = self.transf_coeff_table[color_index[0]]
-                    transf_coeff = transf_data[0]
-                    transf_coeff_err = transf_data[1]
-                except KeyError:
-                    transf_coeff = None
-                    transf_coeff_err = None
-                    log.log(repr(self),
-                            ("No trasformation coeffcient specified, "
-                             "using simplified trasformation equations!"),
-                            level=logging.WARNING)
-
-                if nchannels > 1:
                     # We have more than one channels so
                     # we can use color corrections if the
                     # magnitudes of the reference stars
@@ -5573,6 +5583,17 @@ class theApp(Qt.QObject):
                 else:
                     band = self.channel_mapping[0]
 
+                    try:
+                        magnitude = ref_mag[band]
+                    except:
+                        log.log(repr(self), (
+                                "Skipping lightcurve for band '{}' "
+                                " for the star '{}': no reference "
+                                "magnitude found."
+                                ).format(band, ref_star),
+                                level=logging.WARNING)
+                        continue
+
                     bol_str_ydat = subplots[0].getYData()
                     bol_str_xdat = subplots[0].getXData()
                     bol_str_yerr = subplots[0].getYError()
@@ -5588,7 +5609,7 @@ class theApp(Qt.QObject):
                     abs_tme_err = bol_str_xerr
 
                     abs_mag, abs_mag_err = lcurves.ccdTransfSimpyfied2(
-                        bol_str_ydat, bol_ref_ydat, ref_mag,
+                        bol_str_ydat, bol_ref_ydat, magnitude,
                         bol_str_yerr, bol_ref_yerr, 0)
 
                     band_mag_data[band][0].append(abs_tme)
@@ -5616,12 +5637,16 @@ class theApp(Qt.QObject):
                                          len(band_mag_data[band][0])),
                                 level=logging.DEBUG)
                     mean_band_tme = np.mean(band_mag_data[band][0], 0)
-                    mean_band_mag = np.mean(band_mag_data[band][1], 0)
                     mean_band_tme_err = np.mean(band_mag_data[band][2], 0)
-                    mean_band_mag_err = np.mean(band_mag_data[band][3], 0)
+
+                    wei = 1/(np.array(band_mag_data[band][3])**2)
+                    mean_band_mag = np.average(band_mag_data[band][1],
+                                               weights=wei,
+                                               axis=0)
+                    mean_band_mag_err = 1/np.sqrt(np.average(wei, axis=0))
 
                     plt = lcurves.LightCurvePlot()
-                    plt.setName(st_name + utils.brakets(band))
+                    plt.setName(target_star + utils.brakets(band))
                     plt.setData(
                         mean_band_tme, mean_band_mag,
                         mean_band_tme_err, mean_band_mag_err)
