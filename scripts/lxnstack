@@ -25,13 +25,17 @@ import logging
 
 from PyQt4 import Qt, QtCore
 
-import lxnstack
-import lxnstack.translation as tr
-import lxnstack.styles as styles
 
 PROGRAM_VERSION = "1.5.0"
 
 if __name__ == "__main__":
+
+    # create main QApplication
+    app = Qt.QApplication(sys.argv)
+
+    import lxnstack
+    import lxnstack.translation as tr
+    import lxnstack.styles as styles
 
     parser = argparse.ArgumentParser(
         description=tr.tr('lxnstack is aprogram usefull to ' +
@@ -153,9 +157,6 @@ if __name__ == "__main__":
         verbosity=logging.WARNING
 
     logger = lxnstack.log.createMainLogger(verbosity)
-
-    # create main QApplication
-    app = Qt.QApplication(sys.argv)
 
     splash = lxnstack.guicontrols.SplashScreen()
     app.aboutToQuit.connect(splash.close)

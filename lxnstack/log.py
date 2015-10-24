@@ -85,6 +85,11 @@ def log(module, message, level=logging.DEBUG, *arg, **args):
     args['traceback'] = str(traceback)
 
     for each_message in str(message).splitlines():
+        logger = logging.getLogger(LOGGERNAME)
+        if not logger.handlers:
+            createMainLogger()
+        else:
+            print(each_message)
         logging.getLogger(LOGGERNAME).log(level, each_message, extra=args)
 
 
