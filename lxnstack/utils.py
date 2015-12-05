@@ -1863,6 +1863,14 @@ class Frame(Qt.QObject):
         elif outbits == 64:
             data = data.astype(np.float64)
 
+        # here we make a single dictionary in order to remove
+        # any duplicated key...
+        if 'fits_header' in args:
+            for k in args['fits_header']:
+                header[k] = args['fits_header'][k]
+            # make sure the SWCREATE is always lxnstack
+            header['SWCREATE'] = str(paths.PROGRAM_NAME)
+
         if rgb_mode and (len(data.shape) == 3):
             # NOTE: cannot compress primary HDU
             hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
@@ -1875,11 +1883,14 @@ class Frame(Qt.QObject):
             hdu_g.update_ext_name('GREN')
             hdu_b.update_ext_name('BLUE')
 
-            for k, v, d in header:
-                hdu.header.update(str(k).upper(), v, str(d))
-                hdu_r.header.update(str(k).upper(), v, str(d))
-                hdu_g.header.update(str(k).upper(), v, str(d))
-                hdu_b.header.update(str(k).upper(), v, str(d))
+            for k in header:
+                try:
+                    hdu.header.update(str(k).upper(), header[k], "")
+                    hdu_r.header.update(str(k).upper(), header[k], "")
+                    hdu_g.header.update(str(k).upper(), header[k], "")
+                    hdu_b.header.update(str(k).upper(), header[k], "")
+                except ValueError:
+                    continue
 
             if outbits == 16:
                 hdu_r.scale('int16', bzero=32768)
@@ -1964,21 +1975,27 @@ class Frame(Qt.QObject):
             showErrorMsgBox("unsupported data format!",
                             caller=self)
 
-    def _get_fits_hdl(self, name, data, header, compressed=False, outbits=16):
+    def _get_fits_hdl(self, name, data, header={}, compressed=False, outbits=16):
             if compressed:
                 # NOTE: cannot compress primary HDU
                 hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
                 com = pyfits.ImageHDU(data, header=getFitsStdHeader())
-                for k, v, d in header:
-                    hdu.header.update(str(k).upper(), v, str(d))
-                    com.header.update(str(k).upper(), v, str(d))
+                for k in header:
+                    try: 
+                        hdu.header.update(str(k).upper(), header[k], "")
+                        com.header.update(str(k).upper(), header[k], "")
+                    except ValueError:
+                        continue
                 if outbits == 16:
                     com.scale('int16', bzero=32768)
                 hdl = pyfits.HDUList([hdu, com])
             else:
                 hdu = pyfits.PrimaryHDU(data, header=getFitsStdHeader())
-                for k, v, d in header:
-                    hdu.header.update(str(k).upper(), v, str(d))
+                for k in header:
+                    try:
+                        hdu.header.update(str(k).upper(), header[k], "")
+                    except ValueError:
+                        continue
                 if outbits == 16:
                     hdu.scale('int16', bzero=32768)
                 hdl = pyfits.HDUList([hdu])
@@ -2179,7 +2196,6 @@ class Frame(Qt.QObject):
                 rgb_fits_mode = self.save_dlg.isFitsRGB()
                 fits_compressed = self.save_dlg.isFitsCompressed()
 
-                args["force_overwrite"] = force_overwrite
                 args["frmat"] = frmat
                 args["bits"] = bits
                 args["dtype"] = dtype
@@ -2190,6 +2206,8 @@ class Frame(Qt.QObject):
                         "Deleting save dialog window",
                         level=logging.DEBUG)
                 del self.save_dlg
+
+        args["force_overwrite"] = force_overwrite
 
         if data is None:
             data = self.getData(asarray=True)

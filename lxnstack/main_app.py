@@ -326,6 +326,8 @@ class theApp(Qt.QObject):
             self.setOuterRadius)
         self.wnd.photoPropPushButton.clicked.connect(
             self.setMagnitude)
+        self.wnd.fwhmAutoPushButton.clicked.connect(
+            self.setFWHMAutoSize)
 
         self.wnd.doubleSpinBoxOffsetX.valueChanged.connect(
             self.shiftOffsetX)
@@ -579,6 +581,10 @@ class theApp(Qt.QObject):
     def doSaveVideo(self, is_checked):
         self.saveVideo()
 
+    @QtCore.pyqtSlot(bool)
+    def doExportCalibrated(self, is_checked):
+        self.exportCalibrated()
+
     def changeAlignMethod(self, idx):
         self.current_align_method = idx
 
@@ -687,7 +693,7 @@ class theApp(Qt.QObject):
             self.dlg,
             tr.tr("Choose the temporary folder"),
             self.temp_path,
-            utils.DIALOG_OPTIONS)
+            utils.DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly)
 
         self.custom_temp_path = str(tmp_path)
         self.dlg._dialog.tempPathLineEdit.setText(self.custom_temp_path)
@@ -922,6 +928,7 @@ class theApp(Qt.QObject):
             self.action_align.setEnabled(True)
             self.action_stack.setEnabled(True)
             self.action_save_video.setEnabled(True)
+            self.action_export_cal.setEnabled(True)
 
             for i in range(self.wnd.toolBox.count()):
                 self.wnd.toolBox.setItemEnabled(i, True)
@@ -954,6 +961,7 @@ class theApp(Qt.QObject):
         self.action_stack.setEnabled(False)
         self.action_align.setEnabled(False)
         self.action_save_video.setEnabled(False)
+        self.action_export_cal.setEnabled(False)
         self.action_gen_lightcurves.setEnabled(False)
         self.action_enable_rawmode.setChecked(False)
         self.action_enable_rawmode.setEnabled(False)
@@ -971,6 +979,7 @@ class theApp(Qt.QObject):
         self.action_save_project.setEnabled(False)
         self.action_save_project_as.setEnabled(False)
         self.action_save_video.setEnabled(False)
+        self.action_export_cal.setEnabled(False)
         self.action_take_shot.setEnabled(False)
         self.action_stop_capture.setEnabled(True)
         self.action_start_capture.setEnabled(False)
@@ -990,6 +999,7 @@ class theApp(Qt.QObject):
         self.action_save_project.setEnabled(True)
         self.action_save_project_as.setEnabled(True)
         self.action_save_video.setEnabled(True)
+        self.action_export_cal.setEnabled(True)
         self.action_take_shot.setEnabled(True)
         self.action_stop_capture.setEnabled(False)
         self.action_start_capture.setEnabled(True)
@@ -1884,6 +1894,12 @@ class theApp(Qt.QObject):
         self.action_save_video.triggered.connect(
             self.doSaveVideo)
 
+        self.action_export_cal = QtGui.QAction(
+            utils.getQIcon("export-calibrated"),
+            tr.tr('Export calibrated images'), self)
+        self.action_export_cal.triggered.connect(
+            self.doExportCalibrated)
+
         self.action_gen_lightcurves = QtGui.QAction(
             utils.getQIcon("generate-lightcurves"),
             tr.tr('Generate lightcurves'), self)
@@ -1995,6 +2011,7 @@ class theApp(Qt.QObject):
         menu_stacking.addAction(self.action_align)
         menu_stacking.addAction(self.action_stack)
         menu_stacking.addAction(self.action_save_video)
+        menu_stacking.addAction(self.action_export_cal)
 
         # Ligthcurves menu
         menu_lightcurves.addAction(self.action_edit_channel_mapping)
@@ -2969,6 +2986,8 @@ class theApp(Qt.QObject):
             self.wnd.innerRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(True)
+            self.wnd.fwhmAutoPushButton.setEnabled(True)
+            self.wnd.fwhmDoubleSpinBox.setEnabled(True)
             self.wnd.removeStarPushButton.setEnabled(True)
         else:
             self.wnd.spinBoxXStar.setValue(0)
@@ -2982,6 +3001,8 @@ class theApp(Qt.QObject):
             self.wnd.innerRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(False)
+            self.wnd.fwhmAutoPushButton.setEnabled(False)
+            self.wnd.fwhmDoubleSpinBox.setEnabled(False)
             self.wnd.removeStarPushButton.setEnabled(False)
             self.wnd.photoPropPushButton.setEnabled(False)
         QtGui.QApplication.instance().processEvents()
@@ -3221,6 +3242,49 @@ class theApp(Qt.QObject):
                 for frm in self.framelist:
                     frm.stars[self.star_idx].magnitude = mag_dic
             self.repaintAllMdiImageViewers()
+
+    def setFWHMAutoSize(self):
+        args = self.stack(skip_light=True, method=None)
+
+        if not args:
+            return False
+
+        QtGui.QApplication.instance().processEvents()
+
+        self.lock()
+
+        if 'hotpixel_options' in args:
+            hotp_args = args['hotpixel_options']
+        else:
+            hotp_args = args[4]
+        masters = self.generateMasters(self._bas,
+                                           self._drk,
+                                           self._flt,
+                                           hotp_args)
+        master_bias = masters[0]
+        master_dark = masters[1]
+        master_flat = masters[2]
+        hot_pixels = masters[3]
+
+        for frm in self.framelist:
+            data = self.calibrate(
+                frm.getData(asarray=True, ftype=self.ftype),
+                master_bias,
+                master_dark,
+                master_flat,
+                hot_pixels,
+                debayerize_result=True)
+
+            for st in frm.stars:
+                x, y = st.getAbsolutePosition()
+                r3 = st.r3
+                subr = data[y-r3:y+r3, x-r3:x+r3]
+                submax = np.unravel_index(subr.argmax(), subr.shape)
+                newy = y - r3 + submax[0]
+                newx = x - r3 + submax[1]
+                st.setAbsolutePosition(newx, newy)
+
+        self.unlock()
 
     def shiftOffsetX(self, val):
         if self.dif_image_idx >= 0:
@@ -5680,6 +5744,83 @@ class theApp(Qt.QObject):
         else:
             return False
 
+    def exportCalibrated(self):
+        out_path = Qt.QFileDialog.getExistingDirectory(
+            None,
+            tr.tr("Choose the output folder"),
+            "",
+            utils.DIALOG_OPTIONS | Qt.QFileDialog.ShowDirsOnly)
+
+        out_path = str(out_path)
+        if not out_path.strip():
+            log.log(repr(self),
+                    'no path selected for output, aborting!',
+                    level=logging.WARNING)
+            return False
+
+        self.lock(False)
+        self.progress.setMaximum(len(self.framelist))
+        count = 0
+
+        args = self.stack(skip_light=True)
+
+        QtGui.QApplication.instance().processEvents()
+
+        self.lock()
+
+        masters = self.generateMasters(self._bas,
+                                       self._drk,
+                                       self._flt,
+                                       args[4])
+        master_bias = masters[0]
+        master_dark = masters[1]
+        master_flat = masters[2]
+        hot_pixels = masters[3]
+
+        self.statusBar.showMessage(tr.tr('Exporting images, please wait...'))
+
+        for frm in self.framelist:
+            count += 1
+            QtGui.QApplication.instance().processEvents()
+            self.progress.setValue(count)
+
+            if frm.isUsed():
+
+                log.log(repr(self),
+                        'using frame '+str(frm.name),
+                        level=logging.INFO)
+
+                log.log(repr(self),
+                        'loading data...',
+                        level=logging.DEBUG)
+
+                img = self.calibrate(
+                    frm.getData(asarray=True, ftype=self.ftype),
+                    master_bias,
+                    master_dark,
+                    master_flat,
+                    hot_pixels,
+                    debayerize_result=True)
+
+                out_file = os.path.join(
+                    out_path,
+                    "cal-"+os.path.splitext(frm.name)[0])
+
+                out_frm = utils.Frame(out_file)
+
+                header = frm.properties.copy()
+
+                out_frm.saveData(data=img,
+                                 file_name=out_file,
+                                 save_dlg=False,
+                                 force_overwrite=True,
+                                 frmat='fits',
+                                 bits='32',
+                                 dtype='float',
+                                 rgb_fits_mode=True,
+                                 fits_header=header)                    
+        self.unlock()
+
     def saveVideo(self):
         file_name = str(Qt.QFileDialog.getSaveFileName(
             self.wnd, tr.tr("Save the project"),
@@ -5777,9 +5918,8 @@ class theApp(Qt.QObject):
                         master_dark,
                         master_flat,
                         hot_pixels,
-                        debayerize_result=False)
+                        debayerize_result=True)
 
-                    img = self.debayerize(img)
                     img = utils.normToUint8(img, fitlvl).astype(np.uint8)
 
                     _rgb = (len(img.shape) == 3)

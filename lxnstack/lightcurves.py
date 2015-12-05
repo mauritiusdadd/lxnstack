@@ -24,7 +24,10 @@ from itertools import combinations
 
 import plotting
 import numpy as np
+import scipy.optimize as opt
 import astropy.stats as stats
+from astropy.modeling import models, fitting
+import utils
 
 
 PHOTOMETRIC_BANDS = {
@@ -708,3 +711,39 @@ def getInstColor(b1_counts, b2_counts, b1_error, b2_error):
     color_index = np.average(color_index_list, weights=wei)
     color_error = np.sqrt(color_error2.mean())
     return (color_index, color_error)
+
+
+def genStarPSF():
+    # TODO: todo
+    pass 
+
+
+def getStarFWHM(subdata):
+    # Does not work... needs improvements
+    h = subdata.shape[0]
+    w = subdata.shape[1]
+
+    cx = w/2.0
+    cy = h/2.0
+
+    x = np.linspace(0, w, w)
+    y = np.linspace(0, h, h)
+    x, y = np.meshgrid(x, y)
+
+    if len(subdata.shape) > 2:
+        subdata = subdata.max(2)
+
+    submax = np.unravel_index(subdata.argmax(), subdata.shape)
+    off = subdata.min()
+    amp = subdata.max() - off
+    sx = 10
+    sy = 10
+   
+    guess = (amp, submax[1], submax[0], sx, sy, 0, off)
+    print(guess)
+    popt, pcov = opt.curve_fit(utils.gaussian, (x, y), subdata.ravel(), p0=guess)
+
+    popt[1] += w/2
+    popt[2] += h/2
+
+    return popt
