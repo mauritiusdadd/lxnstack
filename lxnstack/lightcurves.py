@@ -25,8 +25,9 @@ from itertools import combinations
 import plotting
 import numpy as np
 import scipy.optimize as opt
-import astropy.stats as stats
-from astropy.modeling import models, fitting
+# import astropy.stats as stats
+import scipy.stats as stats
+# from astropy.modeling import models, fitting
 import utils
 
 
@@ -171,7 +172,10 @@ def getInstMagnitudeADU(star, ndimg=None):
     #     or hot-pixels present in the sky background
     #     (Yeah... not everyone uses calibrated images).
 
-    bkg_adu = stats.sigma_clip(np.array(bkg_adu), 4, axis=0)
+    # TODO: fix here; sigmaclip does not work for RGB and sigma_clip does not
+    #       work well wit monochrome!
+    #bkg_adu = stats.sigma_clip(np.array(bkg_adu), sigma=4, axis=0)
+    bkg_adu = stats.sigmaclip(np.array(bkg_adu), 4, 4)[0]
 
     # val_adu_sigma = np.sqrt(val_adu)
     # bkg_adu_sigma = np.sqrt(bkg_adu)
@@ -715,7 +719,7 @@ def getInstColor(b1_counts, b2_counts, b1_error, b2_error):
 
 def genStarPSF():
     # TODO: todo
-    pass 
+    pass
 
 
 def getStarFWHM(subdata):
@@ -723,8 +727,8 @@ def getStarFWHM(subdata):
     h = subdata.shape[0]
     w = subdata.shape[1]
 
-    cx = w/2.0
-    cy = h/2.0
+    # cx = w/2.0
+    # cy = h/2.0
 
     x = np.linspace(0, w, w)
     y = np.linspace(0, h, h)
@@ -738,11 +742,13 @@ def getStarFWHM(subdata):
     amp = subdata.max() - off
     sx = 10
     sy = 10
-   
+
     guess = (amp, submax[1], submax[0], sx, sy, 0, off)
     print(guess)
-    popt, pcov = opt.curve_fit(utils.gaussian, (x, y), subdata.ravel(), p0=guess)
-
+    popt, pcov = opt.curve_fit(utils.gaussian,
+                               (x, y),
+                               subdata.ravel(),
+                               p0=guess)
     popt[1] += w/2
     popt[2] += h/2
 

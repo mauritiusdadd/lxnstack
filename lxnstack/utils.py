@@ -733,6 +733,11 @@ class Frame(Qt.QObject):
 
     def __init__(self, file_name="", page=0, **args):
         Qt.QObject.__init__(self)
+
+        log.log(repr(self),
+                "creating Frame \'"+file_name+"\'",
+                level=logging.DEBUG)
+
         self.setUrl(file_name, page)
         self.properties = {}
         self.is_good = False
@@ -1849,11 +1854,6 @@ class Frame(Qt.QObject):
         else:
             name = self.url
 
-        if compressed:
-            imgHDU = pyfits.CompImageHDU
-        else:
-            imgHDU = pyfits.ImageHDU
-
         if outbits == 8:
             data = normToUint8(data)
         elif outbits == 16:
@@ -1867,29 +1867,44 @@ class Frame(Qt.QObject):
         # any duplicated key...
         if 'fits_header' in args:
             for k in args['fits_header']:
-                header[k] = args['fits_header'][k]
+                if k not in header:
+                    header[k] = args['fits_header'][k]
+
             # make sure the SWCREATE is always lxnstack
             header['SWCREATE'] = str(paths.PROGRAM_NAME)
-
         if rgb_mode and (len(data.shape) == 3):
             # NOTE: cannot compress primary HDU
+            rgb_fname = name+'-RGB.fits'
             hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
 
-            hdu_r = imgHDU(data[..., 0].copy())
-            hdu_g = imgHDU(data[..., 1].copy())
-            hdu_b = imgHDU(data[..., 2].copy())
+            if compressed:
+                hdu_r = pyfits.CompImageHDU(data[..., 0].copy(),
+                                            compression_type='RICE_1')
+
+                hdu_g = pyfits.CompImageHDU(data[..., 1].copy(),
+                                            compression_type='RICE_1')
+
+                hdu_b = pyfits.CompImageHDU(data[..., 2].copy(),
+                                             compression_type='RICE_1')
+            else:
+                hdu_r = pyfits.ImageHDU(data[..., 0].copy())
+                hdu_g = pyfits.ImageHDU(data[..., 1].copy())
+                hdu_b = pyfits.ImageHDU(data[..., 2].copy())
 
             hdu_r.update_ext_name('RED')
             hdu_g.update_ext_name('GREN')
             hdu_b.update_ext_name('BLUE')
 
             for k in header:
+                key = str(k).upper()
+                if len(key) > 8:
+                    continue
+
                 try:
-                    hdu.header.update(str(k).upper(), header[k], "")
-                    hdu_r.header.update(str(k).upper(), header[k], "")
-                    hdu_g.header.update(str(k).upper(), header[k], "")
-                    hdu_b.header.update(str(k).upper(), header[k], "")
+                    hdu.header[key] = header[k]
                 except ValueError:
+                    continue
+                except TypeError:
                     continue
 
             if outbits == 16:
@@ -1900,14 +1915,20 @@ class Frame(Qt.QObject):
             hdl = pyfits.HDUList([hdu, hdu_r, hdu_g, hdu_b])
 
             log.log(repr(self),
-                    'Saving to '+name+'-RGB.fits',
+                    'Saving to '+rgb_fname,
                     level=logging.INFO)
-            self._fits_secure_imwrite(hdl,
-                                      name+'-RGB.fits',
-                                      force=force_overwrite)
+            # self._fits_secure_imwrite(hdl,
+            #                           rgb_fname,
+            #                           force=force_overwrite)
             log.log(repr(self),
                     hdl.info(),
                     level=logging.INFO)
+
+            del hdl[0].data
+            del hdl[1].data
+            del hdl[2].data
+
+            hdl.close()
 
         elif (len(data.shape) == 3):
             hdl_r = self._get_fits_hdl(name,
@@ -1926,6 +1947,8 @@ class Frame(Qt.QObject):
                     hdl_r.info(),
                     level=logging.INFO)
 
+            hdl_r.close()
+
             hdl_g = self._get_fits_hdl(name,
                                        data[..., 1].copy(),
                                        header,
@@ -1940,6 +1963,8 @@ class Frame(Qt.QObject):
             log.log(repr(self),
                     hdl_g.info(),
                     level=logging.INFO)
+
+            hdl_g.close()
 
             hdl_b = self._get_fits_hdl(name,
                                        data[..., 2].copy(),
@@ -1956,6 +1981,8 @@ class Frame(Qt.QObject):
                     hdl_b.info(),
                     level=logging.INFO)
 
+            hdl_b.close()
+
         elif len(data.shape) <= 2:
             hdl = self._get_fits_hdl(name,
                                      data,
@@ -1965,12 +1992,15 @@ class Frame(Qt.QObject):
             log.log(repr(self),
                     'Saving to '+name+'.fits',
                     level=logging.INFO)
+
             self._fits_secure_imwrite(hdl,
                                       name+'.fits',
                                       force=force_overwrite)
             log.log(repr(self),
                     hdl.info(),
                     level=logging.INFO)
+
+            hdl.close()
         else:
             showErrorMsgBox("unsupported data format!",
                             caller=self)
@@ -1979,11 +2009,13 @@ class Frame(Qt.QObject):
             if compressed:
                 # NOTE: cannot compress primary HDU
                 hdu = pyfits.PrimaryHDU(header=getFitsStdHeader())
-                com = pyfits.ImageHDU(data, header=getFitsStdHeader())
+                com = pyfits.CompImageHDU(data, header=getFitsStdHeader())
                 for k in header:
                     try: 
-                        hdu.header.update(str(k).upper(), header[k], "")
-                        com.header.update(str(k).upper(), header[k], "")
+                        key = str(k).upper()
+                        if len(key) > 8:
+                            continue
+                        hdu.header[key] = header[k]
                     except ValueError:
                         continue
                 if outbits == 16:
@@ -1993,7 +2025,10 @@ class Frame(Qt.QObject):
                 hdu = pyfits.PrimaryHDU(data, header=getFitsStdHeader())
                 for k in header:
                     try:
-                        hdu.header.update(str(k).upper(), header[k], "")
+                        key = str(k).upper()
+                        if len(key) > 8:
+                            continue
+                        hdu.header[key] = header[k]
                     except ValueError:
                         continue
                 if outbits == 16:
@@ -2254,6 +2289,7 @@ class Frame(Qt.QObject):
 
         if frmat == 'fits':
             try:
+                pass
                 return self._imwrite_fits_(data,
                                            rgb_fits_mode,
                                            compressed=fits_compressed,

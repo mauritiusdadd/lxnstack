@@ -407,17 +407,17 @@ class theApp(Qt.QObject):
     def fullyLoaded(self):
         return self._fully_loaded
 
-    # def __reload_modules__(self):
-    #     # debug purpose only
-    #     reload(paths)
-    #     reload(utils)
-    #     reload(styles)
-    #     reload(videocapture)
-    #     reload(imgfeatures)
-    #     reload(guicontrols)
-    #     reload(colormaps)
-    #     reload(translation)
-    #     reload(lightcurves)
+    def __reload_modules__(self):
+         # debug purpose only
+        reload(paths)
+        reload(utils)
+        reload(styles)
+        reload(videocapture)
+        reload(imgfeatures)
+        reload(guicontrols)
+        reload(colormaps)
+        reload(translation)
+        reload(lightcurves)
 
     def checkArguments(self, args):
 
@@ -2987,7 +2987,6 @@ class theApp(Qt.QObject):
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(True)
             self.wnd.fwhmAutoPushButton.setEnabled(True)
-            self.wnd.fwhmDoubleSpinBox.setEnabled(True)
             self.wnd.removeStarPushButton.setEnabled(True)
         else:
             self.wnd.spinBoxXStar.setValue(0)
@@ -3002,7 +3001,6 @@ class theApp(Qt.QObject):
             self.wnd.middleRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.outerRadiusDoubleSpinBox.setEnabled(False)
             self.wnd.fwhmAutoPushButton.setEnabled(False)
-            self.wnd.fwhmDoubleSpinBox.setEnabled(False)
             self.wnd.removeStarPushButton.setEnabled(False)
             self.wnd.photoPropPushButton.setEnabled(False)
         QtGui.QApplication.instance().processEvents()
@@ -3252,7 +3250,7 @@ class theApp(Qt.QObject):
         QtGui.QApplication.instance().processEvents()
 
         self.lock()
-
+        self.progress.reset()
         if 'hotpixel_options' in args:
             hotp_args = args['hotpixel_options']
         else:
@@ -3266,6 +3264,10 @@ class theApp(Qt.QObject):
         master_flat = masters[2]
         hot_pixels = masters[3]
 
+        count = 0
+        total_stars = len(self.framelist)*len(self.framelist[0].stars)
+        self.progress.setMaximum(total_stars-1)
+
         for frm in self.framelist:
             data = self.calibrate(
                 frm.getData(asarray=True, ftype=self.ftype),
@@ -3276,14 +3278,23 @@ class theApp(Qt.QObject):
                 debayerize_result=True)
 
             for st in frm.stars:
+                count += 1
+                self.progress.setValue(count)
                 x, y = st.getAbsolutePosition()
                 r3 = st.r3
-                subr = data[y-r3:y+r3, x-r3:x+r3]
-                submax = np.unravel_index(subr.argmax(), subr.shape)
-                newy = y - r3 + submax[0]
-                newx = x - r3 + submax[1]
-                st.setAbsolutePosition(newx, newy)
-
+                try:
+                    subr = data[y-r3:y+r3, x-r3:x+r3]
+                    submax = np.unravel_index(subr.argmax(), subr.shape)
+                except:
+                    continue
+                else:
+                    log.log(repr(self),
+                            "Adjusting framae {} star {}".format(
+                                frm.name, st.name),
+                            level=logging.DEBUG)
+                    newy = y - r3 + submax[0]
+                    newx = x - r3 + submax[1]
+                    st.setAbsolutePosition(newx, newy)
         self.unlock()
 
     def shiftOffsetX(self, val):
@@ -5628,12 +5639,20 @@ class theApp(Qt.QObject):
                         ref_yerr = refplots[channel].getYError()
 
                         if transf_coeff:
+                            try:
+                                tr_band = self.transf_coeff_table[(band, band)]
+                                tr_c = transf_coeff * tr_band[0]
+                                tr_ce = transf_coeff_err * tr_band[1]
+                            except:
+                                tr_c = transf_coeff
+                                tr_ce = transf_coeff_err
+
                             amag, amag_err = lcurves.ccdTransfSimpyfied(
                                 star_ydat, ref_ydat, magnitude,
                                 star_color_index, ref_color_index,
-                                transf_coeff, star_yerr, ref_yerr, 0,
+                                tr_c, star_yerr, ref_yerr, 0,
                                 star_color_error, ref_color_error,
-                                transf_coeff_err)
+                                tr_ce)
                         else:
                             amag, amag_err = lcurves.ccdTransfSimpyfied2(
                                 star_ydat, ref_ydat, magnitude,
@@ -5779,13 +5798,14 @@ class theApp(Qt.QObject):
 
         self.statusBar.showMessage(tr.tr('Exporting images, please wait...'))
 
+        out_frm = utils.Frame()
         for frm in self.framelist:
             count += 1
             QtGui.QApplication.instance().processEvents()
             self.progress.setValue(count)
 
             if frm.isUsed():
-
+                QtGui.QApplication.instance().processEvents()
                 log.log(repr(self),
                         'using frame '+str(frm.name),
                         level=logging.INFO)
@@ -5802,23 +5822,22 @@ class theApp(Qt.QObject):
                     hot_pixels,
                     debayerize_result=True)
 
+                QtGui.QApplication.instance().processEvents()
                 out_file = os.path.join(
                     out_path,
                     "cal-"+os.path.splitext(frm.name)[0])
 
-                out_frm = utils.Frame(out_file)
-
-                header = frm.properties.copy()
-
                 out_frm.saveData(data=img,
-                                 file_name=out_file,
+                                 filename=out_file,
                                  save_dlg=False,
                                  force_overwrite=True,
                                  frmat='fits',
                                  bits='32',
                                  dtype='float',
                                  rgb_fits_mode=True,
-                                 fits_header=header)                    
+                                 fits_compressed=True,
+                                 fits_header=frm.properties)
+        del out_frm
         self.unlock()
 
     def saveVideo(self):
