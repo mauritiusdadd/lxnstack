@@ -45,7 +45,7 @@
    <item>
     <widget class="QRadioButton" name="alignOnlyRadioButton">
      <property name="text">
-      <string>Aling only</string>
+      <string>Align only</string>
      </property>
     </widget>
    </item>
