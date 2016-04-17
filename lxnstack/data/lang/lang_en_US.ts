@@ -1009,7 +1009,7 @@ If you find a bug in this program, please send me an e-mail and i will try to re
     </message>
     <message>
         <location filename="align_dialog.ui" line="48"/>
-        <source>Aling only</source>
+        <source>Align only</source>
         <translation></translation>
     </message>
     <message>
@@ -1199,7 +1199,7 @@ for temporary files</source>
     </message>
     <message>
         <location filename="option_dialog.ui" line="313"/>
-        <source>Alingment points</source>
+        <source>Alignment points</source>
         <translation></translation>
     </message>
     <message>

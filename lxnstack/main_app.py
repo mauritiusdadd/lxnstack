@@ -2603,17 +2603,17 @@ class theApp(Qt.QObject):
             #       the BGGR model (BG2RGB) must be used.
 
             if bayer == 0:
-                mode = cv2.cv.CV_BayerBG2RGB
+                mode = cv2.COLOR_BAYER_BG2RGB
                 log.log(repr(self),
                         "using bayer matrix RGGB",
                         level=logging.DEBUG)
             elif bayer == 1:
-                mode = cv2.cv.CV_BayerGB2RGB
+                mode = cv2.COLOR_BAYER_GB2RGB
                 log.log(repr(self),
                         "using bayer matrix GRGB",
                         level=logging.DEBUG)
             elif bayer == 2:
-                mode = cv2.cv.CV_BayerRG2RGB
+                mode = cv2.COLOR_BAYER_RG2RGB
                 log.log(repr(self),
                         "using bayer matrix BGGR",
                         level=logging.DEBUG)
@@ -2621,7 +2621,7 @@ class theApp(Qt.QObject):
                 log.log(repr(self),
                         "using bayer matrix GBGR",
                         level=logging.DEBUG)
-                mode = cv2.cv.CV_BayerGR2RGB
+                mode = cv2.COLOR_BAYER_GR2RGB
 
             # TODO: Create a native debayerizing algorithm
 
@@ -5866,7 +5866,7 @@ class theApp(Qt.QObject):
 
         try:
             vw = cv2.VideoWriter(file_name,
-                                 cv2.cv.CV_FOURCC(*fcc_str),
+                                 cv2.FOURCC(*fcc_str),
                                  fps,
                                  size)
         except Exception as exc:

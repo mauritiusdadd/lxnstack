@@ -1008,7 +1008,7 @@ Se trovi un bug in questo programma, per favore segnalamelo inviandomi un e-mail
     </message>
     <message>
         <location filename="align_dialog.ui" line="48"/>
-        <source>Aling only</source>
+        <source>Align only</source>
         <translation>Allinea solamente</translation>
     </message>
     <message>
@@ -1201,7 +1201,7 @@ per i file temporanei</translation>
     </message>
     <message>
         <location filename="option_dialog.ui" line="313"/>
-        <source>Alingment points</source>
+        <source>Alignment points</source>
         <translation>Punti di allineamento</translation>
     </message>
     <message>

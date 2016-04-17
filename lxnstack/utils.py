@@ -550,11 +550,11 @@ class SaveImageDialog(object):
         flags = 0
         if self.save_dlg.radioButtonJpeg.isChecked():
             frmat = 'jpg'
-            flags = (cv2.cv.CV_IMWRITE_JPEG_QUALITY,
+            flags = (cv2.IMWRITE_JPEG_QUALITY,
                      int(self.save_dlg.spinBoxIQ.value()))
         elif self.save_dlg.radioButtonPng.isChecked():
             frmat = 'png'
-            flags = (cv2.cv.CV_IMWRITE_PNG_COMPRESSION,
+            flags = (cv2.IMWRITE_PNG_COMPRESSION,
                      int(self.save_dlg.spinBoxIC.value()))
         elif self.save_dlg.radioButtonTiff.isChecked():
             frmat = 'tiff'
@@ -2972,7 +2972,7 @@ def getDefocusCircleRadius2(img):
     del i
 
     circles = cv2.HoughCircles(c,
-                               cv2.cv.CV_HOUGH_GRADIENT,
+                               cv2.CV_HOUGH_GRADIENT,
                                c.shape[0]/5.0,
                                1,
                                50,
