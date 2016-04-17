@@ -174,6 +174,12 @@ except ImportError:
 
 try:
     import cv2
+    if cv2.__version__[0] == '3':
+        HAS_CV2 = True
+        HAS_CV3 = False
+    else:
+        HAS_CV2 = False
+        HAS_CV3 = True
 except ImportError:
     log.log("<lxnstack.utils module>",
             '\'opencv (cv2)\' python module not found! exiting program.',
@@ -1592,7 +1598,7 @@ class Frame(Qt.QObject):
         elif file_type == 'VIDEO':
             video = cv2.VideoCapture(file_name)
             s = video.read()
-            total_frames = video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+            total_frames = video.get(cv2.CAP_PROP_FRAME_COUNT)
             if not s[0]:
                 log.log(repr(self),
                         "the video file is corrupted or " +
@@ -1650,8 +1656,8 @@ class Frame(Qt.QObject):
                 if only_sizes:
                     return True
                 else:
-                    video.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, page)
-                    time_offset = video.get(cv2.cv.CV_CAP_PROP_POS_MSEC)/1000.0
+                    video.set(cv2.CAP_PROP_POS_FRAMES, page)
+                    time_offset = video.get(cv2.CAP_PROP_POS_MSEC)/1000.0
                     ctime = getCreationTime(file_name)+time_offset
 
                     img = bgr2rgb(video.read()[1])

@@ -2546,8 +2546,8 @@ class Cv2VideoDevice(GenericVideoDevice):
         return getV4L2Format(self._filename)
 
     def setPixelFormat(self, fmt):
-        _4CC = cv2.cv.FOURCC(*list(fmt[0:4]))
-        if self._device.set(cv2.cv.CV_CAP_PROP_FOURCC, _4CC):
+        _4CC = cv2.FOURCC(*list(fmt[0:4]))
+        if self._device.set(cv2.CAP_PROP_FOURCC, _4CC):
             return True
 
         if not setV4L2Format(self._filename, 'pixelformat='+str(fmt)):
@@ -2573,7 +2573,7 @@ class Cv2VideoDevice(GenericVideoDevice):
 
     def getFrameRate(self):
         # NOTE: *very* often the function get is broken!
-        val = self._device.get(cv2.cv.CV_CAP_PROP_FPS)
+        val = self._device.get(cv2.CAP_PROP_FPS)
 
         if val > 0:
             return val
@@ -2598,7 +2598,7 @@ class Cv2VideoDevice(GenericVideoDevice):
 
     def setFrameRate(self, fps):
         # NOTE: *very* often the function get is broken!
-        if self._device.set(cv2.cv.CV_CAP_PROP_FPS, fps):
+        if self._device.set(cv2.CAP_PROP_FPS, fps):
             return True
 
         try:
